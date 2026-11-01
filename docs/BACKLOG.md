@@ -155,7 +155,11 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Limitation `DEFAULT_WEIGHTS`, unsafe for protection (never `clear`).
   - Setting `defaults.enabled` (on).
   - Rescale the per-1 % stats after GG-103.
-- **Deps.** The owner's numbers; GG-103 for the units.
+  - Only tokens the scorer reads today. School-specific spell damage weights (the second table in
+    research/default-weights.md) wait for GG-103 to map their client keys and for the scorer to
+    read them.
+- **Deps.** The owner's numbers; GG-103 for the rating units **and** the school-specific spell
+  damage keys.
 - **Acceptance.** An import replaces the default; a default-based `no_upgrade` never gives `clear`;
   rows carry the tag.
 - **Validation:** auto, game (P6).

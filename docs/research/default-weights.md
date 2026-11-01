@@ -136,7 +136,7 @@ Notes for every row:
 | `WARRIOR.FURY` | Strength 1, Agility 0.6, Ap 0.5, HitRating† 12, CritRating† 10, MeleeDps 3, Stamina 0.1 | As Arms; dual wield misses more, so hit a little higher |
 | `WARRIOR.PROTECTION` | Stamina 1, DefenseRating 1, DodgeRating† 12, ParryRating† 12, BlockRating† 6, BlockValue 0.2, Armor 0.02, Strength 0.3, Agility 0.5, HitRating† 4 | Survival first; hit for threat |
 | `PALADIN.HOLY` | Healing 1, Intellect 0.9, Mp5 1.5, CritRating† 8, Spirit 0.2, Stamina 0.1 | Intellect carries mana and spell crit; Spirit is weak for paladins |
-| `PALADIN.PROTECTION` | Stamina 1, DefenseRating 1, BlockValue 0.3, BlockRating† 6, Armor 0.02, SpellDamage 0.4, HolySpellDamage 0.4, Strength 0.3, Agility 0.4, Intellect 0.3 | Survival; spell damage feeds Holy threat |
+| `PALADIN.PROTECTION` | Stamina 1, DefenseRating 1, BlockValue 0.3, BlockRating† 6, Armor 0.02, SpellDamage 0.4, Strength 0.3, Agility 0.4, Intellect 0.3 | Survival; spell damage feeds Holy threat |
 | `PALADIN.RETRIBUTION` | Strength 1, Agility 0.5, Ap 0.5, HitRating† 10, CritRating† 10, MeleeDps 3, Intellect 0.2, Stamina 0.1 | Two-hander melee; a little mana |
 | `HUNTER.BEAST_MASTERY` | Agility 1, Rap 0.5, HitRating† 12, CritRating† 10, RangedDps 2.5, Intellect 0.2, Stamina 0.1 | Agility gives ranged AP and crit; ranged weapon DPS |
 | `HUNTER.MARKSMANSHIP` | same as Beast Mastery | Same stats; tune separately if wanted |
@@ -146,22 +146,44 @@ Notes for every row:
 | `ROGUE.SUBTLETY` | same as Assassination | |
 | `PRIEST.DISCIPLINE` | Healing 1, Intellect 0.7, Spirit 0.5, Mp5 1.2, CritRating† 6, Stamina 0.1 | Mana pool and regeneration |
 | `PRIEST.HOLY` | Healing 1, Intellect 0.6, Spirit 0.7, Mp5 1.2, CritRating† 6, Stamina 0.1 | Spirit matters more for Holy |
-| `PRIEST.SHADOW` | SpellDamage 1, ShadowSpellDamage 1, HitRating† 10, Intellect 0.3, Spirit 0.2, Stamina 0.1 | No crit: on Classic-era rules shadow spells don't crit (check on Forever) |
-| `SHAMAN.ELEMENTAL` | SpellDamage 1, NatureSpellDamage 1, FireSpellDamage 0.2, HitRating† 10, CritRating† 8, Intellect 0.4, Mp5 1, Stamina 0.1 | Lightning is nature |
+| `PRIEST.SHADOW` | SpellDamage 1, HitRating† 10, Intellect 0.3, Spirit 0.2, Stamina 0.1 | No crit: on Classic-era rules shadow spells don't crit (check on Forever) |
+| `SHAMAN.ELEMENTAL` | SpellDamage 1, HitRating† 10, CritRating† 8, Intellect 0.4, Mp5 1, Stamina 0.1 | Lightning is nature: its school weight comes after GG-103 |
 | `SHAMAN.ENHANCEMENT` | Strength 1, Agility 0.6, Ap 0.5, HitRating† 10, CritRating† 10, MeleeDps 3, Intellect 0.2, Stamina 0.1 | Two-hander melee |
 | `SHAMAN.RESTORATION` | Healing 1, Intellect 0.6, Mp5 1.5, Spirit 0.2, CritRating† 6, Stamina 0.1 | Mp5 over Spirit |
-| `MAGE.ARCANE` | SpellDamage 1, ArcaneSpellDamage 1, HitRating† 12, CritRating† 8, Intellect 0.4, Spirit 0.1, Stamina 0.05 | Own school counts like generic spell damage |
-| `MAGE.FIRE` | SpellDamage 1, FireSpellDamage 1, HitRating† 12, CritRating† 8, Intellect 0.4, Spirit 0.1, Stamina 0.05 | |
-| `MAGE.FROST` | SpellDamage 1, FrostSpellDamage 1, HitRating† 12, CritRating† 8, Intellect 0.4, Spirit 0.1, Stamina 0.05 | |
-| `WARLOCK.AFFLICTION` | SpellDamage 1, ShadowSpellDamage 1, HitRating† 12, CritRating† 2, Intellect 0.3, Stamina 0.2 | Damage over time barely crits; Stamina feeds Life Tap |
-| `WARLOCK.DEMONOLOGY` | SpellDamage 1, ShadowSpellDamage 1, HitRating† 12, CritRating† 5, Intellect 0.3, Stamina 0.3 | Stamina a little higher (Demonic Embrace) |
-| `WARLOCK.DESTRUCTION` | SpellDamage 1, ShadowSpellDamage 1, FireSpellDamage 0.3, HitRating† 12, CritRating† 8, Intellect 0.3, Stamina 0.2 | Shadow Bolt first |
-| `DRUID.BALANCE` | SpellDamage 1, ArcaneSpellDamage 0.5, NatureSpellDamage 0.5, HitRating† 10, CritRating† 8, Intellect 0.4, Spirit 0.2, Stamina 0.1 | Starfire is arcane, Wrath is nature |
+| `MAGE.ARCANE` | SpellDamage 1, HitRating† 12, CritRating† 8, Intellect 0.4, Spirit 0.1, Stamina 0.05 | |
+| `MAGE.FIRE` | SpellDamage 1, HitRating† 12, CritRating† 8, Intellect 0.4, Spirit 0.1, Stamina 0.05 | |
+| `MAGE.FROST` | SpellDamage 1, HitRating† 12, CritRating† 8, Intellect 0.4, Spirit 0.1, Stamina 0.05 | |
+| `WARLOCK.AFFLICTION` | SpellDamage 1, HitRating† 12, CritRating† 2, Intellect 0.3, Stamina 0.2 | Damage over time barely crits; Stamina feeds Life Tap |
+| `WARLOCK.DEMONOLOGY` | SpellDamage 1, HitRating† 12, CritRating† 5, Intellect 0.3, Stamina 0.3 | Stamina a little higher (Demonic Embrace) |
+| `WARLOCK.DESTRUCTION` | SpellDamage 1, HitRating† 12, CritRating† 8, Intellect 0.3, Stamina 0.2 | Shadow Bolt first: school weights after GG-103 |
+| `DRUID.BALANCE` | SpellDamage 1, HitRating† 10, CritRating† 8, Intellect 0.4, Spirit 0.2, Stamina 0.1 | Starfire is arcane, Wrath is nature: school weights after GG-103 |
 | `DRUID.FERAL_TANK` | Stamina 1, Armor 0.05, Agility 0.7, DodgeRating† 12, DefenseRating 1, Strength 0.4, FeralAp 0.2, Ap 0.2, HitRating† 4 | Bear form multiplies armor, so it counts more than for plate tanks |
 | `DRUID.FERAL_CAT` | Strength 1, Agility 1, Ap 0.5, FeralAp 0.5, HitRating† 12, CritRating† 10, Stamina 0.1 | No weapon DPS: forms ignore it |
 | `DRUID.RESTORATION` | Healing 1, Intellect 0.6, Spirit 0.6, Mp5 1.2, Stamina 0.1 | Mostly heals over time, so crit is left out |
 
-Every token above is in Glass Gear's list (`Data/Stats.lua:18-33`).
+Every token above is one Glass Gear **scores** today (`docs/FORMATS.md`, status *supported* or
+*derived*), not merely one it accepts. Mp5, SpellDamage and Healing still have their client keys
+confirmed by GG-103.
+
+### School-specific spell damage: after GG-103
+
+Items such as "+20 Shadow Spell Damage" carry school-specific bonuses. `Data/Stats.lua` accepts the
+Pawn tokens (`ShadowSpellDamage`, …), but no `GetItemStats` key is mapped to them yet: they are
+*reported-unsupported* (`docs/FORMATS.md:124`). A weight on them would score nothing and only
+produce `TOKEN_NOT_SCORED` notes. So they are **left out of the starting defaults** and added only
+once GG-103 has found the client keys and the scorer reads them:
+
+| Spec key | School weights to add after GG-103 |
+|---|---|
+| `PALADIN.PROTECTION` | HolySpellDamage 0.4 |
+| `PRIEST.SHADOW`, `WARLOCK.AFFLICTION`, `WARLOCK.DEMONOLOGY` | ShadowSpellDamage 1 |
+| `WARLOCK.DESTRUCTION` | ShadowSpellDamage 1, FireSpellDamage 0.3 |
+| `SHAMAN.ELEMENTAL` | NatureSpellDamage 1, FireSpellDamage 0.2 |
+| `MAGE.ARCANE` / `MAGE.FIRE` / `MAGE.FROST` | ArcaneSpellDamage 1 / FireSpellDamage 1 / FrostSpellDamage 1 |
+| `DRUID.BALANCE` | ArcaneSpellDamage 0.5, NatureSpellDamage 0.5 |
+
+Until then, a school-specific item shows its unscored stat in the tooltip ("Not scored: …"), so
+the gap is visible rather than silent (tooltip notes, GG-107 / PR #33).
 
 ## Consequences for the code (follow-up GG-120)
 
