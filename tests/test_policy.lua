@@ -110,6 +110,12 @@ H.eq(P.Protection({ res("no_upgrade", { limitations = { "EFFECT_NOT_SCORED" } })
 H.eq(P.Protection({ res("no_upgrade", { limitations = { "SET_BONUS_LOST:500:2" } }) }).verdict,
     "unknown", "breaking a set bonus can't confirm safety")
 H.eq(P.Protection({ later }).verdict, "protect", "level-window upgrade is kept for later")
+H.eq(P.Protection({ res("no_upgrade", { limitations = { "WEIGHT_MISSING:Healing" } }) }).verdict,
+    "unknown", "a missing WoWSims weight can't confirm safety")
+H.eq(P.Protection({ res("no_upgrade", { limitations = { "BASELINE_EFFECT_NOT_SCORED" } }) }).verdict,
+    "unknown", "an unscored effect on the replaced item can't confirm safety")
+H.eq(P.Protection({ res("no_upgrade", { baseline = { source = "observed", complete = true, maybeBehind = true } }) }).verdict,
+    "unknown", "a remote baseline that may be behind can't confirm safety")
 H.eq(P.Protection({ res("unsupported") }).verdict, "unsupported", "unsupported keeps (consumer fails closed)")
 H.eq(P.Protection({}).verdict, "unknown", "no targets: never clear")
 local pv = P.Protection({ no, noW })

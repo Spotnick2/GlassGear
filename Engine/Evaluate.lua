@@ -64,6 +64,7 @@ local function eligibility(input, res)
     local ok, why, learnAt = Classes.CanUse(r.class, r.level, item, r.knownArmor)
     if not ok then
         add(res.eligibility.reasons, why)
+        if learnAt then res.eligibility.atLevel = learnAt end
         return "ineligible"
     end
     -- The level at which the character could equip it: item level requirement,
@@ -73,11 +74,8 @@ local function eligibility(input, res)
 
     if s.specArmor and item.classID == 4 and BODY_ARMOR[item.subclassID]
         and item.equipLoc ~= "INVTYPE_CLOAK" then
-        local allowed = (input.profile and input.profile.armor)
-        if not allowed then
-            local spec = Classes.Spec(input.spec)
-            allowed = spec and spec.armor
-        end
+        local allowed = Classes.AllowedArmor(input.spec, input.profile and input.profile.armor,
+            r.class, r.level, r.knownArmor)
         if allowed then
             local found = false
             for _, a in ipairs(allowed) do if a == item.subclassID then found = true end end
@@ -136,13 +134,17 @@ function Evaluate.One(input)
 
     -- Limitations that do not stop scoring.
     for _, key in ipairs(item.unsupported or {}) do add(res.limitations, "UNSUPPORTED_STAT:" .. key) end
-    for _, token in ipairs(Stats.UnscoredTokens(profile)) do add(res.limitations, "TOKEN_NOT_SCORED:" .. token) end
+    for _, token in ipairs(Stats.UnscoredTokens(profile, item)) do add(res.limitations, "TOKEN_NOT_SCORED:" .. token) end
+    for _, token in ipairs(profile.missing or {}) do
+        if item.tokens and (item.tokens[token] or 0) ~= 0 then add(res.limitations, "WEIGHT_MISSING:" .. token) end
+    end
     if item.hasSpell then add(res.limitations, "EFFECT_NOT_SCORED") end
 
     local cand = Score.Compute(item.tokens, profile)
     if cand.ignoredHit then
         res.status = "ineligible"
-        add(res.eligibility.reasons, "IGNORED_STAT:" .. cand.ignoredHit)
+        local kind = cand.ignoredHit:match("^Is%u") and "IGNORED_TYPE:" or "IGNORED_STAT:"
+        add(res.eligibility.reasons, kind .. cand.ignoredHit)
         return res
     end
     if cand.noSupported then add(res.limitations, "NO_SUPPORTED_STATS") end
@@ -175,11 +177,16 @@ function Evaluate.One(input)
     local companion
     if input.companion then
         companion = {}
+        local r = input.recipient or {}
         for s, c in pairs(input.companion) do
-            local copy = {}
-            for k, v in pairs(c) do copy[k] = v end
-            copy.score = c.tokens and Score.Compute(c.tokens, profile).score or 0
-            companion[s] = copy
+            -- A companion must be usable by this character; without its data it can't count.
+            local okUse = c.classID == nil or Classes.CanUse(r.class, r.level, c, r.knownArmor)
+            if okUse then
+                local copy = {}
+                for k, v in pairs(c) do copy[k] = v end
+                copy.score = c.tokens and Score.Compute(c.tokens, profile).score or nil
+                companion[s] = copy
+            end
         end
     end
     local best = SlotCompare.Best(candidate, slots, {
@@ -198,14 +205,29 @@ function Evaluate.One(input)
     res.replaces = { slots = best.slots, items = {} }
     for _, d in ipairs(best.displaced) do add(res.replaces.items, d.itemString) end
 
-    -- Set bonuses on the resulting configuration.
-    if item.setID or #best.displaced > 0 then
+    -- What the displaced items (and a companion) carry that the score can't see.
+    local involved = {}
+    for _, d in ipairs(best.displaced) do involved[#involved + 1] = d end
+    if best.companion then involved[#involved + 1] = best.companion end
+    for _, d in ipairs(involved) do
+        if d.hasSpell then add(res.limitations, "BASELINE_EFFECT_NOT_SCORED") end
+        for _, key in ipairs(d.unsupported or {}) do add(res.limitations, "BASELINE_UNSUPPORTED_STAT:" .. key) end
+    end
+
+    -- Set bonuses: thresholds gained/lost, and any touched set without data.
+    local thresholds = input.setThresholds or GG.Data.ItemSets
+    local touched = {}
+    if item.setID then touched[item.setID] = true end
+    for _, d in ipairs(involved) do if d.setID then touched[d.setID] = true end end
+    if next(touched) then
         local before = {}
         for _, b in pairs(slots) do if b.state == "occupied" then add(before, b) end end
-        local diff = SetBonus.Diff(before, best.result, input.setThresholds or GG.Data.ItemSets)
+        local diff = SetBonus.Diff(before, best.result, thresholds)
         for _, g in ipairs(diff.gained) do add(res.limitations, "SET_BONUS_GAINED:" .. g.setID .. ":" .. g.pieces) end
         for _, l in ipairs(diff.lost) do add(res.limitations, "SET_BONUS_LOST:" .. l.setID .. ":" .. l.pieces) end
-        if #diff.unknownSets > 0 then add(res.limitations, "SET_BONUS_NOT_SCORED") end
+        local unknown = false
+        for setID in pairs(touched) do if not thresholds[setID] then unknown = true end end
+        if unknown then add(res.limitations, "SET_BONUS_NOT_SCORED") end
     end
 
     local pct

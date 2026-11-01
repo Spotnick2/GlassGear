@@ -15,7 +15,7 @@ GG.Data.Stats = Stats
 
 -- Every token Glass Gear accepts in a profile (Pawn's Forever set).
 Stats.TOKENS = {}
-for _, t in ipairs({
+Stats.ORDER = {     -- the export order (FORMATS.md: "in the order of the token table")
     "Strength", "Agility", "Stamina", "Intellect", "Spirit", "Armor",
     "HitRating", "CritRating", "HasteRating", "ExpertiseRating", "SpellPenetration",
     "Ap", "Rap", "FeralAp", "SpellDamage", "Healing",
@@ -36,7 +36,8 @@ for _, t in ipairs({
     "IsAxe", "Is2HAxe", "IsBow", "IsCrossbow", "IsDagger", "IsFist", "IsGun",
     "IsMace", "Is2HMace", "IsPolearm", "IsRelic", "IsStaff", "IsSword", "Is2HSword",
     "IsThrown", "IsWand", "IsOffHand", "IsFrill",
-}) do Stats.TOKENS[t] = true end
+}
+for _, t in ipairs(Stats.ORDER) do Stats.TOKENS[t] = true end
 
 -- GetItemStats key -> the tokens it feeds.
 Stats.ITEM_MOD = {
@@ -122,12 +123,25 @@ function Stats.FromItemStats(raw, facts)
     return out, unsupported
 end
 
--- Profile tokens that carry a weight but are never scored (TOKEN_NOT_SCORED).
-function Stats.UnscoredTokens(profile)
-    local out = {}
-    for token, w in pairs(profile and profile.weights or {}) do
-        if w ~= 0 and Stats.STATUS[token] == "reported-unsupported" then out[#out + 1] = token end
+-- Tokens that only exist on weapons: an unscored one matters only for weapons.
+local WEAPON_ONLY = {}
+for _, t in ipairs({ "Speed", "MinDamage", "MaxDamage", "SpeedBaseline" }) do WEAPON_ONLY[t] = true end
+for _, part in ipairs({ "Melee", "Ranged", "MainHand", "OffHand", "OneHand", "TwoHand" }) do
+    for _, suffix in ipairs({ "Dps", "MinDamage", "MaxDamage", "Speed" }) do WEAPON_ONLY[part .. suffix] = true end
+end
+
+-- Profile tokens (weighted or X) that are never scored and that could matter
+-- for this item: TOKEN_NOT_SCORED limitations (FORMATS.md, adr/0003).
+function Stats.UnscoredTokens(profile, facts)
+    local out, seen = {}, {}
+    local function consider(token)
+        if seen[token] or Stats.STATUS[token] ~= "reported-unsupported" then return end
+        if WEAPON_ONLY[token] and not (facts and facts.classID == 2) then return end
+        seen[token] = true
+        out[#out + 1] = token
     end
+    for token, w in pairs(profile and profile.weights or {}) do if w ~= 0 then consider(token) end end
+    for token in pairs(profile and profile.ignored or {}) do consider(token) end
     table.sort(out)
     return out
 end

@@ -54,14 +54,25 @@ end
 function handlers.ACTIVE_TALENT_GROUP_CHANGED()
     if GG.player then
         GG.ResolveSpec()
-        GG.Callbacks.Fire("EvaluationInvalidated", { reason = "spec" })
+        GG.API._Invalidate("spec", { GG.player.key })
     end
 end
+
+-- Level, proficiencies and dual wield change evaluation inputs: refresh them.
+local function refreshPlayer(reason, level)
+    if not GG.player then return end
+    GG.player = GG.Compat.Player()
+    if level then GG.player.level = level end   -- UnitLevel can lag PLAYER_LEVEL_UP
+    GG.API._Invalidate(reason, { GG.player.key })
+end
+function handlers.PLAYER_LEVEL_UP(level) refreshPlayer("level", level) end
+function handlers.SKILL_LINES_CHANGED() refreshPlayer("skills") end
+function handlers.SPELLS_CHANGED() refreshPlayer("spells") end
 
 function handlers.PLAYER_EQUIPMENT_CHANGED()
     if GG.player then
         GG.Callbacks.Fire("EquipmentChanged", { charKeys = { GG.player.key } })
-        GG.Callbacks.Fire("EvaluationInvalidated", { reason = "equipment" })
+        GG.API._Invalidate("equipment", { GG.player.key })
     end
 end
 
@@ -70,8 +81,8 @@ function GG.StartTick()
     if not ticking then ticking = true; C_Timer.After(1, tick) end
 end
 
-local function itemArrived(itemID)
-    if GG.player and itemID then GG.API._ItemDataArrived(itemID) end
+local function itemArrived(itemID, success)
+    if GG.player and itemID then GG.API._ItemDataArrived(itemID, success) end
 end
 handlers.GET_ITEM_INFO_RECEIVED = itemArrived
 handlers.ITEM_DATA_LOAD_RESULT = itemArrived

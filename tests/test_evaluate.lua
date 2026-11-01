@@ -128,8 +128,61 @@ local trinket = F.item({ itemID = 80, equipLoc = "INVTYPE_TRINKET", classID = 4,
 r = eval({ item = trinket, profile = F.shadow, baseline = F.baseline() })
 H.check(H.has(r.limitations, "EFFECT_NOT_SCORED"), "proc/use trinket: effect not scored")
 H.check(H.has(r.limitations, "NO_SUPPORTED_STATS"), "...and no supported stats: not a modelled zero")
-r = eval({ profile = { weights = { Intellect = 1, Speed = 2 }, ignored = {} } })
-H.check(H.has(r.limitations, "TOKEN_NOT_SCORED:Speed"), "weighted token that is never scored is listed")
+r = eval({ profile = { weights = { Intellect = 1, FireSpellDamage = 2 }, ignored = {} } })
+H.check(H.has(r.limitations, "TOKEN_NOT_SCORED:FireSpellDamage"), "weighted token that is never scored is listed")
+
+-- WoWSims missing weights: an item with that stat gets WEIGHT_MISSING.
+local wowsims = { weights = { Intellect = 1 }, ignored = {}, missing = { "Healing" } }
+local healer = F.item(armor({ itemID = 81, stats = { ITEM_MOD_INTELLECT_SHORT = 9, ITEM_MOD_SPELL_HEALING_DONE_SHORT = 100 } }))
+r = eval({ item = healer, profile = wowsims, spec = "PRIEST.HOLY" })
+H.check(H.has(r.limitations, "WEIGHT_MISSING:Healing"), "missing weight on a stat the item has")
+local intOnly = F.item(armor({ itemID = 91, stats = { ITEM_MOD_INTELLECT_SHORT = 20 } }))
+r = eval({ item = intOnly, profile = wowsims })
+H.check(not H.has(r.limitations, "WEIGHT_MISSING:Healing"), "...but not when the item lacks that stat")
+
+-- X on a type token: IGNORED_TYPE.
+r = eval({ profile = { weights = F.shadow.weights, ignored = { IsCloth = true } } })
+H.check(H.has(r.eligibility.reasons, "IGNORED_TYPE:IsCloth"), "X on IsCloth -> IGNORED_TYPE")
+
+-- Class gate details: untrained proficiency, relics, plate-spec mail after 40.
+local paladin60 = { key = "G-P", class = "PALADIN", level = 60, provenance = "self", knownArmor = { [1] = true, [2] = true, [3] = true } }
+r = eval({ item = plate, recipient = paladin60, spec = "PALADIN.PROTECTION", profile = palProt, baseline = palBase })
+H.eq(r.status, "ineligible", "level 60 without plate trained: not an upgrade now")
+H.check(H.has(r.eligibility.reasons, "NEEDS_TRAINING"), "NEEDS_TRAINING, not LATER_LEVEL")
+local libram = F.item({ itemID = 82, equipLoc = "INVTYPE_RELIC", classID = 4, subclassID = 7, stats = { ITEM_MOD_STAMINA_SHORT = 5 } })
+r = eval({ item = libram, recipient = { key = "G-M", class = "MAGE", level = 60, provenance = "self" },
+    spec = "MAGE.FROST", profile = F.shadow, baseline = F.baseline() })
+H.eq(r.status, "ineligible", "a mage never gets a libram")
+H.check(H.has(r.eligibility.reasons, "PROFICIENCY"), "relic class restriction")
+local mail = F.item(armor({ itemID = 83, subclassID = 3, stats = { ITEM_MOD_STAMINA_SHORT = 40 } }))
+r = eval({ item = mail, recipient = F.paladin, spec = "PALADIN.PROTECTION", profile = palProt, baseline = palBase })
+H.check(H.has(r.eligibility.reasons, "NOT_SPEC_ARMOR"), "level-60 Protection Paladin: mail no longer a spec armor type")
+local young = { key = "G-Y", class = "PALADIN", level = 30, provenance = "self" }
+local mail30 = F.item(armor({ itemID = 84, subclassID = 3, reqLevel = 28, stats = { ITEM_MOD_STAMINA_SHORT = 40 } }))
+r = eval({ item = mail30, recipient = young, spec = "PALADIN.PROTECTION", profile = palProt, baseline = palBase })
+H.eq(r.status, "upgrade", "before plate, mail is a Protection armor type")
+
+-- Weapons: off-hand weapon without dual wield; companion legality and data.
+local ohWeapon = F.item({ itemID = 85, equipLoc = "INVTYPE_WEAPONOFFHAND", classID = 2, subclassID = 15, stats = { ITEM_MOD_AGILITY_SHORT = 10 } })
+local rogue = { key = "G-R", class = "ROGUE", level = 60, provenance = "self", canDualWield = false }
+local rogueProf = { weights = { Agility = 1 }, ignored = {} }
+r = eval({ item = ohWeapon, recipient = rogue, spec = "ROGUE.COMBAT", profile = rogueProf, baseline = F.baseline() })
+H.eq(r.status, "ineligible", "off-hand weapon needs dual wield")
+local staff = F.slot({ itemID = 86, equipLoc = "INVTYPE_2HWEAPON", classID = 2, subclassID = 10, stats = { ITEM_MOD_INTELLECT_SHORT = 30 } })
+local wandBase = F.baseline({ [16] = staff })
+local dagger = F.item({ itemID = 87, equipLoc = "INVTYPE_WEAPONMAINHAND", classID = 2, subclassID = 15, stats = { ITEM_MOD_INTELLECT_SHORT = 20 } })
+local twoHandCompanion = F.slot({ itemID = 88, equipLoc = "INVTYPE_2HWEAPON", classID = 2, subclassID = 10, stats = { ITEM_MOD_INTELLECT_SHORT = 30 } })
+r = eval({ item = dagger, profile = F.shadow, baseline = wandBase, companion = { [17] = twoHandCompanion } })
+H.check(r.status ~= "upgrade", "a two-hander can't be the off-hand companion")
+local book = { state = "occupied", itemID = 89, equipLoc = "INVTYPE_HOLDABLE", classID = 4, subclassID = 0 }
+r = eval({ item = dagger, profile = F.shadow, baseline = wandBase, companion = { [17] = book } })
+H.eq(r.status, "unknown", "companion without item data: unknown, not zero")
+
+-- Limitations of the items being replaced travel with the result.
+local procBase = F.baseline({ [3] = (function() local x = F.slot(armor({ itemID = 90,
+    stats = { ITEM_MOD_INTELLECT_SHORT = 8 } })); x.hasSpell = true; return x end)() })
+r = eval({ profile = F.shadow, baseline = procBase })
+H.check(H.has(r.limitations, "BASELINE_EFFECT_NOT_SCORED"), "replaced item's unscored effect is reported")
 
 -- Enchants are compared symmetrically: Compat strips them from both sides,
 -- so an enchanted baseline item scores as its base item.
@@ -148,6 +201,9 @@ r = eval({ item = third, profile = F.shadow, baseline = setBase, setThresholds =
 H.check(H.has(r.limitations, "SET_BONUS_GAINED:500:3"), "a third piece completes the 3-piece bonus")
 r = eval({ item = third, profile = F.shadow, baseline = setBase })
 H.check(H.has(r.limitations, "SET_BONUS_NOT_SCORED"), "no threshold data -> SET_BONUS_NOT_SCORED")
+local samePiece = F.item(armor({ itemID = 94, setID = 500, stats = { ITEM_MOD_INTELLECT_SHORT = 40 } }))
+r = eval({ item = samePiece, profile = F.shadow, baseline = setBase })
+H.check(H.has(r.limitations, "SET_BONUS_NOT_SCORED"), "swapping within an unmodelled set still warns")
 
 -- Baseline flags travel into reasons.
 r = eval({ profile = F.shadow, baseline = F.baseline({ [3] = equippedShoulder }, { stale = true, source = "fallback-current" }) })

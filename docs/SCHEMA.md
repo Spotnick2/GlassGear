@@ -19,7 +19,8 @@ GlassGearDB = {
     ["<entryId>"] = {
       id = "<guid>:PRIEST.SHADOW:<uuid>", kind = "profile" | "baseline",
       version = "<writer>:<seq>", ancestors = { "<v>", ... },  -- at most 20
-      deleted = nil | true, conflict = nil | "<rootId>",
+      deleted = nil | true,
+      conflict = nil | { of = "<rootId>", from = "<label>", deletion = true|nil, retired = true|nil },
       provenance = "self" | "own-account",
       data = { ... },              -- per kind, below
     },
@@ -48,41 +49,68 @@ GlassGearChar = {
 ```lua
 { specKey = "PRIEST.SHADOW", name = "Raid", source = "imported-pawn", origin = "Karuzo - Shadow - Raid",
   updatedAt = 1793500000, weights = { Intellect = 0.42, SpellDamage = 1.0, CritRating = 0.68 },
-  ignored = { Spirit = true } }      -- Pawn "X"
+  ignored = { Spirit = true },          -- Pawn "X"
+  ignoredTokens = { Mana = "7" },       -- unknown Pawn pairs, kept so they round-trip on export
+  missing = { "HitRating", ... },       -- WoWSims-dropped stats: missing, not zero (WEIGHT_MISSING)
+  armor = { 1, 4 } | nil }              -- the profile's own allowed armor types (nil = spec default)
 ```
 
 **Baseline** (`kind = "baseline"`):
 
 ```lua
 { specKey = "PRIEST.HOLY", source = "observed" | "equipment-set" | "fallback-current",
-  capturedAt = 1793500000,
+  capturedAt = 1793500000, group = 1 | 2 | nil,   -- the spec group it was captured in
   slots = { [1] = { state = "occupied", item = "19019:0:0" }, [2] = { state = "empty" }, [3] = { state = "unknown" }, ... } }
 ```
 
 ## Wire codec `GG1` (one entry per line)
 
 ```
-GG1|<kind p|b>|<id>|<version>|<ancestors comma-separated>|<flags d,c>|<payload>
+GG1|<kind p|b>|<id>|<version>|<ancestors comma-separated>|<flags>|<payload>
 ```
 
-**Escaping.** `\` becomes `\\`, `|` becomes `\p`, and a newline becomes `\n`. No raw newline is ever
-emitted.
+**Flags** (a comma list):
+
+| Flag | Meaning |
+|---|---|
+| `d` | deleted |
+| `c<rootId>` | conflict copy of that root |
+| `x` | deletion conflict: the other side deleted the entry |
+| `r` | retired copy |
+
+- A deleted entry or a deletion conflict has an empty payload.
+- Any other flag is `bad-entry`.
+
+**Escaping.**
+
+| Character | Written as |
+|---|---|
+| `\` | `\\` |
+| `\|` | `\p` |
+| newline | `\n` |
+| `;` | `\s` |
+| `,` | `\c` |
+| `=` | `\e` |
+
+No raw newline is ever emitted.
 
 **Profile payload:**
 
 ```
-<specKey>;<name>;<source>;<updatedAt base36>;<token>=<weight>,...;<ignored tokens>
+<specKey>;<name>;<origin>;<source>;<updatedAt base36>;<token>=<weight>,...;<X tokens>;<unknown>=<value>,...;<missing tokens>;a<armor ids>
 ```
 
-A weight is written with 3 decimals and clamped to [-999.999, 999.999].
+- A weight is written with up to 3 decimals.
+- A weight outside [-999.999, 999.999], or a malformed number, is `bad-entry`. It is never clamped.
 
 **Baseline payload:**
 
 ```
-<specKey>;<source>;<capturedAt base36>;<slot>:<o|e|u>:<id>:<enchant>:<suffix>,...
+<specKey>;<source>;<capturedAt base36>;<group>;<slot>:<o|e|u>[:<id>:<enchant>:<suffix>],...
 ```
 
-The occupancy codes are `o` occupied, `e` empty and `u` unknown.
+- The occupancy codes are `o` occupied, `e` empty and `u` unknown.
+- Slots must be gear slots (1–3, 5–18), each listed once.
 
 **Decoding.**
 

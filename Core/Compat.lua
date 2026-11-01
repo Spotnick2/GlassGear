@@ -33,18 +33,19 @@ end
 
 -- Everything the engine needs about an item link. ready=false on a cache miss
 -- (GetItemInfo or GetItemStats returning nothing) - a pending result, never 0.
+-- It never requests a load itself: the API's queue owns load attempts.
+-- Stats are read from the enchant-stripped item string (adr/0003); whether the
+-- client's stats include enchants at all is probe P4.
 function Compat.ItemFacts(link)
     if type(link) ~= "string" then return nil, "no-link" end
     local itemID, _, _, equipLoc, _, classID, subclassID = C_Item.GetItemInfoInstant(link)
     if not itemID then return nil, "unknown-item" end
+    local stripped = GG.Engine.Score.StripEnchant(Compat.ItemString(link))
     local facts = { itemID = itemID, equipLoc = equipLoc, classID = classID, subclassID = subclassID,
-        itemString = GG.Engine.Score.StripEnchant(Compat.ItemString(link)), ready = false }
+        itemString = stripped, ready = false }
     local name, _, _, _, minLevel, _, _, _, _, _, _, _, _, bindType, _, setID = C_Item.GetItemInfo(link)
-    local raw = C_Item.GetItemStats(link)
-    if not name or type(raw) ~= "table" then
-        C_Item.RequestLoadItemDataByID(itemID)
-        return facts
-    end
+    local raw = C_Item.GetItemStats(stripped)
+    if not name or type(raw) ~= "table" then return facts end
     facts.ready = true
     facts.reqLevel = minLevel
     facts.bindType = bindType
@@ -54,6 +55,33 @@ function Compat.ItemFacts(link)
     if cat and cat > 0 then facts.unique = { key = "cat:" .. cat, max = max or 1 } end
     facts.tokens, facts.unsupported = GG.Data.Stats.FromItemStats(raw, facts)
     return facts
+end
+
+function Compat.RequestItem(itemID)
+    C_Item.RequestLoadItemDataByID(itemID)
+end
+
+-- A request's item reference -> link, instance | nil. Accepts a link string, a
+-- {bag, slot} table, or a client ItemLocation (bag/slot or equipment slot,
+-- Blizzard_ObjectAPI ItemLocation.lua:42-60).
+function Compat.ResolveItemRef(ref)
+    if type(ref) == "string" then return ref, nil end
+    if type(ref) ~= "table" then return nil end
+    local bag, slot
+    if type(ref.IsBagAndSlot) == "function" then
+        if ref:IsBagAndSlot() then
+            bag, slot = ref:GetBagAndSlot()
+        elseif ref:IsEquipmentSlot() then
+            local link = GetInventoryItemLink("player", ref:GetEquipmentSlot())
+            return link, link and { equipSlot = ref:GetEquipmentSlot(), bound = true } or nil
+        end
+    else
+        bag, slot = ref.bag, ref.slot
+    end
+    if not (bag and slot) then return nil end
+    local b = Compat.BagItem(bag, slot)
+    if not b then return nil end
+    return b.link, { bag = b.bag, slot = b.slot, guid = b.guid, bound = b.isBound }
 end
 
 function Compat.Player()
@@ -80,9 +108,10 @@ function Compat.KnownArmor()
     return out
 end
 
--- The current equipment as a baseline-shaped table (adr/0003 source 3).
+-- The current equipment as a baseline-shaped table (adr/0003 source 3), plus
+-- the itemIDs whose data isn't loaded yet (their slots are "unknown").
 function Compat.EquippedBaseline(now)
-    local slots = {}
+    local slots, missing = {}, {}
     for _, slot in ipairs(GG.Data.Slots.GEAR) do
         local link = GetInventoryItemLink("player", slot)
         if not link then
@@ -91,21 +120,23 @@ function Compat.EquippedBaseline(now)
             local f = Compat.ItemFacts(link)
             if f and f.ready then
                 slots[slot] = { state = "occupied", itemID = f.itemID, equipLoc = f.equipLoc,
+                    classID = f.classID, subclassID = f.subclassID,
                     itemString = f.itemString, item = Compat.CompactItem(link), tokens = f.tokens,
-                    unique = f.unique, setID = f.setID }
+                    unique = f.unique, setID = f.setID, hasSpell = f.hasSpell, unsupported = f.unsupported }
             else
                 slots[slot] = { state = "unknown" }
+                if f then missing[#missing + 1] = f.itemID end
             end
         end
     end
-    return { slots = slots, capturedAt = now }
+    return { slots = slots, capturedAt = now }, missing
 end
 
 -- A bag instance: link, bind state and GUID.
 function Compat.BagItem(bag, slot)
     local info = C_Container.GetContainerItemInfo(bag, slot)
     if not info or not info.hyperlink then return nil end
-    local loc = ItemLocation:CreateFromBagAndSlot(bag, slot)
+    local loc = ItemLocation:CreateFromBagAndSlot(bag, slot)   -- Blizzard Lua mixin
     local guid = C_Item.DoesItemExist(loc) and C_Item.GetItemGUID(loc) or nil
     return { link = info.hyperlink, isBound = info.isBound == true, guid = guid, bag = bag, slot = slot }
 end

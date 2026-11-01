@@ -113,7 +113,8 @@ is over the per-frame budget.
 - **Overload.** At most 512 outstanding computation jobs (deduplicated across requests) and at most 64
   outstanding requests. Beyond that, the call returns immediately with `unknown`, `OVERLOADED`, which is
   terminal for that call: no callback follows.
-- **Budget.** At most 200 evaluations per frame. `CancelRequest` drops a subscription.
+- **Budget.** At most 200 evaluations per frame (**GG-114**: M0 evaluates synchronously, and
+  `features.frameBudget` is `false` until GG-114). `CancelRequest` drops a subscription.
 
 ### Protection
 
@@ -166,6 +167,9 @@ local p = api.AssessProtection({ bag = 0, slot = 3 }, { scope = "tracked" })
   same `(event, owner)` replaces the earlier callback.
 
 ## Caching and invalidation (consumer-visible guarantees)
+
+The cache is **GG-114**: `features.resultCache` stays `false` until then, and M0 recomputes on every
+call. The invalidation events already fire on spec, profile, equipment, level and skill changes.
 
 - Repeated tooltip redraws don't recompute. Results are cached by (item instance or link, character,
   spec, context) together with generation counters for:

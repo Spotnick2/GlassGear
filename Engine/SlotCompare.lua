@@ -30,6 +30,17 @@ local function isTwoHand(item)
     return item and Slots.TWO_HAND[item.equipLoc or ""] == true
 end
 
+-- May `item` go in hand slot `s`? Off-hand weapons need dual wield.
+local MH_OK = { INVTYPE_WEAPON = true, INVTYPE_WEAPONMAINHAND = true }
+local OH_OK = { INVTYPE_SHIELD = true, INVTYPE_HOLDABLE = true }
+local OH_WEAPON = { INVTYPE_WEAPON = true, INVTYPE_WEAPONOFFHAND = true }
+function SlotCompare.HandLegal(item, s, canDualWield)
+    local loc = item and item.equipLoc or ""
+    if s == MH then return MH_OK[loc] == true end
+    if s == OH then return OH_OK[loc] == true or (OH_WEAPON[loc] == true and canDualWield == true) end
+    return false
+end
+
 -- Count unique keys over the resulting set of items; true when within limits.
 local function uniqueOk(items)
     local counts, limits = {}, {}
@@ -68,6 +79,10 @@ local function configure(candidate, baseline, s, ctx)
         local other = (s == MH) and OH or MH
         local comp = ctx.companion and ctx.companion[other]
         if not comp then return nil, "unknown", "NEEDS_COMPANION" end
+        if not SlotCompare.HandLegal(comp, other, ctx.canDualWield) then
+            return nil, "illegal", "COMPANION_NOT_LEGAL"
+        end
+        if type(comp.score) ~= "number" then return nil, "unknown", "COMPANION_DATA_MISSING" end
         cfg.slots = { MH, OH }
         cfg.displaced[1] = mh
         cfg.candScore = cfg.candScore + (comp.score or 0)
@@ -112,7 +127,8 @@ function SlotCompare.Best(candidate, baseline, ctx)
     end
     local all, best, sawUnknown, unknownReason, illegalReason = {}, nil, false, nil, nil
     for _, s in ipairs(slots) do
-        local allowed = not (candidate.equipLoc == "INVTYPE_WEAPON" and s == OH and not ctx.canDualWield)
+        local allowed = (s ~= MH and s ~= OH) or isTwoHand(candidate)
+            or SlotCompare.HandLegal(candidate, s, ctx.canDualWield)
         if allowed then
             local cfg, state, reason = configure(candidate, baseline, s, ctx)
             if cfg then

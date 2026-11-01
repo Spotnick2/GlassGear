@@ -34,11 +34,13 @@ for line in doc:gmatch("[^\n]+") do
         if status == "supported" or status == "derived" or status == "reported-unsupported" then
             local tokens = expand((tok:gsub("%s+$", "")))
             for _, t in ipairs(tokens) do
+                H.check(Stats.TOKENS[t] == true, "documented token exists in Data/Stats.lua: " .. t)
                 if Stats.TOKENS[t] then
                     H.eq(Stats.STATUS[t], status, "status of " .. t .. " matches FORMATS.md")
                     local k = key:match("`([%u%d_]+)`")
-                    if #tokens == 1 and k and status == "supported" and not key:find("expected") and Stats.ITEM_MOD[k] then
-                        H.check(H.has(Stats.ITEM_MOD[k], t), t .. " is fed by " .. k)
+                    if #tokens == 1 and k and status == "supported" and not key:find("expected") and k:match("^ITEM_MOD") or (k and k:match("^RESISTANCE") and #tokens == 1) then
+                        H.check(Stats.ITEM_MOD[k] ~= nil, "documented key is mapped: " .. k)
+                        H.check(H.has(Stats.ITEM_MOD[k] or {}, t), t .. " is fed by " .. k)
                     end
                     checked = checked + 1
                 end

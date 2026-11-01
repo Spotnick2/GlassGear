@@ -45,6 +45,7 @@ function Diagnostics.Slash(msg)
         end
         GG.charDB.specMap[tonumber(group)] = key
         GG.ResolveSpec()
+        GG.API._Invalidate("spec", { GG.player.key })
         out("spec group " .. group .. " -> " .. key)
     elseif cmd == "import" then
         local spec, text = rest:match("^(%S+)%s+(.+)$")
@@ -52,11 +53,13 @@ function Diagnostics.Slash(msg)
             out("usage: /gg import <SPEC.KEY> ( Pawn: v1: \"Name\": ... )")
             return
         end
-        local entry, parsed = GG.Profiles.ImportPawn(GG.store, GG.player.key, spec, text, time(), tostring(time()))
+        local entry, parsed = GG.Profiles.ImportPawn(GG.store, GG.player.key, spec, text, time(),
+            tostring(time()), GG.player.class)
         if not entry then out("import failed: " .. tostring(parsed)) return end
         out(string.format("imported %s for %s (%s)", parsed.name, spec, parsed.source))
         for _, w in ipairs(parsed.warnings) do out("  warning: " .. w) end
         GG.Callbacks.Fire("ProfilesChanged", { charKeys = { GG.player.key } })
+        GG.API._Invalidate("profiles", { GG.player.key })
     else
         for _, line in ipairs(Diagnostics.Lines()) do out(line) end
     end

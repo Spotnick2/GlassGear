@@ -56,6 +56,14 @@ H.eq(r.results[2].status, "unknown", "Discipline: no weights -> unknown")
 H.check(H.has(r.results[2].reasons, "NO_WEIGHTS"), "...with NO_WEIGHTS")
 H.eq(r.status, "upgrade", "aggregate (display only)")
 
+-- A client-shaped ItemLocation (bagID/slotIndex + methods) resolves too.
+local loc = ItemLocation:CreateFromBagAndSlot(0, 1)
+r = api.Evaluate({ item = loc, scope = "current" })
+H.eq(r.results[1].status, "upgrade", "ItemLocation bag/slot")
+H.eq(r.results[1].candidate.instance.guid, "Item-1-AAA", "...with its instance")
+r = api.Evaluate({ item = ItemLocation:CreateFromEquipmentSlot(3), scope = "current" })
+H.eq(r.results[1].status, "no_upgrade", "ItemLocation equipment slot: the equipped item vs itself")
+
 -- Unsupported scopes are reported, never narrowed.
 r = api.Evaluate({ item = WoW.link(60), scope = "tracked" })
 H.eq(r.results[1].status, "unsupported", "tracked scope needs alts")
@@ -78,13 +86,36 @@ WoW.flush()
 H.eq(got and got.requestId, r.requestId, "EvaluationReady for that request")
 H.eq(got.response.results[1].status, "upgrade", "...carrying the complete response (empty hands slot)")
 
--- Timeout: three attempts, then unknown ITEM_DATA_UNAVAILABLE.
+-- A failed load keeps the item waiting; a later success completes it.
+WoW.items[73] = { name = "Flaky", equipLoc = "INVTYPE_WRIST", classID = 4, subclassID = 1,
+    stats = { ITEM_MOD_INTELLECT_SHORT = 4 } }
+WoW.cacheMiss[73] = true
+got = nil
+r = api.Evaluate({ item = WoW.link(73), scope = "current" })
+local loadsBefore, attemptsBefore = #WoW.itemRequests, GG.API._state.waiting[73].attempts
+WoW.fire("ITEM_DATA_LOAD_RESULT", 73, false)
+H.eq(#WoW.itemRequests, loadsBefore, "a failed load is not re-requested immediately (the tick owns retries)")
+H.eq(GG.API._state.waiting[73].attempts, attemptsBefore, "...and its attempt count is kept")
+WoW.flush()
+H.eq(got, nil, "failed load: no completion yet")
+H.eq(GG.API._state.waiting[73] ~= nil, true, "...the item is still waiting (retries continue)")
+WoW.cacheMiss[73] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 73, true)
+WoW.flush()
+H.eq(got and got.requestId, r.requestId, "completed after the successful load")
+
+-- Timeout: three attempts, then every target row kept, status unknown.
 WoW.items[71] = { name = "Never Loads", equipLoc = "INVTYPE_WAIST", classID = 4, subclassID = 1, stats = {} }
 WoW.cacheMiss[71] = true
 got = nil
-r = api.Evaluate({ item = WoW.link(71), scope = "current" })
+local requestsBefore = #WoW.itemRequests
+r = api.Evaluate({ item = WoW.link(71), scope = "own" })
+H.eq(#r.results, 3, "three pending rows")
 for _ = 1, 20 do WoW.time = WoW.time + 1; WoW.flush(1) end
-H.eq(got and got.response.results[1].reasons[1], "ITEM_DATA_UNAVAILABLE", "gives up after the last attempt")
+H.eq(#WoW.itemRequests - requestsBefore, 3, "exactly three load attempts (one queue owns them)")
+H.eq(got and #got.response.results, 3, "timeout keeps all three target rows")
+H.eq(got.response.results[2].spec, r.results[2].spec, "...in the same order, with their identity")
+H.eq(got.response.results[1].reasons[1], "ITEM_DATA_UNAVAILABLE", "gives up after the last attempt")
 
 -- Cancel.
 WoW.items[72] = { name = "Later", equipLoc = "INVTYPE_FEET", classID = 4, subclassID = 1, stats = {} }
@@ -92,6 +123,25 @@ WoW.cacheMiss[72] = true
 r = api.Evaluate({ item = WoW.link(72), scope = "current" })
 H.eq(api.CancelRequest(r.requestId), true, "cancel a pending request")
 H.eq(api.CancelRequest(r.requestId), false, "twice: nothing to cancel")
+
+-- Overload keeps the rows too.
+local saved = GG.API.LIMITS.requests
+GG.API.LIMITS.requests = 0
+WoW.items[74] = { name = "Busy", equipLoc = "INVTYPE_LEGS", classID = 4, subclassID = 1, stats = {} }
+WoW.cacheMiss[74] = true
+r = api.Evaluate({ item = WoW.link(74), scope = "own" })
+H.eq(#r.results, 3, "overload: one row per target")
+H.eq(r.results[1].reasons[1], "OVERLOADED", "...each OVERLOADED")
+GG.API.LIMITS.requests = saved
+
+-- Level and proficiency changes refresh the player and invalidate.
+local inval = 0
+api.RegisterCallback("EvaluationInvalidated", function() inval = inval + 1 end, "lvl")
+WoW.player.level = 61
+WoW.fire("PLAYER_LEVEL_UP", 61)
+WoW.flush()
+H.eq(api.GetCharacters()[1].level, 61, "level refreshed on PLAYER_LEVEL_UP")
+H.eq(inval, 1, "...and consumers told to re-query")
 
 -- Batch bound.
 local many = {}

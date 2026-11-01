@@ -80,6 +80,27 @@ for id, x in pairs(B.entries) do if x.conflict then dcopy = x end end
 H.eq(dcopy.conflict.deletion, true, "copy marked as a deletion")
 H.eq(send(B, ID, A), "conflict", "deleted here, edited there: a live copy")
 H.eq(A.entries[ID].deleted, true, "A's root stays deleted until resolved")
+-- The deletion copy travels (codec + a third peer) and resolves.
+local dline = assert(Codec.Encode(dcopy))
+local C = ES.New({}, "tc")
+H.eq(C:Receive(assert(Codec.Decode(dline)), "B"), "replace", "a third peer accepts the deletion copy")
+H.eq(C.entries[dcopy.id].conflict.deletion, true, "...with its deletion flag")
+local rootB = B:Resolve(dcopy.id, "delete", B.entries[ID].version)
+H.eq(rootB.deleted, true, "'delete here too' tombstones the root")
+H.check(Codec.Encode(rootB) ~= nil, "the resolution encodes")
+H.eq(send(B, ID, A), "replace", "...and A fast-forwards to it")
+
+-- A conflict copy of another kind is refused; its content never reaches the root.
+local foreign = { id = ID .. "~zz:1", kind = "baseline", version = "zz:1", ancestors = {},
+    conflict = { of = ID }, data = { specKey = "PRIEST.HOLY", source = "observed", capturedAt = 1, slots = {} } }
+local A2 = ES.New({}, "k")
+A2:Create(ID, "profile", prof("Base"))
+H.eq(select(2, A2:Receive(foreign, "x")), "bad-entry", "cross-kind copy refused")
+H.eq(select(2, A2:Receive({ id = "G-1:PRIEST.HOLY:9", kind = "profile", version = "v:1", ancestors = {},
+    data = { specKey = "PRIEST.HOLY", name = "x", source = "imported-pawn", updatedAt = 1, weights = { Intellect = 5000 } } }, "x")),
+    "bad-entry", "out-of-range weight refused on receipt")
+H.eq(select(2, A2:Create("G-1:PRIEST.HOLY:10", "profile", { specKey = "NOPE", name = "x", source = "manual", updatedAt = 1, weights = {} })),
+    "bad-data:specKey", "local writes are validated too")
 
 -- Incomparable tombstones: lexical tie-break, both keep the greater.
 A, B = ES.New({}, "xa"), ES.New({}, "xb")
@@ -144,7 +165,28 @@ H.eq(ES.MaybeBehind(B, A:Manifest(), "G-Karuzo:"), true, "P1 outstanding: maybeB
 send(A, ID, B)
 H.eq(ES.MaybeBehind(B, A:Manifest(), "G-Karuzo:"), false, "cleared only when the manifests match")
 
--- Codec: round trip, escaping, refusals, sizes.
+-- Codec: complete round trips (every field), escaping, refusals, sizes.
+local function deepEq(x, y)
+    if type(x) ~= type(y) then return false end
+    if type(x) ~= "table" then return x == y end
+    for k, v in pairs(x) do if not deepEq(v, y[k]) then return false end end
+    for k in pairs(y) do if x[k] == nil then return false end end
+    return true
+end
+local full = { id = "G-1:PALADIN.PROTECTION:u1", kind = "profile", version = "w:5", ancestors = { "w:4", "w:3" },
+    data = { specKey = "PALADIN.PROTECTION", name = "Tank", origin = "Prot WoWSims Weights (TBC)", source = "wowsims-pawn-ep",
+        updatedAt = 1793500000, weights = { Stamina = 1, Strength = 0.5 }, ignored = { Spirit = true },
+        ignoredTokens = { Mana = "7", Armor2 = "0.012" }, missing = { "DefenseRating", "BlockValue" }, armor = { 1, 4 } } }
+H.check(deepEq(assert(Codec.Decode(assert(Codec.Encode(full)))), full), "profile entry round-trips completely")
+local fullB = { id = "G-1:PALADIN.PROTECTION:baseline", kind = "baseline", version = "w:6", ancestors = {},
+    data = { specKey = "PALADIN.PROTECTION", source = "observed", capturedAt = 1793500000, group = 2,
+        slots = { [1] = { state = "occupied", item = "19019:0:1234" }, [2] = { state = "empty" }, [3] = { state = "unknown" } } } }
+H.check(deepEq(assert(Codec.Decode(assert(Codec.Encode(fullB)))), fullB), "baseline entry round-trips (spec group kept)")
+local good = assert(Codec.Encode(full))
+H.eq(select(2, Codec.Decode((good:gsub("Stamina=1", "Stamina=1.2.3", 1)))), "bad-entry", "malformed number refused")
+H.eq(select(2, Codec.Decode((good:gsub("Stamina=1", "Stamina=10000", 1)))), "bad-entry", "out-of-range weight refused")
+H.eq(select(2, Codec.Decode((assert(Codec.Encode(fullB)):gsub("1:o:", "999:o:", 1)))), "bad-entry", "slot outside the gear slots refused")
+H.eq(select(2, Codec.Decode((good:gsub("|w:4,w:3|", "|w:4,w:3|q", 1)))), "bad-entry", "unknown flag refused")
 local tricky = { id = "G-1:PRIEST.HOLY:x|y", kind = "profile", version = "w:1", ancestors = { "w:0" },
     data = { specKey = "PRIEST.HOLY", name = "a;b,c|d", source = "imported-pawn", updatedAt = 1793500000,
         weights = { Intellect = 0.42, Healing = -1.5 }, ignored = { Spirit = true } } }
@@ -167,37 +209,66 @@ H.eq(select(2, Codec.Decode("GG1|p|x|v|||Bogus=1")), "bad-entry", "malformed pay
 local tomb = assert(Codec.Decode(assert(Codec.Encode({ id = "a", kind = "profile", version = "w:3", ancestors = {}, deleted = true }))))
 H.eq(tomb.deleted, true, "tombstone round trip")
 
--- Size budget (targets, adr/0001): worst-case entry with 20 ancestors.
-local worst = { id = "Player-1234-0ABCDEF0:DRUID.FERAL_TANK:9999999999", kind = "profile", version = "ffffffffffffffff:99999",
-    ancestors = {}, data = { specKey = "DRUID.FERAL_TANK", name = string.rep("N", 24), source = "wowsims-pawn-ep",
-        updatedAt = 1793500000, weights = {}, ignored = {} } }
+-- Size budget (targets, adr/0001): worst case = 40 tokens, a 24-char name of
+-- characters that all need escaping, a long origin, 20 ancestors and a
+-- conflict-copy id and flag.
+local root = "Player-1234-0ABCDEF0:DRUID.FERAL_TANK:" .. string.rep("9", 20)
+local worst = { id = root .. "~ffffffffffffffff:99999", kind = "profile", version = "ffffffffffffffff:99999",
+    ancestors = {}, conflict = { of = root },
+    data = { specKey = "DRUID.FERAL_TANK", name = string.rep("|", 24), origin = string.rep(";", 60),
+        source = "wowsims-pawn-ep", updatedAt = 1793500000, weights = {}, ignored = {} } }
 for i = 1, 20 do worst.ancestors[i] = "ffffffffffffffff:" .. (99900 + i) end
 local n = 0
-for t in pairs(GG.Data.Stats.TOKENS) do
+for _, t in ipairs(GG.Data.Stats.ORDER) do
     if n < 40 then worst.data.weights[t] = -123.456; n = n + 1 end
 end
-local line = assert(Codec.Encode(worst))
-H.check(#line <= Codec.MAX_BYTES, "worst-case profile entry fits 2 KB (" .. #line .. " bytes)")
+local wline = assert(Codec.Encode(worst))
+H.check(#wline <= Codec.MAX_BYTES, "worst-case profile entry fits 2 KB (" .. #wline .. " bytes)")
 worst.data.name = string.rep("N", 25)
 H.eq(select(2, Codec.Encode(worst)), "bad-entry", "over-long name refused")
 local big = { id = string.rep("x", 2100), kind = "profile", version = "w:1", ancestors = {}, deleted = true }
 H.eq(select(2, Codec.Encode(big)), "too-large", "oversized entry -> too-large, stays local")
 
--- Backfill for 50 characters incl. tombstones: report totals; a 100-id manifest page fits 24 KB.
+-- Backfill for 50 characters: 3 specs x 4 worst-case profiles, a full baseline
+-- and one tombstone per spec, all encoded. A 100-id manifest page fits 24 KB.
+worst.data.name = string.rep("N", 24)
+local slots = {}
+for _, slot in ipairs(GG.Data.Slots.GEAR) do slots[slot] = { state = "occupied", item = "99999:9999:-9999" } end
 local total, ids = 0, {}
 for c = 1, 50 do
-    for s = 1, 3 do
+    for sp = 1, 3 do
+        local specKey = ({ "PRIEST.DISCIPLINE", "PRIEST.HOLY", "PRIEST.SHADOW" })[sp]
         for p = 1, 4 do
-            local idp = string.format("Player-1234-%08X:PRIEST.SPEC%d:%d", c, s, p)
-            worst.id, worst.data.name = idp, string.rep("N", 24)
+            local idp = string.format("Player-1234-%08X:%s:%020d", c, specKey, p)
+            worst.id, worst.conflict = idp, nil
+            worst.data.specKey = specKey
             total = total + #assert(Codec.Encode(worst))
             ids[#ids + 1] = idp .. "=" .. worst.version
         end
-        total = total + 600   -- a baseline entry (19 compact items) is well under 600 bytes
+        local b = { id = string.format("Player-1234-%08X:%s:baseline", c, specKey), kind = "baseline",
+            version = worst.version, ancestors = worst.ancestors,
+            data = { specKey = specKey, source = "observed", capturedAt = 1793500000, group = 1, slots = slots } }
+        total = total + #assert(Codec.Encode(b))
+        local t = { id = string.format("Player-1234-%08X:%s:old", c, specKey), kind = "profile",
+            version = worst.version, ancestors = worst.ancestors, deleted = true }
+        total = total + #assert(Codec.Encode(t))
     end
 end
 local page = table.concat(ids, ",", 1, 100)
 H.check(#page < 24 * 1024, "a 100-id manifest page fits 24 KB (" .. #page .. " bytes)")
-print(string.format("  info: worst-case full backfill for 50 characters ~ %d KB before compression", math.floor(total / 1024)))
+print(string.format("  info: worst-case full backfill for 50 characters ~ %d KB before compression (paged by AS-002)", math.floor(total / 1024)))
+
+-- Inventory -> protection: an outstanding weight change keeps protection from "clear".
+A, B = ES.New({}, "pa"), ES.New({}, "pb")
+A:Create(ID, "profile", prof("P0"))
+send(A, ID, B)
+A:Edit(ID, A.entries[ID].version, prof("P1", 5))
+local result = { status = "no_upgrade", character = { provenance = "own-account" }, spec = "PRIEST.HOLY",
+    eligibility = { equipNow = true }, limitations = {}, reasons = {},
+    baseline = { source = "observed", complete = true, maybeBehind = ES.MaybeBehind(B, A:Manifest(), "G-Karuzo:") } }
+H.eq(GG.Engine.Policy.Protection({ result }).verdict, "unknown", "weights changed on the other account: not clear")
+send(A, ID, B)
+result.baseline.maybeBehind = ES.MaybeBehind(B, A:Manifest(), "G-Karuzo:")
+H.eq(GG.Engine.Policy.Protection({ result }).verdict, "clear", "clear once the manifests match")
 
 H.done("test_entry_sync")

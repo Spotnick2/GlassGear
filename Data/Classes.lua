@@ -10,21 +10,24 @@ GG.Data.Classes = Classes
 
 -- Armor subclass ids (Enum.ItemArmorSubclass): 1 cloth, 2 leather, 3 mail, 4 plate, 6 shield.
 local CLOTH, LEATHER, MAIL, PLATE, SHIELD = 1, 2, 3, 4, 6
+local LIBRAM, IDOL, TOTEM, SIGIL, RELIC = 7, 8, 9, 10, 11
 Classes.ARMOR = { CLOTH = CLOTH, LEATHER = LEATHER, MAIL = MAIL, PLATE = PLATE, SHIELD = SHIELD }
-Classes.ARMOR_NAME = { [CLOTH] = "Cloth", [LEATHER] = "Leather", [MAIL] = "Mail", [PLATE] = "Plate", [SHIELD] = "Shield" }
+Classes.ARMOR_NAME = { [CLOTH] = "Cloth", [LEATHER] = "Leather", [MAIL] = "Mail", [PLATE] = "Plate", [SHIELD] = "Shield",
+    [LIBRAM] = "Libram", [IDOL] = "Idol", [TOTEM] = "Totem", [SIGIL] = "Sigil", [RELIC] = "Relic" }
 
 -- Specs in talent-tree order. `armor` = the spec's allowed body-armor types
--- (editable per profile); nil means "whatever the class can wear".
+-- (editable per profile). `early` = types also allowed while the spec's best
+-- type can't be worn yet (a Protection Paladin wears mail until plate at 40).
 Classes.SPECS = {
     WARRIOR = {
-        { key = "WARRIOR.ARMS", name = "Arms", armor = { MAIL, PLATE } },
-        { key = "WARRIOR.FURY", name = "Fury", armor = { MAIL, PLATE } },
-        { key = "WARRIOR.PROTECTION", name = "Protection", armor = { MAIL, PLATE } },
+        { key = "WARRIOR.ARMS", name = "Arms", armor = { PLATE }, early = { MAIL } },
+        { key = "WARRIOR.FURY", name = "Fury", armor = { PLATE }, early = { MAIL } },
+        { key = "WARRIOR.PROTECTION", name = "Protection", armor = { PLATE }, early = { MAIL } },
     },
     PALADIN = {
         { key = "PALADIN.HOLY", name = "Holy", armor = { CLOTH, LEATHER, MAIL, PLATE } },
-        { key = "PALADIN.PROTECTION", name = "Protection", armor = { MAIL, PLATE } },
-        { key = "PALADIN.RETRIBUTION", name = "Retribution", armor = { MAIL, PLATE } },
+        { key = "PALADIN.PROTECTION", name = "Protection", armor = { PLATE }, early = { MAIL } },
+        { key = "PALADIN.RETRIBUTION", name = "Retribution", armor = { PLATE }, early = { MAIL } },
     },
     HUNTER = {
         { key = "HUNTER.BEAST_MASTERY", name = "Beast Mastery", armor = { LEATHER, MAIL } },
@@ -69,14 +72,14 @@ Classes.SPECS = {
 -- override this fallback (Compat.KnownArmor, probe GG-118).
 Classes.PROFICIENCY = {
     WARRIOR = { armor = { [CLOTH] = 1, [LEATHER] = 1, [MAIL] = 1, [PLATE] = 40, [SHIELD] = 1 } },
-    PALADIN = { armor = { [CLOTH] = 1, [LEATHER] = 1, [MAIL] = 1, [PLATE] = 40, [SHIELD] = 1 } },
+    PALADIN = { armor = { [CLOTH] = 1, [LEATHER] = 1, [MAIL] = 1, [PLATE] = 40, [SHIELD] = 1, [LIBRAM] = 1 } },
     HUNTER = { armor = { [CLOTH] = 1, [LEATHER] = 1, [MAIL] = 40 } },
     ROGUE = { armor = { [CLOTH] = 1, [LEATHER] = 1 } },
     PRIEST = { armor = { [CLOTH] = 1 } },
-    SHAMAN = { armor = { [CLOTH] = 1, [LEATHER] = 1, [MAIL] = 40, [SHIELD] = 1 } },
+    SHAMAN = { armor = { [CLOTH] = 1, [LEATHER] = 1, [MAIL] = 40, [SHIELD] = 1, [TOTEM] = 1 } },
     MAGE = { armor = { [CLOTH] = 1 } },
     WARLOCK = { armor = { [CLOTH] = 1 } },
-    DRUID = { armor = { [CLOTH] = 1, [LEATHER] = 1 } },
+    DRUID = { armor = { [CLOTH] = 1, [LEATHER] = 1, [IDOL] = 1 } },
 }
 
 -- Weapon subclasses (Enum.ItemWeaponSubclass) each class can train on Forever
@@ -96,9 +99,13 @@ Classes.WEAPONS = {
     DRUID = set({ 4, 5, 10, 13, 15 }),
 }
 
--- Can this class use the item at all (now or after training)? `facts` has
--- classID (2 weapon, 4 armor), subclassID and equipLoc.
--- Returns ok, reason, learnLevel.
+-- Can this class use the item at all? `facts` has classID (2 weapon, 4 armor)
+-- and subclassID. Returns ok, reason, learnLevel:
+--   false, "PROFICIENCY"            the class never uses it
+--   false, "NEEDS_TRAINING", lvl    learnable at lvl <= level, but the known
+--                                    skills (runtime) say it isn't trained
+--   true,  "LATER_LEVEL", lvl       learnable at a later level
+--   true                             usable now
 function Classes.CanUse(classToken, level, facts, knownArmor)
     if facts.classID == 2 then
         local w = Classes.WEAPONS[classToken or ""]
@@ -108,10 +115,29 @@ function Classes.CanUse(classToken, level, facts, knownArmor)
     if facts.classID == 4 and Classes.ARMOR_NAME[facts.subclassID] then
         local learn = Classes.LearnLevel(classToken, facts.subclassID)
         if not learn then return false, "PROFICIENCY" end
+        if (level or 0) < learn then return true, "LATER_LEVEL", learn end
         local wearable = Classes.WearableArmor(classToken, level, knownArmor)
-        if not wearable[facts.subclassID] then return true, "LATER_LEVEL", learn end
+        if not wearable[facts.subclassID] then return false, "NEEDS_TRAINING", learn end
     end
     return true
+end
+
+-- The spec's allowed body-armor types for this character: the profile's own
+-- set, else the spec default, plus `early` while the best type isn't wearable.
+function Classes.AllowedArmor(specKey, profileArmor, classToken, level, knownArmor)
+    if profileArmor then return profileArmor end
+    local spec = Classes.Spec(specKey)
+    if not spec or not spec.armor then return nil end
+    local out, wearable = {}, Classes.WearableArmor(classToken, level, knownArmor)
+    local bestWearable = false
+    for _, a in ipairs(spec.armor) do
+        out[#out + 1] = a
+        if wearable[a] then bestWearable = true end
+    end
+    if not bestWearable then
+        for _, a in ipairs(spec.early or {}) do out[#out + 1] = a end
+    end
+    return out
 end
 
 function Classes.Specs(classToken)

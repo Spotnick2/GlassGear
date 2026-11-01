@@ -35,7 +35,12 @@ H.eq(Score.StripEnchant("item:19019:2564:0:0:0:0:1234:0"), "item:19019::0:0:0:0:
     "enchant removed, suffix 1234 kept")
 H.eq(Score.StripEnchant("19019:2564:1234"), "19019:0:1234", "compact form: enchant zeroed, suffix kept")
 
-local unscored = Stats.UnscoredTokens({ weights = { Speed = 1, Intellect = 1 } })
-H.eq(unscored[1], "Speed", "weighted but never scored tokens are listed")
+local unscored = Stats.UnscoredTokens({ weights = { Speed = 1, Intellect = 1 } }, { classID = 2 })
+H.eq(unscored[1], "Speed", "weighted but never scored tokens are listed for weapons")
+H.eq(#Stats.UnscoredTokens({ weights = { Speed = 1 } }, { classID = 4 }), 0, "weapon-only token is irrelevant to armor")
+H.eq(Stats.UnscoredTokens({ weights = {}, ignored = { Speed = true } }, { classID = 2 })[1], "Speed",
+    "an X on an unsupported token is also unscored (unresolvable)")
+H.eq(Stats.UnscoredTokens({ weights = { FireSpellDamage = 1 } }, { classID = 4 })[1], "FireSpellDamage",
+    "school damage can be on any item: always listed")
 
 H.done("test_score")

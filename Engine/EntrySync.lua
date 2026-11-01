@@ -54,14 +54,24 @@ end
 
 local function copyId(id, version) return id .. "~" .. version end
 
+-- Every field checked before anything is stored (adr/0001: a malformed entry
+-- is rejected whole). Data validation is Codec.ValidData (per kind).
 local function validIncoming(e)
     if type(e) ~= "table" then return false end
-    if type(e.id) ~= "string" or e.id == "" or type(e.version) ~= "string" then return false end
+    if type(e.id) ~= "string" or e.id == "" or type(e.version) ~= "string" or e.version == "" then return false end
     if e.kind ~= "profile" and e.kind ~= "baseline" then return false end
-    if e.ancestors ~= nil and type(e.ancestors) ~= "table" then return false end
-    if not e.deleted and type(e.data) ~= "table" then return false end
-    if e.conflict ~= nil and (type(e.conflict) ~= "table" or type(e.conflict.of) ~= "string") then return false end
-    return true
+    if e.ancestors ~= nil then
+        if type(e.ancestors) ~= "table" then return false end
+        for _, v in ipairs(e.ancestors) do if type(v) ~= "string" then return false end end
+    end
+    if e.conflict ~= nil then
+        if type(e.conflict) ~= "table" or type(e.conflict.of) ~= "string" then return false end
+        -- A copy's id is its root's id + "~" + a version.
+        if e.id:sub(1, #e.conflict.of + 1) ~= e.conflict.of .. "~" then return false end
+    end
+    local contentless = e.deleted or (e.conflict and e.conflict.deletion)
+    if contentless then return e.data == nil end
+    return (GG.Engine.Codec.ValidData(e.kind, e.data))
 end
 
 local function sanitize(e)
@@ -102,6 +112,8 @@ function Store:Get(id) return self.entries[id] end
 
 function Store:Create(id, kind, data, provenance)
     if self.entries[id] then return nil, "exists" end
+    local ok, why = GG.Engine.Codec.ValidData(kind, data)
+    if not ok then return nil, "bad-data:" .. tostring(why) end
     local e = { id = id, kind = kind, version = self:mint(), ancestors = {}, data = copy(data),
         provenance = provenance or "self" }
     self.entries[id] = e
@@ -121,6 +133,8 @@ end
 function Store:Edit(id, expected, data)
     local e, err = self:editable(id, expected)
     if not e then return nil, err end
+    local ok, why = GG.Engine.Codec.ValidData(e.kind, data)
+    if not ok then return nil, "bad-data:" .. tostring(why) end
     self:advance(e)
     e.data = copy(data)
     self.wrote[#self.wrote + 1] = id
@@ -171,9 +185,12 @@ function Store:Receive(incoming, fromLabel)
     local mine = self.entries[id]
     if mine and mine.kind ~= incoming.kind then return nil, "bad-entry" end
 
-    if type(incoming.conflict) == "table" and not incoming.deleted then
+    if type(incoming.conflict) == "table" then
         local root = self.entries[incoming.conflict.of]
-        if root and (root.version == incoming.version or contains(root.ancestors, incoming.version)) then
+        -- A copy keeps its root's identity (AltStableSync SameIdentity).
+        if root and root.kind ~= incoming.kind then return nil, "bad-entry" end
+        if root and not incoming.deleted
+            and (root.version == incoming.version or contains(root.ancestors, incoming.version)) then
             return "ignore"
         end
     end
@@ -214,6 +231,11 @@ function Store:Resolve(cid, choice, expectedRoot, newId)
     local root = self.entries[c.conflict.of]
     if not root then return nil, "unknown-id" end
     if root.version ~= expectedRoot then return nil, "stale" end
+    -- A copy of another kind never gives its content to the root; "mine" still settles it.
+    if choice ~= "mine" and c.kind ~= root.kind then return nil, "bad-copy" end
+    if choice == "theirs" and not c.conflict.deletion and not GG.Engine.Codec.ValidData(root.kind, c.data) then
+        return nil, "bad-copy"
+    end
     local both = ancestorList({ root.version, c.version }, c.ancestors)
     local deletedThere = c.conflict.deletion
     local created

@@ -133,7 +133,8 @@ end
 -- a hard ineligible; anything uncertain keeps the item.
 ------------------------------------------------------------
 local UNSAFE_LIMITS = { EFFECT_NOT_SCORED = true, NO_SUPPORTED_STATS = true, SET_BONUS_NOT_SCORED = true }
-local UNSAFE_PREFIX = { "SET_BONUS_GAINED", "SET_BONUS_LOST", "TOKEN_NOT_SCORED", "UNSUPPORTED_STAT" }
+local UNSAFE_PREFIX = { "SET_BONUS_GAINED", "SET_BONUS_LOST", "TOKEN_NOT_SCORED", "UNSUPPORTED_STAT",
+    "WEIGHT_MISSING", "BASELINE_EFFECT_NOT_SCORED", "BASELINE_UNSUPPORTED_STAT" }
 
 local function unsafe(r)
     local b = r.baseline

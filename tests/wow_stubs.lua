@@ -148,10 +148,10 @@ function C_Item.GetItemUniqueness(info)                                         
 end
 function C_Item.RequestLoadItemDataByID(info) WoW.itemRequests[#WoW.itemRequests + 1] = idOf(info) end  -- 2315
 function C_Item.DoesItemExist(loc)                                                                     -- 2210
-    local b = WoW.bags[loc.bag]
-    return b ~= nil and b[loc.slot] ~= nil
+    local b = WoW.bags[loc.bagID]
+    return b ~= nil and b[loc.slotIndex] ~= nil
 end
-function C_Item.GetItemGUID(loc) return WoW.bags[loc.bag][loc.slot].guid end                          -- 2235
+function C_Item.GetItemGUID(loc) return WoW.bags[loc.bagID][loc.slotIndex].guid end                   -- 2235
 
 C_Container = {}
 function C_Container.GetContainerItemInfo(bag, slot)                                                   -- 1170
@@ -161,8 +161,18 @@ function C_Container.GetContainerItemInfo(bag, slot)                            
     return { hyperlink = WoW.link(s.itemID), isBound = s.isBound == true, itemID = s.itemID, stackCount = 1 }
 end
 
--- Blizzard Lua (Blizzard_ObjectAPI ItemLocation mixin).
-ItemLocation = { CreateFromBagAndSlot = function(_, bag, slot) return { bag = bag, slot = slot } end }
+-- Blizzard Lua (Blizzard_ObjectAPI/Mainline/ItemLocation.lua): fields bagID,
+-- slotIndex, equipmentSlotIndex and the accessor methods Glass Gear calls.
+local ItemLocationMixin = {}
+ItemLocationMixin.__index = ItemLocationMixin
+function ItemLocationMixin:GetBagAndSlot() return self.bagID, self.slotIndex end
+function ItemLocationMixin:IsBagAndSlot() return self.bagID ~= nil and self.slotIndex ~= nil end
+function ItemLocationMixin:GetEquipmentSlot() return self.equipmentSlotIndex end
+function ItemLocationMixin:IsEquipmentSlot() return self.equipmentSlotIndex ~= nil end
+ItemLocation = {
+    CreateFromBagAndSlot = function(_, bag, slot) return setmetatable({ bagID = bag, slotIndex = slot }, ItemLocationMixin) end,
+    CreateFromEquipmentSlot = function(_, s) return setmetatable({ equipmentSlotIndex = s }, ItemLocationMixin) end,
+}
 
 Settings = {                                                                                            -- 28257, 28260
     RegisterCanvasLayoutCategory = function(frame, name) return { frame = frame, name = name } end,
@@ -192,6 +202,19 @@ function WoW.loadAddon(opts)
 end
 
 WoW.reset()
+
+-- Every global defined above, by identity: test_load fails if the addon
+-- replaces one (assigning an existing key never reaches __newindex).
+local protected = {}
+for k, v in pairs(_G) do protected[k] = v end
+function WoW.replacedGlobals()
+    local out = {}
+    for k, v in pairs(protected) do
+        if k ~= "WoW" and rawget(_G, k) ~= v then out[#out + 1] = k end
+    end
+    table.sort(out)
+    return out
+end
 
 -- Strict globals from here on.
 setmetatable(_G, {

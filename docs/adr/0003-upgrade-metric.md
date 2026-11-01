@@ -70,6 +70,12 @@ The comparison **enumerates the legal resulting configurations** instead of pick
    - **Class gate (hard, never a setting):** an item the class can't wear or wield (yet) is never
      presented as an upgrade, for any spec. When every own spec fails on proficiency, the tooltip
      shows a single grey line ("Paladin can't use Wands"), or nothing, depending on a display setting.
+     Each class only gets its own relics: Paladin librams, Shaman totems, Druid idols. A type that is
+     learnable at or below the character's level but, by the runtime known skills, not trained is
+     `ineligible` with `NEEDS_TRAINING`, not `LATER_LEVEL`.
+   - A spec whose best armor type isn't wearable yet also accepts its `early` types. Arms, Fury and
+     Protection Warriors and Protection and Retribution Paladins wear mail until plate (40); after
+     that, mail is `NOT_SPEC_ARMOR` for them.
    - **Spec armor rule (per spec, editable per profile):** each spec has its own set of allowed
      armor types. The defaults are in `Data/Classes.lua`:
 

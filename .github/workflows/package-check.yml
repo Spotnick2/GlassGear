@@ -157,6 +157,12 @@ jobs:
           if [ -z "$tag" ]; then
             tag=$(tr -d '\r' < CHANGELOG.md | sed -n 's/^## \(v[^ ]*\).*/\1/p' | head -1)
           fi
+          # Before the first release CHANGELOG.md has only "## Unreleased":
+          # nothing to build release files for yet (a tag run always has its tag).
+          if [ -z "$tag" ]; then
+            echo "No release heading yet: release files are built from the first tag."
+            exit 0
+          fi
           git show "$GITHUB_SHA:tests/release_files.sh" > "$RUNNER_TEMP/release_files.sh"
           bash "$RUNNER_TEMP/release_files.sh" "$tag" "$zip" "$RUNNER_TEMP/release-files"
 
@@ -176,7 +182,8 @@ jobs:
         with:
           name: release-files
           path: ${{ runner.temp }}/release-files/
-          if-no-files-found: error
+          # Strict on a tag; before the first release there is nothing to keep.
+          if-no-files-found: ${{ (github.ref_type == 'tag' || inputs.tag != '') && 'error' || 'ignore' }}
 
   # A GitHub Release for every tag: the zip `check` built and checked,
   # release.json, and the tag's CHANGELOG.md section as the notes. The only job

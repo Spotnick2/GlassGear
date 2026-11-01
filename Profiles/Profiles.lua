@@ -30,19 +30,22 @@ function Profiles.Active(store, guid, specKey)
     local e = Profiles.ForSpec(store, guid, specKey)[1]
     if not e then return nil end
     local d = e.data
-    return { id = e.id, version = e.version, specKey = specKey, name = d.name, source = d.source,
-        updatedAt = d.updatedAt, weights = d.weights or {}, ignored = d.ignored or {}, armor = d.armor }
+    return { id = e.id, version = e.version, specKey = specKey, name = d.name, origin = d.origin,
+        source = d.source, updatedAt = d.updatedAt, weights = d.weights or {}, ignored = d.ignored or {},
+        ignoredTokens = d.ignoredTokens or {}, missing = d.missing or {}, armor = d.armor }
 end
 
--- Import a Pawn string as a new profile for (guid, specKey).
+-- Import a Pawn string as a new profile for (guid, specKey). Everything the
+-- string carries is kept (origin, unsupported tokens, missing WoWSims weights).
 -- Returns entry, parsed | nil, err.
-function Profiles.ImportPawn(store, guid, specKey, text, now, uuid)
-    local parsed, err = GG.PawnString.Parse(text)
+function Profiles.ImportPawn(store, guid, specKey, text, now, uuid, classToken)
+    local parsed, err = GG.PawnString.Parse(text, { class = classToken })
     if not parsed then return nil, err end
     local id = prefix(guid, specKey) .. (uuid or tostring(now))
+    local missing = (#parsed.missing > 0) and parsed.missing or nil
     local entry, cerr = store:Create(id, "profile", {
-        specKey = specKey, name = parsed.name, source = parsed.source, updatedAt = now,
-        weights = parsed.weights, ignored = parsed.ignored,
+        specKey = specKey, name = parsed.name, origin = parsed.origin, source = parsed.source, updatedAt = now,
+        weights = parsed.weights, ignored = parsed.ignored, ignoredTokens = parsed.ignoredTokens, missing = missing,
     }, "self")
     if not entry then return nil, cerr end
     return entry, parsed
