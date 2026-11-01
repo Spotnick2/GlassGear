@@ -155,6 +155,14 @@ WoW.fire("ITEM_DATA_LOAD_RESULT", 76, true)
 WoW.flush()
 H.eq(got and got.response.results[1].spec, order[1], "completion keeps the first target (Holy)")
 H.eq(got.response.results[3].spec, order[3], "...and the original order")
+WoW.items[77] = { name = "Lost Boots", equipLoc = "INVTYPE_FEET", classID = 4, subclassID = 1, stats = {} }
+WoW.cacheMiss[77] = true
+got = nil
+r = api.Evaluate({ item = WoW.link(77), scope = "own" })
+local first = r.results[1].spec
+SlashCmdList.GLASSGEAR("spec 1 PRIEST.HOLY")
+for _ = 1, 20 do WoW.time = WoW.time + 1; WoW.flush(1) end
+H.eq(got and got.response.results[1].spec, first, "a timed-out request keeps its original targets too")
 
 -- Overload keeps the rows too.
 local saved = GG.API.LIMITS.requests
