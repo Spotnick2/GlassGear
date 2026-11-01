@@ -1,7 +1,8 @@
 ------------------------------------------------------------
 -- Core/Main.lua - lifecycle (loaded last). ADDON_LOADED: SavedVariables,
 -- the Glass UI question and the theme. PLAYER_LOGIN: character, spec,
--- entry store, then Ready. Nothing here hooks tooltips or bags yet (M1).
+-- entry store, the tooltip hook (GG-107), then Ready. Bags and loot come
+-- with GG-109/GG-111.
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -48,6 +49,7 @@ function handlers.PLAYER_LOGIN()
     GG.store = GG.Engine.EntrySync.New(GG.db.entries, newWriter())
     GG.ResolveSpec()
     GG.Diagnostics.RegisterSettings()
+    GG.tooltipHooked, GG.tooltipReason = GG.Tooltip.Initialize()
     GG.API._SetReady()
 end
 

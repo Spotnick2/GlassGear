@@ -19,4 +19,8 @@
     item data.
   - **`/gg` commands:** diagnostics, spec mapping (own class, groups 1–2) and Pawn import
     (importing again for a spec replaces its weights).
-  - No tooltips or markers yet.
+- Tooltip rows (GG-107): every equippable item's tooltip lists all your specs, the current spec
+  first and marked CURRENT, with the upgrade estimate, "no weights", "checking..." while item data
+  loads, "at level N (in k)" for later items, set-bonus and unscored-effect notes, and the
+  "Weighted item score · estimates" footer. Off-specs compare with your current gear until GG-108.
+  No markers yet.

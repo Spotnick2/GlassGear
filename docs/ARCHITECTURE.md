@@ -24,13 +24,13 @@
 ┌────▼────────────────────────┐  ┌───▼─────────────────────────┐
 │ Presentation                │  │ API/PublicAPI.lua (v1)      │
 │  Theme (forever | glass)    │  │  Evaluate · AssessProtection│
-│  Tooltip · BagMarkers ·     │  │  callbacks (Shatter, others)│
-│  LootMarkers (M1)           │  └─────────────────────────────┘
+│  TooltipView (pure) · Bag-  │  │  callbacks (Shatter, others)│
+│  Markers · LootMarkers (M1) │  └─────────────────────────────┘
 └─────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────┐
 │ Integrations: RosterProvider (local | AltStable), GlassUI     │
 └──────────────────────────────────────────────────────────────┘
-Profiles/ (storage + PawnString)   Core/DB (schema, migrations)   UI/Diagnostics
+Profiles/ (storage + PawnString)   Core/DB (schema, migrations)   UI/Diagnostics, UI/Tooltip (hook)
 ```
 
 ## Module rules

@@ -34,6 +34,8 @@ Core\Compat.lua
 Integrations\RosterProvider.lua
 Integrations\GlassUI.lua
 Presentation\Theme.lua
+Presentation\TooltipView.lua
 API\PublicAPI.lua
 UI\Diagnostics.lua
+UI\Tooltip.lua
 Core\Main.lua

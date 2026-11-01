@@ -102,6 +102,7 @@ local function eligibility(input, res)
         if window.enabled ~= false and away > (window.lookAhead or 0) then
             add(res.eligibility.reasons, "ABOVE_LEVEL_WINDOW")
             res.eligibility.levelsAway = away
+            res.eligibility.atLevel = needLevel
             return "ineligible"
         end
         res.eligibility.equipNow = false
