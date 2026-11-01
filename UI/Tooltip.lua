@@ -7,21 +7,15 @@
 -- the tooltip policy (adr/0006). Models: Shatter Tooltip.lua (refresh guards),
 -- the bag-slot owner pattern for instances.
 --
--- Results are cached per displayed item until EvaluationInvalidated, so a
--- bag button rebuilding its tooltip every 0.2 s costs a table lookup, and a
--- pending item makes one API request, not one per rebuild.
+-- Answers come from UI/Results.lua, shared with the bag markers: a bag button
+-- rebuilding its tooltip every 0.2 s costs a lookup, and a pending item makes
+-- one API request, not one per rebuild or per surface.
 ------------------------------------------------------------
 
 local GG = GlassGear
 local Tooltip = {}
 GG.Tooltip = Tooltip
 
-Tooltip.CACHE_MAX = 200
--- Terminal answers worth asking again on the next hover, never cached.
-local RETRY = { NOT_READY = true, OVERLOADED = true, ITEM_QUEUE_FULL = true, ITEM_DATA_UNAVAILABLE = true }
-
-local cache, cacheCount = {}, 0          -- [key] = { response, requestId|nil }
-local requests = {}                       -- [requestId] = key, while pending
 local shown = setmetatable({}, { __mode = "k" })   -- [tooltip] = { key, itemID }
 local registered = false
 
@@ -31,7 +25,8 @@ local function isComparison(tooltip)
 end
 
 -- The item a tooltip shows -> API item reference, cache key. A Blizzard bag
--- button (GetBagID + GetID) whose slot still holds the item gives the instance.
+-- button (GetBagID + GetID) whose slot still holds the item gives the instance,
+-- under the same key the bag markers use.
 function Tooltip.ItemRef(tooltip, data)
     local id = tonumber(data.id)
     if not id then return nil end
@@ -39,8 +34,10 @@ function Tooltip.ItemRef(tooltip, data)
     if okO and type(owner) == "table" and type(owner.GetBagID) == "function" then
         local okB, bag = pcall(owner.GetBagID, owner)
         local okS, slot = pcall(owner.GetID, owner)
-        local link = okB and okS and bag and slot and GG.Compat.BagSlotLink(bag, slot, id)
-        if link then return { bag = bag, slot = slot }, "bag:" .. bag .. ":" .. slot .. ":" .. link end
+        if okB and okS and bag and slot then
+            local link, bound = GG.Compat.BagSlotLink(bag, slot, id)
+            if link then return { bag = bag, slot = slot }, GG.Compat.BagKey(bag, slot, link, bound) end
+        end
     end
     local link
     if data.guid then link = GG.Compat.LinkByGUID(data.guid) end
@@ -51,40 +48,6 @@ function Tooltip.ItemRef(tooltip, data)
     end
     if type(link) ~= "string" or link == "" then return nil end
     return link, "link:" .. link
-end
-
-local function retryable(response)
-    for _, r in ipairs(response.results or {}) do
-        for _, reason in ipairs(r.reasons or {}) do if RETRY[reason] then return true end end
-    end
-    return false
-end
-
-local function anyPending(response)
-    for _, r in ipairs(response.results or {}) do if r.status == "pending" then return true end end
-    return false
-end
-
-local function remember(key, response)
-    if retryable(response) then return end
-    if not cache[key] then
-        if cacheCount >= Tooltip.CACHE_MAX then Tooltip.Reset() end
-        cacheCount = cacheCount + 1
-    end
-    cache[key] = { response = response }
-    if anyPending(response) then
-        cache[key].requestId = response.requestId
-        requests[response.requestId] = key
-    end
-end
-
--- The evaluation for one displayed item, from the cache or the API.
-local function responseFor(ref, key)
-    local entry = cache[key]
-    if entry then return entry.response end
-    local response = GG.API.Evaluate({ item = ref, scope = "own", context = "tooltip" })
-    remember(key, response)
-    return response
 end
 
 function Tooltip.Render(tooltip, lines)
@@ -107,7 +70,7 @@ local function onItemTooltip(tooltip, data)
     if not GG.Data.Slots.IsEquippable(GG.Compat.EquipLoc(itemID)) then return end
     local ref, key = Tooltip.ItemRef(tooltip, data)
     if not ref then return end
-    local lines = GG.TooltipView.Build(responseFor(ref, key), GG.db.settings.tooltip,
+    local lines = GG.TooltipView.Build(GG.Results.Get(ref, key), GG.db.settings.tooltip,
         { currentSpec = GG.currentSpec })
     if not lines then return end
     shown[tooltip] = { key = key, itemID = itemID }
@@ -135,32 +98,8 @@ local function refresh(key)
     for _, tooltip in ipairs(stale) do tooltip:RefreshData() end
 end
 
-local function onReady(_, payload)
-    local key = payload and requests[payload.requestId]
-    if not key then return end
-    requests[payload.requestId] = nil
-    local entry = cache[key]
-    if entry and entry.requestId == payload.requestId then
-        if retryable(payload.response) then
-            cache[key] = nil
-            cacheCount = cacheCount - 1
-        else
-            entry.response, entry.requestId = payload.response, nil
-        end
-        refresh(key)
-    end
-end
-
--- Forget every cached answer; pending requests are cancelled.
-function Tooltip.Reset()
-    for id in pairs(requests) do GG.API.CancelRequest(id) end
-    cache, cacheCount, requests = {}, 0, {}
-end
-
-local function onInvalidated()
-    Tooltip.Reset()
-    refresh(nil)
-end
+-- Forget every cached answer (shared with the markers).
+function Tooltip.Reset() GG.Results.Reset() end
 
 -- Once, after login. A client without the processor gets no rows.
 function Tooltip.Initialize()
@@ -175,8 +114,7 @@ function Tooltip.Initialize()
         local ok, err = pcall(onItemTooltip, tooltip, data)
         if not ok then handler("GlassGear tooltip: " .. tostring(err)) end
     end)
-    GG.Callbacks.Register("EvaluationReady", onReady, "GlassGear.Tooltip")
-    GG.Callbacks.Register("EvaluationInvalidated", onInvalidated, "GlassGear.Tooltip")
+    GG.Results.Listen(refresh)
     return true
 end
 

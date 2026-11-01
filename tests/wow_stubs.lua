@@ -40,6 +40,11 @@ function WoW.reset()
     WoW.bags = {}         -- [bag] = { [slot] = { itemID, isBound, guid } }
     WoW.settingsCategories = {}
     WoW.postCalls = {}    -- [tooltip data type] = { fn, ... } (TooltipDataProcessor)
+    WoW.keys = {}         -- { CTRL = true, ALT = true } held modifiers
+    WoW.focus = nil       -- the edit box with keyboard focus
+    WoW.combat = false
+    WoW.atlases = { ["bags-greenarrow"] = true }
+    if WoW.makeBagFrames then WoW.makeBagFrames() end
 end
 
 function WoW.link(itemID, enchant)
@@ -81,14 +86,70 @@ local function newFontString()
     return fs
 end
 
-function CreateFrame(kind, name)
-    local f = { _events = {}, _scripts = {}, kind = kind, name = name }
+local function newTexture()
+    local t = { shown = true }
+    function t:SetAllPoints() end
+    function t:SetPoint() end
+    function t:SetAtlas(a) self.atlas = a end
+    function t:SetDesaturated(d) self.desaturated = d end
+    function t:SetVertexColor(r, g, b, a) self.vertex = { r, g, b, a } end
+    function t:SetColorTexture(r, g, b, a) self.color = { r, g, b, a } end
+    function t:Show() self.shown = true end
+    function t:Hide() self.shown = false end
+    return t
+end
+
+function CreateFrame(kind, name, parent)
+    local f = { _events = {}, _scripts = {}, _hooks = {}, kind = kind, name = name, parent = parent,
+        shown = true, inCombatCreate = WoW.combat }
     function f:RegisterEvent(e) self._events[e] = true end
     function f:UnregisterEvent(e) self._events[e] = nil end
     function f:SetScript(s, fn) self._scripts[s] = fn end
+    function f:GetScript(s) return self._scripts[s] end
+    function f:HookScript(s, fn)
+        self._hooks[s] = self._hooks[s] or {}
+        table.insert(self._hooks[s], fn)
+    end
     function f:CreateFontString() return newFontString() end
+    function f:CreateTexture() return newTexture() end
+    function f:SetSize() end
+    function f:SetPoint() end
+    function f:EnableMouse() end
+    function f:SetID(id) self._id = id end
+    function f:GetID() return self._id end
+    function f:IsShown() return self.shown end
+    function f:Show()
+        local was = self.shown
+        self.shown = true
+        if not was then for _, fn in ipairs(self._hooks.OnShow or {}) do fn(self) end end
+    end
+    function f:Hide()
+        local was = self.shown
+        self.shown = false
+        if was then for _, fn in ipairs(self._hooks.OnHide or {}) do fn(self) end end
+    end
+    function f:SetShown(v) if v then self:Show() else self:Hide() end end
     WoW.frames[#WoW.frames + 1] = f
     return f
+end
+
+-- Run every frame's OnUpdate for one frame of `dt` seconds.
+function WoW.tick(dt)
+    WoW.time = WoW.time + dt
+    for _, f in ipairs(WoW.frames) do
+        if f._scripts.OnUpdate then f._scripts.OnUpdate(f, dt) end
+    end
+end
+
+-- The client's secure hook (wraps t[name]).
+function hooksecurefunc(t, name, fn)                                                                   -- 22859
+    if type(t) == "string" then t, name, fn = _G, t, name end
+    local orig = t[name]
+    rawset(t, name, function(...)
+        local r = { orig(...) }
+        fn(...)
+        return unpack(r)
+    end)
 end
 
 ------------------------------------------------------------
@@ -158,6 +219,12 @@ function C_Item.GetItemLinkByGUID(guid)                                         
         for _, s in pairs(b) do if s.guid == guid then return WoW.link(s.itemID) end end
     end
 end
+
+function IsControlKeyDown() return WoW.keys.CTRL == true end                                          -- 5446
+function IsAltKeyDown() return WoW.keys.ALT == true end                                                 -- 5431
+function GetCurrentKeyBoardFocus() return WoW.focus end                                                 -- 18891
+function InCombatLockdown() return WoW.combat end                                                       -- 19837
+C_Texture = { GetAtlasInfo = function(name) if WoW.atlases[name] then return { width = 16 } end end }  -- 3754
 
 C_Container = {}
 function C_Container.GetContainerItemID(bag, slot)                                                     -- 1169
@@ -229,6 +296,45 @@ function WoW.bagButton(bag, slot, updates)
     function b:GetID() return self.slot end
     if updates then function b:UpdateTooltip() end end
     return b
+end
+
+-- Blizzard's bag frames (Mainline/ContainerFrame.xml:229-231: ContainerFrameContainer
+-- and its ContainerFrames; ContainerFrameCombinedBags), UpdateItems (:1191) walking
+-- EnumerateValidItems (:575), item buttons with GetBagID (:1830) and GetID.
+local function newBagFrame(name)
+    local f = CreateFrame("Frame", name)
+    f.shown = false
+    f.Items, f._size = {}, 0
+    f.EnumerateValidItems = function(self)
+        local i = 0
+        return function()
+            i = i + 1
+            if i <= self._size then return i, self.Items[i] end
+        end
+    end
+    f.UpdateItems = function() end
+    return f
+end
+-- Fresh, unhooked bag frames on every WoW.reset() (a reloaded addon hooks anew).
+function WoW.makeBagFrames()
+    local container = { ContainerFrames = {} }
+    for i = 1, 6 do container.ContainerFrames[i] = newBagFrame("ContainerFrame" .. i) end
+    rawset(_G, "ContainerFrameContainer", container)
+    rawset(_G, "ContainerFrameCombinedBags", newBagFrame("ContainerFrameCombinedBags"))
+end
+-- Show `frame` holding `slots` ({ {bag, slot}, ... }, pooled buttons reused in
+-- order), then run its UpdateItems as Blizzard does.
+function WoW.showBag(frame, slots)
+    for i, sl in ipairs(slots) do
+        local b = frame.Items[i] or CreateFrame("Button", nil, frame)
+        frame.Items[i] = b
+        b._bag = sl[1]
+        b.GetBagID = function(self) return self._bag end
+        b:SetID(sl[2])
+    end
+    frame._size = #slots
+    frame:Show()
+    frame:UpdateItems()
 end
 
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) WoW.chatLines[#WoW.chatLines + 1] = msg end }

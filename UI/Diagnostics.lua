@@ -32,7 +32,11 @@ function Diagnostics.Lines()
     add("profile sync: unavailable (entry-sync library ES-001, GG-202)")
     add("theme: " .. tostring(GG.themeName) .. (GG.themeInfo and GG.themeInfo.reason and (" (" .. GG.themeInfo.reason .. ")") or ""))
     add("tooltip rows: " .. (GG.tooltipHooked and "on" or ("unavailable (" .. tostring(GG.tooltipReason) .. ")")))
-    add("unavailable in this build: markers (GG-109/111), reveal (GG-110), protection (GG-301)")
+    add("bag markers: " .. (GG.bagMarkersOn and ("on (" .. tostring(GG.bagMarkersInfo) .. " bag frames)")
+        or ("unavailable (" .. tostring(GG.bagMarkersInfo) .. ")")))
+    local mod = GG.db and GG.db.settings.reveal.modifier or "CTRL"
+    add("reveal: " .. (mod == "NONE" and "off" or ("hold " .. mod .. " to show off-spec upgrades")))
+    add("unavailable in this build: loot markers (GG-111), protection (GG-301)")
     return lines
 end
 
