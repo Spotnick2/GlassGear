@@ -109,7 +109,8 @@ extracted from AltStableSync Link under ASS-001. AltStable#281's AS-002 section 
   - Remote characters return item strings with their suffix.
   - Old records report `unknown` per slot instead of a wrong item.
   - The callback fires on remote and local changes.
-  - The API version or a feature flag gates it.
+  - The feature flag `AltStable.PUBLIC_API_FEATURES.gear` gates it: true once `GetCharacterGear` and
+    `GearChanged` ship (`PUBLIC_API_VERSION` stays 1; agreed on AltStable#281).
 - **Dependencies:** AS-001 (provenance travels with the record).
 - **Validation:** AltStable tests for serialization round-trip and old-record handling.
 

@@ -386,7 +386,7 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 - **Outcome.** Own characters from both accounts are discoverable, with provenance, level, class,
   realm and faction.
 - **Scope.** `RosterProvider` adapter; version and feature detection (the existing
-  `DetectAltStable`, moved to `AltStable.PUBLIC_API_FEATURES.provenance` and AS-003's flag).
+  `DetectAltStable`, moved to `AltStable.PUBLIC_API_FEATURES.provenance` and `.gear`, the AS-003 flag).
 - **Deps.** AS-001 (done), AS-003.
 - **Acceptance.**
   - Without AltStable, or with an older one: `/gg` and the API say exactly what is missing.
