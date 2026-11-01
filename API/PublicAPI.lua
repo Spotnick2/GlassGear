@@ -35,7 +35,7 @@ function API.GetCapabilities()
         apiVersion = API.API_VERSION, build = GG.MEASURED_ON_BUILD, features = features(),
         unavailable = {
             alts = alt.reason or "GG-201 not implemented",
-            sync = alt.reason or "GG-202 not implemented",
+            sync = "needs the entry-sync library (ES-001, GG-202)",
             assessProtection = "GG-301 not implemented",
             ["scope:tracked"] = "needs alts (GG-201)",
             frameBudget = "GG-114", resultCache = "GG-114",

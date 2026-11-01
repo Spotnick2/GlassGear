@@ -137,13 +137,15 @@ They are detailed in [adr/0003](adr/0003-upgrade-metric.md). In summary:
 ## 8. AltStable absent
 
 Glass Gear still evaluates the current character and all its specs. The following are **unavailable**
-without AltStable, or with an AltStable that lacks AS-001/AS-002/AS-003:
+without AltStable, or with an AltStable that lacks AS-001/AS-003:
 
 - alt rows and alt markers;
 - alt protection;
-- synced weight profiles across accounts;
 - the characters page;
 - baselines of other characters.
+
+Syncing your own weight profiles and baselines across accounts does **not** need AltStable since the
+adr/0001 amendment: it goes through the shared entry-sync library (ES-001, GG-202).
 
 `/gg diag` and the API report these as `unavailable`, never as "no upgrade".
 

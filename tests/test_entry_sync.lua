@@ -253,7 +253,8 @@ local big = { id = string.rep("x", 2100), kind = "profile", version = "w:1", anc
 H.eq(select(2, Codec.Encode(big)), "too-large", "oversized entry -> too-large, stays local")
 
 -- Backfill for 50 characters: 3 specs x 4 worst-case profiles, a full baseline
--- and one tombstone per spec, all encoded. A 100-id manifest page fits 24 KB.
+-- and one tombstone per spec, all encoded. A 100-id manifest page fits the
+-- 16 KB batch limit even if escaping doubles it (adr/0001, transport limits).
 worst.data.name = string.rep("N", 24)
 local slots = {}
 for _, slot in ipairs(GG.Data.Slots.GEAR) do slots[slot] = { state = "occupied", item = "99999:9999:-9999" } end
@@ -278,8 +279,8 @@ for c = 1, 50 do
     end
 end
 local page = table.concat(ids, ",", 1, 100)
-H.check(#page < 24 * 1024, "a 100-id manifest page fits 24 KB (" .. #page .. " bytes)")
-print(string.format("  info: worst-case full backfill for 50 characters ~ %d KB before compression (paged by AS-002)", math.floor(total / 1024)))
+H.check(2 * #page <= 16 * 1024, "a 100-id manifest page fits 16 KB even doubled by escaping (" .. #page .. " bytes)")
+print(string.format("  info: worst-case full backfill for 50 characters ~ %d KB before compression (paged by the entry-sync library, ES-001)", math.floor(total / 1024)))
 
 -- Inventory -> protection: an outstanding weight change keeps protection from "clear".
 A, B = ES.New({}, "pa"), ES.New({}, "pb")

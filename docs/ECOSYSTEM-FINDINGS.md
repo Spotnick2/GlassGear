@@ -220,7 +220,10 @@ All of these are proposals until GG-116 measures them.
 - Per-spec gear, equipment sets, stat weights, BiS.
 - An own-account-only channel with sender/destination enforcement, and persistent per-character
   ownership provenance (AS-001).
-- A namespaced entry-sync service with manifests, acknowledgements and inventory (AS-002).
+- A namespaced entry-sync service with manifests, acknowledgements and inventory (AS-002). Since
+  2026-11-01 this is no longer asked of AltStable: it moved to the shared library ES-001
+  (adr/0001 amendment). AS-001 (provenance, own-account channel) has since merged in AltStable
+  #282 (`028cdd1`); the findings above describe the commit listed at the top.
 - Headless plugin registration (no sidebar tab).
 
 ## AltStableSync
@@ -248,8 +251,8 @@ All of these are proposals until GG-116 measures them.
 
 ### Not present
 - No gear, stat weights or simulation.
-- The Link protocol isn't a library other addons can call. Extracting it is ASS-001, only if AS-S1
-  picks extraction.
+- The Link protocol isn't a library other addons can call. AS-S1 chose extraction (2026-11-01):
+  ASS-001 turns it into the shared library ES-001.
 
 ## AltStableCompanion
 

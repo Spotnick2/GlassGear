@@ -1,7 +1,11 @@
 # ADR-0001: Who owns cross-account sync
 
 - Status: accepted (2026-11-01), after nine rounds of adversarial review (Codex gpt-6-astra, high),
-  `docs/reviews/plan/`
+  `docs/reviews/plan/`. **Amended 2026-11-01** (#36): spike AS-S1 chose **extraction**, approved by
+  the owner in the AltStable session. AS-002 is no longer an AltStable service. Profiles and
+  baselines travel through a shared entry-sync library on Glass Gear's own LibAccountSync instance
+  (option 4 below). The amendment was checked by a Codex consult (no fatal defect) and by the
+  LibAccountSync session against its docs and code.
 - Scope: weight profiles and per-spec baselines across the owner's two WoW accounts (one Battle.net
   account)
 
@@ -27,37 +31,59 @@ What exists today (verified, see [ECOSYSTEM-FINDINGS.md](../ECOSYSTEM-FINDINGS.m
 
 ## Options
 
-| | 1. AltStable-owned sync | 2. Direct LibAccountSync in Glass Gear | 3. Provider/adapter |
-|---|---|---|---|
-| Roster/ownership source | AltStable (single truth) | Glass Gear would need its own roster and ownership | Pluggable |
-| Transport | AltStable (needs an extension) | Glass Gear's own LAS instance | Whatever the provider gives |
-| Duplicate sync services | No | **Yes**: a second own-account roster sync | No, if the provider is AltStable |
-| Works without AltStable | Current character only | Alts too | Current character; future providers possible |
-| Upstream work | AS-001, AS-002, AS-003 | None upstream, but heavy duplication | As option 1 |
-| Demonstrated need | Fits "AltStable owns roster/distribution" | No requirement today for alts without AltStable | |
+| | 1. AltStable-owned sync | 2. Direct LibAccountSync in Glass Gear | 3. Provider/adapter | 4. AltStable roster + shared entry-sync library |
+|---|---|---|---|---|
+| Roster/ownership source | AltStable (single truth) | Glass Gear would need its own roster and ownership | Pluggable | AltStable (single truth) |
+| Transport for profiles/baselines | AltStable (needs an extension) | Glass Gear's own LAS instance | Whatever the provider gives | The extracted library, on Glass Gear's own LAS instance |
+| Duplicate sync services | No | **Yes**: a second own-account roster sync | No, if the provider is AltStable | No second roster; one entry-sync implementation shared with AltStableSync Link |
+| Works without AltStable | Current character only | Alts too | Current character; future providers possible | Profile/baseline sync yes; alts no |
+| Upstream work | AS-001, AS-002, AS-003 | None upstream, but heavy duplication | As option 1 | AS-001 (done), AS-003, ASS-001 + the library (ES-001) |
+| Demonstrated need | Fits "AltStable owns roster/distribution" | No requirement today for alts without AltStable | | AS-S1 found the entry-sync machinery belongs in a library, not in AltStable |
 
 ## Decision
 
-**Option 1, behind the internal `RosterProvider` interface of option 3.**
+**Option 4 (amended 2026-11-01; was option 1), behind the internal `RosterProvider` interface of
+option 3.**
 
-- **Glass Gear owns** profile authoring, per-spec baseline capture and evaluation.
-- **AltStable owns** the roster, ownership provenance and cross-account distribution.
+- **Glass Gear owns** profile authoring, per-spec baseline capture and evaluation. It **syncs its own
+  profiles and baselines** through the shared entry-sync library (ES-001, extracted from AltStableSync
+  Link under ASS-001) on **its own LibAccountSync instance**.
+- **AltStable owns** the roster, ownership provenance (AS-001, merged in AltStable #282) and gear
+  (AS-003). Alt features (GG-201, GG-203) still go through AltStable.
+- **Option 2's rejection still stands for the roster:** Glass Gear never builds a second roster or
+  its own ownership model. What it runs itself is entry sync only, with code shared with AltStableSync
+  Link, not a second implementation.
+- **Consequence:** profile and baseline sync works without AltStable (the owner's own characters,
+  across installations and accounts). Evaluating alts still needs AltStable's roster, provenance and
+  gear.
 - Glass Gear always has a local provider, which covers the current character and its specs. The
-  AltStable provider is added when AltStable offers the required capabilities.
-- Direct LibAccountSync is rejected for the MVP: it would solve no demonstrated requirement and would
-  duplicate AltStable's own-account route.
-- **Revisit trigger:** "alts without AltStable" becomes a requirement.
+  AltStable provider is added when AltStable offers the required capabilities (AS-001, AS-003).
 
-Until AS-001 and AS-002 ship, alt features are reported **unavailable**. They are not degraded, and
-Glass Gear never reads `AltStableDB` directly (AltStable `docs/PUBLIC-API.md:4-5`).
+Until AS-001 and AS-003 are available, alt features are reported **unavailable**; until ES-001
+ships, profile sync is. They are not degraded, and Glass Gear never reads `AltStableDB` directly
+(AltStable `docs/PUBLIC-API.md:4-5`).
 
-## Trust boundary (required: AS-001)
+### Refusals and the on/off control (recommended default; the owner's call)
+
+AltStable lets the player "refuse for good" an own account. That refusal is AltStable's own state and
+does **not** apply on the library path, which runs on a different LibAccountSync instance.
+
+- **Recommended:** Glass Gear's own sync on/off switch is the control. It is documented as such in the
+  settings, and turning it off stops both sending and receiving on Glass Gear's instance.
+- **Not recommended:** a policy bridge that mirrors AltStable's refusals into Glass Gear. It would
+  couple two stores for a rare case.
+
+## Trust boundary
 
 - **Own accounts only.** Profiles and baselines may only travel to and from the owner's own accounts.
-  The AltStable extension provides an own-account-only channel:
-  - outbound goes only to LibAccountSync-proven own accounts;
-  - inbound is accepted only from them;
-  - both are enforced before any consumer callback.
+  On the library path, LibAccountSync enforces it:
+  - it sends only to its proven own-account peers;
+  - it delivers `OnMessage` only from a proven own account, in both snapshot and messages modes
+    (`TryDeliver`, `LibAccountSync.lua:1422-1460`), before the library or Glass Gear sees anything.
+- **Character provenance comes from AltStable** (AS-001, merged): `GetCharacterProvenance` and the
+  provenance fields on `GetCharacters` (AltStable `docs/PUBLIC-API.md`). Glass Gear uses it to decide
+  which characters are recipients. An entry arriving from a proven own account says nothing about
+  the character it describes beyond that.
 - **Provenance per character.**
   - `self`: scanned on this client.
   - `own-account`: first-hand from a proven own-account peer.
@@ -117,7 +143,7 @@ installations may do so, and conflicts are handled per entry.
 - **Receiving is passive.** Receiving never triggers a send, and never calls `TouchCharacter`.
 - **AltStable forget** drops that GUID's entries locally. **Unforget** is a normal fast-forward.
 
-## Transport (required: AS-002, spike AS-S1)
+## Transport: the shared entry-sync library (ES-001, from ASS-001)
 
 AltStable's character-record plugin blob is **not** sufficient. It has no delivery, acknowledgement
 or inventory:
@@ -126,26 +152,63 @@ or inventory:
 - the 300 s throttle only rejects requests (`Core.lua:2215`);
 - replies filter by account (`Core.lua:1915`).
 
-The required extension is a **namespaced, own-account entry-sync service**. A consumer registers with
-it headlessly (namespace, validator, size limits). It is modelled on, and ideally extracted from,
-AltStableSync Link (`DESIGN.md:850-911`):
+Spike AS-S1 chose **extraction**: AltStableSync Link's entry sync (`DESIGN.md:850-911`) becomes a
+small embedded library layered on LibAccountSync. Glass Gear and AltStableSync Link both embed it.
+LibAccountSync stays unchanged: transport plus proof, with opaque payloads. Glass Gear registers a
+namespace with it (namespace, entry validator, size limits) and depends only on its contract:
 
 - **Manifests.** Each namespace has a manifest `{id → version}`. Manifests are exchanged:
   - on peer sighting;
   - after coalesced local writes;
   - on a bounded timer while a peer is linked;
   - on manual refresh.
-- **Pull.** Each side pulls the differing ids from each peer, with at most 3 outstanding, a 30 s
-  timeout and re-queueing.
+- **Pull.** Each side pulls the differing ids from each peer and re-queues on timeout.
 - **Size.** Batches shrink until they fit. An oversized single entry is `too-large`: it stays local
   and is reported.
+- **Delivery.** "Sent" is never delivery: the layer acknowledges and retries itself.
 - **Receipts** never trigger exchanges.
 - **The manifest is the inventory.** While a character's relevant entries differ from a peer's
   manifest, that character's targets are `maybeBehind`. They are displayed as stale and never give
   `clear` for protection.
+- **Late registration, or no matching consumer on the peer:** pending entries are never counted as
+  confirmed and never deleted.
 
-Whether AltStable hosts the service itself or delegates to a module extracted from AltStableSync is
-an AltStable decision (AS-S1). Glass Gear depends only on this contract.
+### Transport limits (from the LibAccountSync session)
+
+The original AS-002 numbers (3 outstanding pulls, flat 30 s timeout, 24 KB pages) were too tight
+for the transport:
+
+| Fact | Value |
+|---|---|
+| Planning pace | about **570 B/s**: a 16 KB reply takes about 28 s, a 32 KB one about 57 s |
+| Just after login | even 1000 B took 7–14 s to go out |
+| Shared receiver limits | every addon on the prefix shares **8 open streams** and **131072 buffered bytes** |
+| Escaping | can double the size on the wire |
+| A refused stream | is lost silently |
+
+So the library contract uses:
+
+- **batches of at most 16 KB** on the wire, after escaping;
+- a **pull timeout computed from the bytes** at the planning pace plus slack, not a flat 30 s;
+- **at most 2 outstanding pulls right after login**, more only once the link is settled;
+- its own acknowledgement and retry.
+
+At the planning pace the worst-case backfill fixture (about 1.2 MB before compression for 50
+characters, `test_entry_sync`) would take over half an hour. Real backfills are far smaller, the
+library pages them, and the receiver shows `maybeBehind` until it has caught up.
+
+### Instance model (from the LibAccountSync session)
+
+- **One dedicated LibAccountSync instance** with a tag **derived** for entry sync only, for example
+  `GlassGearES`. Tags are 1–16 letters or digits and **permanent**: choose once.
+- It uses Glass Gear's own account-wide store getter. The library owns that instance's single
+  `OnMessage` handler.
+- After `New`, check `inst.messages == true`: an older LibAccountSync copy that wins the LibStub race
+  gives snapshots only. Then profile sync reports unavailable.
+- The enabled switch lives in the store and is **shared by every tag on that store**: flip them
+  together.
+- The library's manifests and inventory live in **Glass Gear's own SavedVariables**, never inside
+  the accountSync store table, which holds the household key.
 
 ## Codec and budget
 
@@ -159,7 +222,8 @@ an AltStable decision (AS-S1). Glass Gear depends only on this contract.
   `capturedAt`.
 - **Targets** (checked by M0 fixtures, not guarantees):
   - at most 2 KB per encoded entry, including 20 ancestors, ids, conflict metadata and escaping;
-  - under 24 KB per manifest exchange page.
+  - at most 16 KB per batch or manifest page on the wire (was 24 KB before the amendment; see
+    transport limits).
 - The full backfill fixture includes tombstones for 50 characters.
 
 ## Sync policy by data kind
@@ -170,13 +234,21 @@ an AltStable decision (AS-S1). Glass Gear depends only on this contract.
 | Spec baselines | Yes | Same |
 | Spec mapping (group → spec) | Yes, as part of the baseline entry metadata | Needed to label "current" for alts |
 | Display, marker and protection settings, reveal modifier | **No** | Per-account preference |
+| The sync on/off switch | **No** | It is the control for this account (see refusals) |
 | Conflict copies | As entries (per the model) | Resolution must converge |
 
 ## Consequences
 
 - M0 implements the receive rules, resolution, the manifest inventory, `maybeBehind` and the codec as
   **pure Lua with simulated transport**, fixture-tested (`tests/test_entry_sync.lua`).
-- M2 needs AS-001, AS-002 and AS-003 upstream. Glass Gear's adapter (GG-201, GG-202) then only maps
-  the service onto the tested model.
+- M2 needs, upstream: AS-001 (merged), AS-003, and the entry-sync library (ES-001, extracted under
+  ASS-001). Glass Gear's adapters (GG-201 for the roster, GG-202 for the library) then only map them
+  onto the tested model.
+- **New costs (amendment):**
+  - Two consumers, Glass Gear and AltStableSync, package and version the library. Each pins a
+    release, like LibGlass.
+  - AltStableSync Link must stay wire-compatible during the migration (ASS-001's acceptance).
+  - Glass Gear owns a LibAccountSync instance with a permanent tag, and its settings need the sync
+    on/off switch.
 - Accepted edge cases are the ones AltStableSync documents: one extra conflict copy after two
   incomparable tombstones meet, and a conservative copy after 20+ edits of lag.

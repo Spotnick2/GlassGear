@@ -13,16 +13,17 @@ silent fallback.
 
 | ID | Repo | Kind | Milestone | Blocks |
 |---|---|---|---|---|
-| AS-001 | AltStable | Required extension | M2 | **BLOCKER for M2**: every alt feature |
-| AS-002 | AltStable | Required extension (spike AS-S1 first) | M2 | GG-202 profile/baseline sync |
+| AS-001 | AltStable | Required extension: **done** (AltStable #282, `028cdd1`) | M2 | every alt feature |
+| AS-002 | — | **Moved** to ES-001 (AS-S1 chose extraction, adr/0001 amendment) | — | — |
 | AS-003 | AltStable | Required extension | M2 | GG-201, GG-203 alt baselines |
-| ASS-001 | AltStableSync | Research (only if AS-S1 picks extraction) | M2 | AS-002 |
+| ASS-001 | AltStableSync | Required: extract Link's entry sync (AS-S1 chose extraction) | M2 | ES-001 |
+| ES-001 | new library (repo and name TBD) | Required: shared entry-sync library | M2 | GG-202 profile/baseline sync |
 | SH-001 | Shatter | Required extension | M3 | Disenchant protection |
 | SH-002 | Shatter | Required extension | M3 | Manual override |
 | GUI-001 | GlassUI | Required extension | M4 | GG-115 Glass look via suite |
 | ASC-001 | AltStableCompanion | Future research | M5 | GG-502, GG-501 |
 | — | LibGlass | None | — | — |
-| — | LibAccountSync | None for MVP | — | — |
+| — | LibAccountSync | None (used unchanged, own instance) | — | — |
 
 ---
 
@@ -41,7 +42,19 @@ silent fallback.
 - `TouchCharacter` only stamps `lastUpdate` (`Core.lua:1204`).
 - Replies filter by account unless `sendAllAccounts` is set (`Core.lua:1916-1918`).
 
-### AS-001: Own-account-only channel and per-character ownership provenance (**BLOCKER for M2**)
+### AS-001: Own-account-only channel and per-character ownership provenance (**done**)
+
+> **Status: merged** in AltStable #282 (main `028cdd1`). The contract is in AltStable
+> `docs/PUBLIC-API.md`:
+> - per-character provenance `self` / `own-account` / `third-party`: `GetCharacterProvenance`, the
+>   `provenance` fields on `GetCharacters`, and the `"ProvenanceChanged"` callback;
+> - an own-account channel: `SendToOwnAccounts`, `RegisterOwnAccountHandler`, `GetOwnAccountPeers`,
+>   `"OwnAccountPeersChanged"`;
+> - feature flags `provenance` and `ownAccountChannel` in `AltStable.PUBLIC_API_FEATURES`.
+>   `PUBLIC_API_VERSION` stays 1.
+>
+> Glass Gear uses the provenance for recipients (GG-201, GG-203). Profile sync does not use the
+> own-account channel; it goes through ES-001 (adr/0001). The original request follows.
 
 - **Outcome.** A consumer can tell, for every character AltStable knows, whether it is the
   player's own. Data the consumer exchanges reaches only the player's own accounts.
@@ -70,57 +83,11 @@ silent fallback.
   - AltStable unit tests: own peer, whitelisted peer, relayed record, unknown sender.
   - In game: a two-account check after 2026-11-04 (AltStable's `/fp steps as` style procedure).
 
-### AS-002: Namespaced own-account entry-sync service (spike AS-S1 first)
+### AS-002: moved to ES-001
 
-- **Outcome.** Glass Gear's profiles and per-spec baselines reach the other account reliably,
-  using AltStableSync's per-entry rules. The receiver knows when it is behind.
-- **AS-S1 (spike):** AltStable either hosts this service itself, or delegates to a module
-  extracted from AltStableSync Link (ASS-001). Glass Gear depends only on the contract below.
-- **Contract.** It is modelled on AltStableSync `docs/DESIGN.md:850-911`.
-  - **Registration**
-    - A consumer registers **headlessly**: no sidebar tab. It passes a `namespace`, an entry
-      validator and size limits.
-    - It declares its entries with `{id, version, ancestors, payload}`.
-    - Versions are `<writer>:<seq>`, where `writer` is a fresh in-memory token per session
-      (DESIGN.md:222). The service stores incoming ids and versions unchanged.
-  - **Exchange triggers.** Per-namespace manifests `{id → version}` are exchanged:
-    - on peer sighting;
-    - after coalesced local writes;
-    - on a bounded timer while a peer is linked;
-    - on manual refresh.
-
-    Receipts never trigger an exchange.
-  - **Pull.** Per peer, it pulls the ids that differ: at most 3 outstanding, a 30 s timeout, then
-    re-queue. Batches shrink until they fit.
-  - **Oversized entries.** A single entry that can't fit is `too-large`: it stays local and is
-    reported to the consumer.
-  - **Inventory.** The service exposes, per peer and per id, whether the manifests match. Glass
-    Gear marks a character's targets `maybeBehind` while any of that character's profile or
-    baseline entries differs from a peer's manifest. Such targets display as stale and **never**
-    give a protection `clear`.
-  - **"Confirmed"** means the peer's manifest lists exactly the local `{id, version}`.
-  - **Trust.** Delivery is own-account only: AS-001 is enforced before consumer callbacks.
-  - **Backfill.** A consumer enabled late, or installed on one side only, gets a full manifest
-    exchange when it registers. Entries for a namespace a peer doesn't run stay pending; they are
-    never deleted.
-  - **Receive rules stay with the consumer.** The service delivers entries. Glass Gear applies
-    AltStableSync's receive rules (`DESIGN.md:913-973`):
-    - fast-forward or ignore;
-    - divergent → whole-entry conflict copy, suppressed if it exists live or tombstoned;
-    - versioned tombstones;
-    - the one receive-side mint is retiring covered conflict copies.
-- **Acceptance**
-  - **Idle catch-up.** A multi-page exchange, then both sides idle: every entry eventually arrives
-    and is confirmed.
-  - **Recovery.** A lost acknowledgement recovers. A receiver with nothing pending still exchanges
-    manifests.
-  - **No silent loss.** A weight-only change that hasn't arrived shows `maybeBehind` until the
-    manifests match. An oversized entry reports `too-large`. Omission never deletes.
-- **Dependencies:** AS-001; AS-S1.
-- **Validation**
-  - AltStable unit tests with a simulated transport. Glass Gear's M0 fixtures run the same
-    scenarios against Glass Gear's side.
-  - In game: a two-account check.
+Spike AS-S1 chose **extraction** (owner-approved in the AltStable session, 2026-11-01). The
+entry-sync service is not built in AltStable: it becomes the shared library **ES-001** below,
+extracted from AltStableSync Link under ASS-001. AltStable#281's AS-002 section says it moved.
 
 ### AS-003: Public gear read API
 
@@ -142,7 +109,8 @@ silent fallback.
   - Remote characters return item strings with their suffix.
   - Old records report `unknown` per slot instead of a wrong item.
   - The callback fires on remote and local changes.
-  - The API version or a feature flag gates it.
+  - The feature flag `AltStable.PUBLIC_API_FEATURES.gear` gates it: true once `GetCharacterGear` and
+    `GearChanged` ship (`PUBLIC_API_VERSION` stays 1; agreed on AltStable#281).
 - **Dependencies:** AS-001 (provenance travels with the record).
 - **Validation:** AltStable tests for serialization round-trip and old-record handling.
 
@@ -153,17 +121,95 @@ silent fallback.
 **Exists today:** the per-entry model and the Link protocol (`docs/DESIGN.md:850-973`), and
 retirement on receipt (`Catalog.lua:89`, `:542`, `:580`). Link is internal to AltStableSync.
 
-### ASS-001: Extract Link's protocol into a shared module (research; only if AS-S1 picks extraction)
+### ASS-001: Extract Link's entry sync into a shared library (required: AS-S1 chose extraction)
 
-- **Outcome.** AltStable can host AS-002 without a second implementation of the same protocol.
+- **Outcome.** Link's manifest, pull, size and acknowledgement machinery becomes the embedded
+  library ES-001, which AltStableSync Link and Glass Gear both use.
 - **Scope**
-  - Factor Link's manifest/pull/size machinery behind a namespace-parameterised module.
-  - AltStableSync keeps working unchanged on wire schema 3.
+  - Factor it behind a namespace-parameterised library layered on LibAccountSync.
+  - AltStableSync keeps working: Link stays **wire-compatible** during the migration.
 - **Acceptance**
-  - AltStableSync's existing tests pass.
+  - AltStableSync's existing tests pass, and Link interoperates with an unmigrated peer.
   - A second namespace runs side by side in tests without interfering.
-- **Dependencies:** AS-S1.
+- **Dependencies:** none (AS-S1 is decided).
 - **Validation:** AltStableSync unit tests.
+
+---
+
+## Entry-sync library (new; repo and name TBD)
+
+### ES-001: Shared entry-sync library (formerly AS-002)
+
+- **Outcome.** Glass Gear's profiles and per-spec baselines reach the player's other accounts
+  reliably, with AltStableSync's per-entry rules, and the receiver knows when it is behind. This works
+  without AltStable.
+- **Where.** A small embedded library layered on LibAccountSync, extracted from AltStableSync Link
+  (ASS-001). Glass Gear and AltStableSync Link both embed and pin it. LibAccountSync is unchanged:
+  transport plus proof, opaque payloads.
+- **Contract.** Modelled on AltStableSync `docs/DESIGN.md:850-911`.
+  - **Registration**
+    - A consumer registers a `namespace`, an entry validator and size limits.
+    - It declares its entries with `{id, version, ancestors, payload}`.
+    - Versions are `<writer>:<seq>`, where `writer` is a fresh in-memory token per session
+      (DESIGN.md:222). The library stores incoming ids and versions unchanged.
+  - **Instance model** (from the LibAccountSync session)
+    - The consumer creates **one dedicated LibAccountSync instance** with a **derived, permanent**
+      tag just for entry sync (for example `GlassGearES`; tags are 1-16 letters or digits), on its
+      own account-wide store getter. The library owns that instance's single `OnMessage` handler.
+    - After `New`, `inst.messages == true` must hold. An older winning LibAccountSync copy gives
+      snapshots only, and the library then reports unavailable.
+    - The enabled switch lives in the store and is shared by every tag on it: flip them together.
+    - Manifests and inventory live in the consumer's own SavedVariables, never inside the
+      accountSync store table, which holds the household key.
+  - **Exchange triggers.** Per-namespace manifests `{id -> version}` are exchanged:
+    - on peer sighting;
+    - after coalesced local writes;
+    - on a bounded timer while a peer is linked;
+    - on manual refresh.
+
+    Receipts never trigger an exchange.
+  - **Pull and batches** (sized for the transport; see adr/0001, transport limits)
+    - Batches of **at most 16 KB on the wire**, after escaping; they shrink until they fit.
+    - The pull timeout is **computed from the bytes** at a planning pace of about 570 B/s plus
+      slack, not a flat 30 s.
+    - **At most 2 outstanding pulls right after login**, more once the link is settled.
+    - The library's **own acknowledgement and retry**: "sent" is never delivery. Every addon on the
+      prefix shares 8 open streams and 131072 buffered bytes on the receiver, and a refused stream
+      is lost silently.
+  - **Oversized entries.** A single entry that can't fit is `too-large`: it stays local and is
+    reported to the consumer.
+  - **Inventory.** Per peer and per id, whether the manifests match. Glass Gear marks a character's
+    targets `maybeBehind` while any of that character's profile or baseline entries differs from a
+    peer's manifest. Such targets display as stale and **never** give a protection `clear`.
+  - **"Confirmed"** means the peer's manifest lists exactly the local `{id, version}`.
+  - **Trust.** LibAccountSync delivers `OnMessage` only from proven own accounts, in both modes
+    (`TryDeliver`, `LibAccountSync.lua:1422-1460`). AltStable's "refuse for good" does **not**
+    apply on this path; the consumer's own on/off switch is the control (adr/0001, refusals).
+  - **Late registration and missing consumers.** A consumer enabled late, or a peer without a
+    matching consumer: pending entries are never counted as confirmed and never deleted. A late
+    consumer gets a full manifest exchange when it registers.
+  - **Receive rules stay with the consumer.** The library delivers entries. Glass Gear applies
+    AltStableSync's receive rules (`DESIGN.md:913-973`):
+    - fast-forward or ignore;
+    - divergent: whole-entry conflict copy, suppressed if it exists live or tombstoned;
+    - versioned tombstones;
+    - the one receive-side mint is retiring covered conflict copies.
+- **Acceptance**
+  - **Idle catch-up.** A multi-page exchange, then both sides idle: every entry eventually arrives
+    and is confirmed.
+  - **Recovery.** A lost acknowledgement or a silently refused stream recovers by retry. A receiver
+    with nothing pending still exchanges manifests.
+  - **No silent loss.** A weight-only change that hasn't arrived shows `maybeBehind` until the
+    manifests match. An oversized entry reports `too-large`. Omission never deletes.
+  - **Slow link.** Timeouts scale with the bytes, so a 16 KB batch at about 570 B/s (about 28 s)
+    is not retried early.
+- **Costs.** Two consumers package and version the library. Link stays wire-compatible during the
+  migration (ASS-001).
+- **Dependencies:** ASS-001.
+- **Validation**
+  - Library unit tests with a simulated transport. Glass Gear's M0 fixtures run the same scenarios
+    against Glass Gear's side.
+  - In game: a two-account check.
 
 ---
 
@@ -276,9 +322,10 @@ future need goes to a LibGlass issue, not an edit from this repo.
 
 ## LibAccountSync
 
-**None for MVP.** Both of the owner's WoW accounts are on one Battle.net account, which
-LibAccountSync already covers (`README.md:4`). Glass Gear does not use it directly; adr/0001
-rejects a second sync service. Revisit only if "alts without AltStable" becomes a requirement.
+**None needed.** Both of the owner's WoW accounts are on one Battle.net account, which
+LibAccountSync already covers (`README.md:4`). Since the adr/0001 amendment, Glass Gear uses it
+**unchanged**, through the ES-001 library, on its own instance with a derived permanent tag (for
+example `GlassGearES`). It still never builds a second roster.
 
 ## AltStableCompanion
 

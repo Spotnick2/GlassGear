@@ -2,9 +2,10 @@
 -- Integrations/RosterProvider.lua - who Glass Gear can evaluate (adr/0001).
 --
 -- The local provider (current character) always exists. The AltStable
--- provider needs AltStable extensions that do not exist yet (AS-001 own-account
--- channel + provenance, AS-002 entry-sync service, AS-003 gear read API), so
--- it reports exactly what is missing and alt features stay unavailable.
+-- provider needs AS-001 (provenance + own-account channel, merged in AltStable
+-- #282) and AS-003 (gear read API, open), so it reports exactly what is
+-- missing and alt features stay unavailable. Profile/baseline sync is not
+-- AltStable's: it goes through the shared entry-sync library (adr/0001).
 -- Glass Gear never reads AltStableDB (AltStable docs/PUBLIC-API.md:4-5).
 ------------------------------------------------------------
 
@@ -16,7 +17,6 @@ GG.Integrations.RosterProvider = RosterProvider
 -- docs/INTEGRATION-GAPS.md); detection is by type, under rawget.
 RosterProvider.ALTSTABLE_NEEDS = {
     { id = "AS-001", fn = "GetCharacterProvenance" },
-    { id = "AS-002", fn = "RegisterEntrySync" },
     { id = "AS-003", fn = "GetCharacterGear" },
 }
 
