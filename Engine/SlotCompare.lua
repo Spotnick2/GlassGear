@@ -141,7 +141,10 @@ function SlotCompare.Best(candidate, baseline, ctx)
             end
         end
     end
-    if best then return best, all end
+    if best then
+        best.unresolved = sawUnknown or nil
+        return best, all
+    end
     if sawUnknown then return { state = "unknown", reason = unknownReason }, all end
     return { state = "illegal", reason = illegalReason or "NO_LEGAL_SLOT" }, all
 end

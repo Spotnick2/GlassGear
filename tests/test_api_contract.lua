@@ -122,7 +122,39 @@ WoW.items[72] = { name = "Later", equipLoc = "INVTYPE_FEET", classID = 4, subcla
 WoW.cacheMiss[72] = true
 r = api.Evaluate({ item = WoW.link(72), scope = "current" })
 H.eq(api.CancelRequest(r.requestId), true, "cancel a pending request")
+H.eq(GG.API._state.waiting[72], nil, "cancelling stops loading an item nobody else waits for")
 H.eq(api.CancelRequest(r.requestId), false, "twice: nothing to cancel")
+
+-- Successful load events with still-unusable data never reset the retry budget.
+WoW.items[75] = { name = "Stubborn", equipLoc = "INVTYPE_NECK", classID = 4, subclassID = 0, stats = {} }
+WoW.cacheMiss[75] = true
+got = nil
+local before75 = #WoW.itemRequests
+r = api.Evaluate({ item = WoW.link(75), scope = "current" })
+for _ = 1, 25 do
+    WoW.time = WoW.time + 1
+    WoW.fire("ITEM_DATA_LOAD_RESULT", 75, true)
+    WoW.flush(1)
+end
+local loads75 = 0
+for i = before75 + 1, #WoW.itemRequests do if WoW.itemRequests[i] == 75 then loads75 = loads75 + 1 end end
+H.eq(loads75, 3, "still three attempts in all")
+H.eq(got and got.requestId, r.requestId, "the request still terminates")
+
+-- A pending request keeps the targets it was made with.
+SlashCmdList.GLASSGEAR("spec 1 PRIEST.HOLY")
+WoW.items[76] = { name = "Later Cloak", equipLoc = "INVTYPE_CLOAK", classID = 4, subclassID = 1,
+    stats = { ITEM_MOD_INTELLECT_SHORT = 3 } }
+WoW.cacheMiss[76] = true
+got = nil
+r = api.Evaluate({ item = WoW.link(76), scope = "own" })
+local order = { r.results[1].spec, r.results[2].spec, r.results[3].spec }
+SlashCmdList.GLASSGEAR("spec 1 PRIEST.SHADOW")
+WoW.cacheMiss[76] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 76, true)
+WoW.flush()
+H.eq(got and got.response.results[1].spec, order[1], "completion keeps the first target (Holy)")
+H.eq(got.response.results[3].spec, order[3], "...and the original order")
 
 -- Overload keeps the rows too.
 local saved = GG.API.LIMITS.requests

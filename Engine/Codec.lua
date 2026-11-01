@@ -35,6 +35,9 @@ function Codec.ValidData(kind, d)
     if kind == "profile" then
         if type(d.name) ~= "string" or #d.name > Codec.MAX_NAME then return false, "name" end
         if d.origin ~= nil and type(d.origin) ~= "string" then return false, "origin" end
+        for _, field in ipairs({ "ignored", "ignoredTokens", "missing", "armor" }) do
+            if d[field] ~= nil and type(d[field]) ~= "table" then return false, field end
+        end
         if not finite(d.updatedAt) then return false, "updatedAt" end
         local n = 0
         if type(d.weights) ~= "table" then return false, "weights" end
@@ -197,7 +200,10 @@ local function decodeBaseline(p)
     local f = split(p, ";")
     if #f ~= 5 then return nil end
     local d = { specKey = unesc(f[1]), source = unesc(f[2]), capturedAt = fromB36(f[3]), slots = {} }
-    if f[4] ~= "" then d.group = tonumber(f[4]) end
+    if f[4] ~= "" then
+        if f[4] ~= "1" and f[4] ~= "2" then return nil end
+        d.group = tonumber(f[4])
+    end
     for _, part in ipairs(list(f[5])) do
         local slot, code, item = part:match("^(%d+):([oeu]):?(.*)$")
         if not slot then return nil end

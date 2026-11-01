@@ -58,6 +58,15 @@ end
 
 local function add(list, v) list[#list + 1] = v end
 
+-- What a profile can't score on this item: weighted-but-unscored tokens and
+-- WoWSims weights that are missing for stats the item has.
+local function scoringGaps(item, profile, prefix, out)
+    for _, token in ipairs(Stats.UnscoredTokens(profile, item)) do add(out, prefix .. "TOKEN_NOT_SCORED:" .. token) end
+    for _, token in ipairs(profile.missing or {}) do
+        if item.tokens and (item.tokens[token] or 0) ~= 0 then add(out, prefix .. "WEIGHT_MISSING:" .. token) end
+    end
+end
+
 -- Class gate, spec armor rule and level window. Returns a terminal status or nil.
 local function eligibility(input, res)
     local item, r, s = input.item, input.recipient or {}, input.settings
@@ -134,10 +143,7 @@ function Evaluate.One(input)
 
     -- Limitations that do not stop scoring.
     for _, key in ipairs(item.unsupported or {}) do add(res.limitations, "UNSUPPORTED_STAT:" .. key) end
-    for _, token in ipairs(Stats.UnscoredTokens(profile, item)) do add(res.limitations, "TOKEN_NOT_SCORED:" .. token) end
-    for _, token in ipairs(profile.missing or {}) do
-        if item.tokens and (item.tokens[token] or 0) ~= 0 then add(res.limitations, "WEIGHT_MISSING:" .. token) end
-    end
+    scoringGaps(item, profile, "", res.limitations)
     if item.hasSpell then add(res.limitations, "EFFECT_NOT_SCORED") end
 
     local cand = Score.Compute(item.tokens, profile)
@@ -162,14 +168,16 @@ function Evaluate.One(input)
     }
 
     -- Score every baseline item with this profile (enchants already stripped).
+    -- An item without data becomes an unknown slot, and the baseline incomplete.
     local slots = {}
     for slot, b in pairs(baseline.slots or {}) do
         local copy = {}
         for k, v in pairs(b) do copy[k] = v end
         if b.state == "occupied" then
             if b.tokens then copy.score = Score.Compute(b.tokens, profile).score
-            else copy.state = "unknown" end   -- item data missing: unknown, not empty
+            else copy.state = "unknown" end
         end
+        if copy.state == "unknown" then res.baseline.complete = false end
         slots[slot] = copy
     end
     local candidate = { itemID = item.itemID, equipLoc = item.equipLoc, score = cand.score,
@@ -179,12 +187,18 @@ function Evaluate.One(input)
         companion = {}
         local r = input.recipient or {}
         for s, c in pairs(input.companion) do
-            -- A companion must be usable by this character; without its data it can't count.
-            local okUse = c.classID == nil or Classes.CanUse(r.class, r.level, c, r.knownArmor)
-            if okUse then
+            -- A companion counts only if it is fully known and wearable now under
+            -- this profile: class gate, required level, no Pawn X on it.
+            local okUse, why = false, nil
+            if c.classID and c.tokens and type(c.reqLevel) == "number" then
+                okUse, why = Classes.CanUse(r.class, r.level, c, r.knownArmor)
+                okUse = okUse and why == nil and c.reqLevel <= (r.level or 0)
+            end
+            local scored = okUse and Score.Compute(c.tokens, profile)
+            if scored and not scored.ignoredHit then
                 local copy = {}
                 for k, v in pairs(c) do copy[k] = v end
-                copy.score = c.tokens and Score.Compute(c.tokens, profile).score or nil
+                copy.score = scored.score
                 companion[s] = copy
             end
         end
@@ -212,6 +226,7 @@ function Evaluate.One(input)
     for _, d in ipairs(involved) do
         if d.hasSpell then add(res.limitations, "BASELINE_EFFECT_NOT_SCORED") end
         for _, key in ipairs(d.unsupported or {}) do add(res.limitations, "BASELINE_UNSUPPORTED_STAT:" .. key) end
+        scoringGaps(d, profile, "BASELINE_", res.limitations)
     end
 
     -- Set bonuses: thresholds gained/lost, and any touched set without data.
@@ -245,6 +260,12 @@ function Evaluate.One(input)
     elseif pct then upgrade = pct >= settings.threshold
     else upgrade = best.delta > 0 end
     res.status = upgrade and "upgrade" or "no_upgrade"
+    -- Another compatible slot couldn't be evaluated: a known upgrade stands,
+    -- but "no upgrade" can't be concluded from the slots we could see.
+    if not upgrade and best.unresolved then
+        res.status = "unknown"
+        add(res.reasons, "ALTERNATIVE_SLOT_UNKNOWN")
+    end
     if res.baseline.stale then add(res.reasons, "BASELINE_STALE") end
     if not res.baseline.complete then add(res.reasons, "BASELINE_INCOMPLETE") end
     if res.baseline.source == "fallback-current" then add(res.reasons, "BASELINE_FALLBACK") end

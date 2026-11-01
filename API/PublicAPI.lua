@@ -113,10 +113,12 @@ local function settingsFor()
     return { threshold = s.markers.threshold, levelWindow = s.levelWindow, specArmor = s.specArmor }
 end
 
--- Returns response, waitIDs (item IDs still missing data), specs.
-local function evaluateOne(request, requestId)
+-- Returns response, waitIDs (item IDs still missing data), specs. A pending
+-- request is re-evaluated against the targets captured when it was made.
+local function evaluateOne(request, requestId, fixedSpecs)
     local response = { requestId = requestId, results = {} }
-    local specs, why = targetsFor(request)
+    local specs, why = fixedSpecs, nil
+    if not specs then specs, why = targetsFor(request) end
     if not specs then
         response.results = { { status = "unsupported", reasons = { why }, limitations = {} } }
         response.status = "unsupported"
@@ -209,12 +211,17 @@ function API.EvaluateBatch(requests)
 end
 
 function API.CancelRequest(requestId)
-    if state.requests[requestId] then
-        state.requests[requestId] = nil
-        state.requestCount = state.requestCount - 1
-        return true
+    local entry = state.requests[requestId]
+    if not entry then return false end
+    state.requests[requestId] = nil
+    state.requestCount = state.requestCount - 1
+    -- Stop loading items no other request is waiting for.
+    for itemID in pairs(entry.itemIDs) do
+        local needed = false
+        for _, other in pairs(state.requests) do if other.itemIDs[itemID] then needed = true end end
+        if not needed then unwait(itemID) end
     end
-    return false
+    return true
 end
 
 local function finish(id, response)
@@ -227,18 +234,23 @@ end
 -- item waiting: the tick retries it until attempts run out.
 function API._ItemDataArrived(itemID, success)
     if success == false or not state.waiting[itemID] then return end
-    unwait(itemID)
-    GG.Callbacks.Fire("ItemDataReady", { itemIDs = { itemID } })
+    -- Re-evaluate first: the waiting record (and its attempt budget) goes only
+    -- once the data is really usable.
+    local stillMissing = false
     for id, entry in pairs(state.requests) do
         if entry.itemIDs[itemID] then
-            entry.itemIDs[itemID] = nil
-            local response, waitIDs = evaluateOne(entry.request, id)
-            if #waitIDs == 0 then
-                finish(id, response)
-            else
-                for _, w in ipairs(waitIDs) do wait(w); entry.itemIDs[w] = true end
+            local response, waitIDs = evaluateOne(entry.request, id, entry.specs)
+            entry.itemIDs = {}
+            for _, w in ipairs(waitIDs) do
+                entry.itemIDs[w] = true
+                if w == itemID then stillMissing = true else wait(w) end
             end
+            if #waitIDs == 0 then finish(id, response) end
         end
+    end
+    if not stillMissing then
+        unwait(itemID)
+        GG.Callbacks.Fire("ItemDataReady", { itemIDs = { itemID } })
     end
 end
 
@@ -254,7 +266,7 @@ function API._Tick(now)
                 unwait(itemID)
                 for id, entry in pairs(state.requests) do
                     if entry.itemIDs[itemID] then
-                        local response = evaluateOne(entry.request, id)
+                        local response = evaluateOne(entry.request, id, entry.specs)
                         for _, r in ipairs(response.results) do
                             if r.status == "pending" then r.status = "unknown"; r.reasons = { "ITEM_DATA_UNAVAILABLE" } end
                         end

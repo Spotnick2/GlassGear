@@ -99,6 +99,21 @@ H.eq(select(2, A2:Receive(foreign, "x")), "bad-entry", "cross-kind copy refused"
 H.eq(select(2, A2:Receive({ id = "G-1:PRIEST.HOLY:9", kind = "profile", version = "v:1", ancestors = {},
     data = { specKey = "PRIEST.HOLY", name = "x", source = "imported-pawn", updatedAt = 1, weights = { Intellect = 5000 } } }, "x")),
     "bad-entry", "out-of-range weight refused on receipt")
+-- Malformed flags and optional fields: rejected, never thrown, store untouched.
+local live = A2.entries[ID].version
+H.eq(select(2, A2:Receive({ id = ID, kind = "profile", version = "zz:2", ancestors = { live }, deleted = "false" }, "x")),
+    "bad-entry", "a non-boolean deleted flag is refused")
+H.eq(A2.entries[ID].deleted, nil, "...and the live root is untouched")
+for _, field in ipairs({ "ignored", "ignoredTokens", "missing", "armor" }) do
+    local d = prof("Odd")
+    d[field] = true
+    local ok, res = pcall(A2.Receive, A2, { id = "G-1:PRIEST.HOLY:" .. field, kind = "profile", version = "zz:3",
+        ancestors = {}, data = d }, "x")
+    H.check(ok and res == nil, "malformed optional field '" .. field .. "' rejected without an error")
+end
+H.eq(select(2, A2:Receive({ id = ID .. "~q:1", kind = "profile", version = "q:1", ancestors = {},
+    conflict = { of = ID, retired = "yes" }, data = prof("x") }, "x")), "bad-entry", "a non-boolean conflict flag is refused")
+
 H.eq(select(2, A2:Create("G-1:PRIEST.HOLY:10", "profile", { specKey = "NOPE", name = "x", source = "manual", updatedAt = 1, weights = {} })),
     "bad-data:specKey", "local writes are validated too")
 
@@ -186,6 +201,7 @@ local good = assert(Codec.Encode(full))
 H.eq(select(2, Codec.Decode((good:gsub("Stamina=1", "Stamina=1.2.3", 1)))), "bad-entry", "malformed number refused")
 H.eq(select(2, Codec.Decode((good:gsub("Stamina=1", "Stamina=10000", 1)))), "bad-entry", "out-of-range weight refused")
 H.eq(select(2, Codec.Decode((assert(Codec.Encode(fullB)):gsub("1:o:", "999:o:", 1)))), "bad-entry", "slot outside the gear slots refused")
+H.eq(select(2, Codec.Decode((assert(Codec.Encode(fullB)):gsub(";2;1:o:", ";garbage;1:o:", 1)))), "bad-entry", "a malformed spec group is refused")
 H.eq(select(2, Codec.Decode((good:gsub("|w:4,w:3|", "|w:4,w:3|q", 1)))), "bad-entry", "unknown flag refused")
 local tricky = { id = "G-1:PRIEST.HOLY:x|y", kind = "profile", version = "w:1", ancestors = { "w:0" },
     data = { specKey = "PRIEST.HOLY", name = "a;b,c|d", source = "imported-pawn", updatedAt = 1793500000,
@@ -209,7 +225,7 @@ H.eq(select(2, Codec.Decode("GG1|p|x|v|||Bogus=1")), "bad-entry", "malformed pay
 local tomb = assert(Codec.Decode(assert(Codec.Encode({ id = "a", kind = "profile", version = "w:3", ancestors = {}, deleted = true }))))
 H.eq(tomb.deleted, true, "tombstone round trip")
 
--- Size budget (targets, adr/0001): worst case = 40 tokens, a 24-char name of
+-- Size budget (targets, adr/0001): worst case = the 40 longest token names, a 24-char name of
 -- characters that all need escaping, a long origin, 20 ancestors and a
 -- conflict-copy id and flag.
 local root = "Player-1234-0ABCDEF0:DRUID.FERAL_TANK:" .. string.rep("9", 20)
@@ -218,10 +234,10 @@ local worst = { id = root .. "~ffffffffffffffff:99999", kind = "profile", versio
     data = { specKey = "DRUID.FERAL_TANK", name = string.rep("|", 24), origin = string.rep(";", 60),
         source = "wowsims-pawn-ep", updatedAt = 1793500000, weights = {}, ignored = {} } }
 for i = 1, 20 do worst.ancestors[i] = "ffffffffffffffff:" .. (99900 + i) end
-local n = 0
-for _, t in ipairs(GG.Data.Stats.ORDER) do
-    if n < 40 then worst.data.weights[t] = -123.456; n = n + 1 end
-end
+local longest = {}
+for _, t in ipairs(GG.Data.Stats.ORDER) do longest[#longest + 1] = t end
+table.sort(longest, function(a, b) return #a > #b or (#a == #b and a < b) end)
+for n = 1, 40 do worst.data.weights[longest[n]] = -123.456 end
 local wline = assert(Codec.Encode(worst))
 H.check(#wline <= Codec.MAX_BYTES, "worst-case profile entry fits 2 KB (" .. #wline .. " bytes)")
 worst.data.name = string.rep("N", 25)

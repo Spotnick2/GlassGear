@@ -60,12 +60,16 @@ local function validIncoming(e)
     if type(e) ~= "table" then return false end
     if type(e.id) ~= "string" or e.id == "" or type(e.version) ~= "string" or e.version == "" then return false end
     if e.kind ~= "profile" and e.kind ~= "baseline" then return false end
+    if e.deleted ~= nil and e.deleted ~= true then return false end
     if e.ancestors ~= nil then
         if type(e.ancestors) ~= "table" then return false end
         for _, v in ipairs(e.ancestors) do if type(v) ~= "string" then return false end end
     end
     if e.conflict ~= nil then
         if type(e.conflict) ~= "table" or type(e.conflict.of) ~= "string" then return false end
+        local c = e.conflict
+        if (c.deletion ~= nil and c.deletion ~= true) or (c.retired ~= nil and c.retired ~= true)
+            or (c.from ~= nil and type(c.from) ~= "string") then return false end
         -- A copy's id is its root's id + "~" + a version.
         if e.id:sub(1, #e.conflict.of + 1) ~= e.conflict.of .. "~" then return false end
     end

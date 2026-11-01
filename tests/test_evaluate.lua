@@ -178,6 +178,46 @@ local book = { state = "occupied", itemID = 89, equipLoc = "INVTYPE_HOLDABLE", c
 r = eval({ item = dagger, profile = F.shadow, baseline = wandBase, companion = { [17] = book } })
 H.eq(r.status, "unknown", "companion without item data: unknown, not zero")
 
+-- Scoring gaps of the replaced items count too (WoWSims weight missing on the displaced item).
+local healBase = F.baseline({ [3] = F.slot(armor({ itemID = 95,
+    stats = { ITEM_MOD_INTELLECT_SHORT = 10, ITEM_MOD_SPELL_HEALING_DONE_SHORT = 100 } })) })
+r = eval({ item = F.item(armor({ itemID = 96, stats = { ITEM_MOD_INTELLECT_SHORT = 9 } })), profile = wowsims,
+    spec = "PRIEST.HOLY", baseline = healBase })
+H.check(H.has(r.limitations, "BASELINE_WEIGHT_MISSING:Healing"), "the displaced item's missing weight is reported")
+H.eq(GG.Engine.Policy.Protection({ r }).verdict, "unknown", "...so protection can't say clear")
+
+-- A companion must be wearable now and not excluded by the profile.
+local hpal = { key = "G-H", class = "PALADIN", level = 60, provenance = "self" }
+local hpalBase = F.baseline({ [16] = F.slot({ itemID = 97, equipLoc = "INVTYPE_2HWEAPON", classID = 2, subclassID = 5,
+    stats = { ITEM_MOD_INTELLECT_SHORT = 10 } }) })
+local mace = F.item({ itemID = 98, equipLoc = "INVTYPE_WEAPONMAINHAND", classID = 2, subclassID = 4, stats = { ITEM_MOD_INTELLECT_SHORT = 5 } })
+local function shield(o)
+    local x = F.slot({ itemID = 99, equipLoc = "INVTYPE_SHIELD", classID = 4, subclassID = 6, stats = { ITEM_MOD_INTELLECT_SHORT = 20 } })
+    x.classID, x.subclassID, x.reqLevel = 4, 6, o.reqLevel
+    return x
+end
+local hprof = { weights = { Intellect = 1 }, ignored = {} }
+r = eval({ item = mace, recipient = hpal, spec = "PALADIN.HOLY", profile = hprof, baseline = hpalBase, companion = { [17] = shield({ reqLevel = 50 }) } })
+H.eq(r.status, "upgrade", "mace + wearable shield beats the two-hander")
+r = eval({ item = mace, recipient = hpal, spec = "PALADIN.HOLY", profile = { weights = { Intellect = 1 }, ignored = { IsShield = true } },
+    baseline = hpalBase, companion = { [17] = shield({ reqLevel = 50 }) } })
+H.check(r.status ~= "upgrade", "a companion the profile excludes (IsShield=X) doesn't count")
+r = eval({ item = mace, recipient = hpal, spec = "PALADIN.HOLY", profile = hprof, baseline = hpalBase, companion = { [17] = shield({ reqLevel = 70 }) } })
+H.check(r.status ~= "upgrade", "a companion above the character's level doesn't count")
+r = eval({ item = mace, recipient = hpal, spec = "PALADIN.HOLY", profile = hprof, baseline = hpalBase, companion = { [17] = shield({}) } })
+H.check(r.status ~= "upgrade", "a companion without a known required level doesn't count")
+
+-- An unevaluable alternative slot blocks "no upgrade" (but not a known upgrade).
+local ringBase = F.baseline({ [11] = F.slot({ itemID = 100, equipLoc = "INVTYPE_FINGER", classID = 4, subclassID = 0,
+    stats = { ITEM_MOD_INTELLECT_SHORT = 10 } }), [12] = { state = "occupied", itemID = 101, equipLoc = "INVTYPE_FINGER" } })
+local ring9 = F.item({ itemID = 102, equipLoc = "INVTYPE_FINGER", classID = 4, subclassID = 0, stats = { ITEM_MOD_INTELLECT_SHORT = 9 } })
+r = eval({ item = ring9, profile = F.shadow, baseline = ringBase })
+H.eq(r.status, "unknown", "the other ring's data is missing: not 'no upgrade'")
+H.check(H.has(r.reasons, "ALTERNATIVE_SLOT_UNKNOWN"), "ALTERNATIVE_SLOT_UNKNOWN")
+H.eq(r.baseline.complete, false, "and the baseline is reported incomplete")
+local ring30 = F.item({ itemID = 103, equipLoc = "INVTYPE_FINGER", classID = 4, subclassID = 0, stats = { ITEM_MOD_INTELLECT_SHORT = 30 } })
+H.eq(eval({ item = ring30, profile = F.shadow, baseline = ringBase }).status, "upgrade", "a known upgrade still stands")
+
 -- Limitations of the items being replaced travel with the result.
 local procBase = F.baseline({ [3] = (function() local x = F.slot(armor({ itemID = 90,
     stats = { ITEM_MOD_INTELLECT_SHORT = 8 } })); x.hasSpell = true; return x end)() })
