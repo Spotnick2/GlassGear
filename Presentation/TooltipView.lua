@@ -72,9 +72,11 @@ local function rightOf(row)
         return text, C.good
     end
     if row.status == "no_upgrade" then
-        if row.pct and row.pct < 0 then return pctText(row.pct), C.bad end
-        if row.pct then return pctText(row.pct), C.muted end
-        return "no upgrade", C.muted
+        -- An item for a later level keeps saying so, whatever the score.
+        local later = row.laterLevel and (" " .. laterText(row)) or ""
+        if row.pct and row.pct < 0 then return pctText(row.pct) .. later, C.bad end
+        if row.pct then return pctText(row.pct) .. later, C.muted end
+        return "no upgrade" .. later, C.muted
     end
     if row.status == "ineligible" then
         if has(row.why, "ABOVE_LEVEL_WINDOW") then return laterText(row) or "later level", C.muted end
@@ -97,9 +99,27 @@ local function specName(key)
     return s and s.name or tostring(key)
 end
 
--- Notes shared by the rows, deduplicated, in a fixed order.
+-- Stats a profile can't score, per side (the item / the replaced item).
+local function statGap(l, side)
+    local p = side == "baseline" and "BASELINE_" or ""
+    local token = l:match("^" .. p .. "TOKEN_NOT_SCORED:(.+)$") or l:match("^" .. p .. "WEIGHT_MISSING:(.+)$")
+    if token then return token end
+    if l:match("^" .. p .. "UNSUPPORTED_STAT:") then return "an unrecognised stat" end
+end
+
+local function joined(set)
+    local list = {}
+    for k in pairs(set) do list[#list + 1] = k end
+    table.sort(list)
+    return table.concat(list, ", ")
+end
+
+-- Notes shared by the rows, deduplicated, in a fixed order. Anything the
+-- score leaves out - on the item or on the gear it replaces - is named, since
+-- it can reverse the comparison.
 local function notes(rows)
-    local gained, lost, setUnscored, effect = {}, {}, false, false
+    local gained, lost, setUnscored, effect, baseEffect = {}, {}, false, false, false
+    local gaps, baseGaps = {}, {}
     for _, row in ipairs(rows) do
         for _, l in ipairs(row.limitations) do
             local g = l:match("^SET_BONUS_GAINED:[^:]+:(%d+)$")
@@ -108,6 +128,10 @@ local function notes(rows)
             if x then lost[x] = true end
             if l == "SET_BONUS_NOT_SCORED" then setUnscored = true end
             if l == "EFFECT_NOT_SCORED" then effect = true end
+            if l == "BASELINE_EFFECT_NOT_SCORED" then baseEffect = true end
+            local gap, baseGap = statGap(l, "item"), statGap(l, "baseline")
+            if gap then gaps[gap] = true end
+            if baseGap then baseGaps[baseGap] = true end
         end
     end
     local out = {}
@@ -121,6 +145,9 @@ local function notes(rows)
     for _, n in ipairs(sorted(lost)) do out[#out + 1] = string.format("Breaks a %d-piece set bonus (not scored)", n) end
     if setUnscored and #out == 0 then out[#out + 1] = "Set item: bonus not scored" end
     if effect then out[#out + 1] = "Has an effect that isn't scored" end
+    if baseEffect then out[#out + 1] = "The replaced item has an effect that isn't scored" end
+    if next(gaps) then out[#out + 1] = "Not scored: " .. joined(gaps) end
+    if next(baseGaps) then out[#out + 1] = "Not scored on the replaced item: " .. joined(baseGaps) end
     return out
 end
 

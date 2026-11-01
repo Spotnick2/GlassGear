@@ -104,7 +104,37 @@ GG.db.settings.levelWindow.lookAhead = 2
 GG.Tooltip.Reset()
 WoW.showItem(ref, { type = 0, id = 62, hyperlink = WoW.link(62) })
 H.eq(ref.lines[3].right, "+200.0% at level 62 (in 2)", "inside the look-ahead: scored, with the level")
+-- A later item that loses keeps its level too (PR #33 review).
+WoW.items[65] = { name = "Weak Far Mantle", equipLoc = "INVTYPE_SHOULDER", classID = 4, subclassID = 1,
+    minLevel = 62, stats = { [INT] = 5 } }
+WoW.showItem(ref, { type = 0, id = 65, hyperlink = WoW.link(65) })
+H.eq(ref.lines[3].right, "-50.0% at level 62 (in 2)", "a later-level loss says when it could be worn")
 GG.db.settings.levelWindow.lookAhead = 0
+GG.Tooltip.Reset()
+
+-- Unscored parts of the replaced gear are named (PR #33 review): a plain
+-- candidate against a proc item, and stats nobody can score.
+WoW.equipped[3] = 63
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
+WoW.flush()
+WoW.showItem(ref, { type = 0, id = 60, hyperlink = WoW.link(60) })
+H.check(line(ref, "The replaced item has an effect that isn't scored") ~= nil, "the replaced item's effect is flagged")
+H.check(line(ref, "Has an effect that isn't scored") == nil, "...not the candidate's")
+WoW.items[66] = { name = "Odd Mantle", equipLoc = "INVTYPE_SHOULDER", classID = 4, subclassID = 1,
+    stats = { [INT] = 30, ITEM_MOD_MYSTERY_SHORT = 3 } }
+WoW.showItem(ref, { type = 0, id = 66, hyperlink = WoW.link(66) })
+H.check(line(ref, "Not scored: an unrecognised stat") ~= nil, "an unrecognised stat on the item is named")
+WoW.equipped[3] = 66
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
+WoW.flush()
+WoW.showItem(ref, { type = 0, id = 60, hyperlink = WoW.link(60) })
+H.check(line(ref, "Not scored on the replaced item: an unrecognised stat") ~= nil, "...and on the replaced item")
+local refreshesBefore = ref.refreshes
+WoW.equipped[3] = 50
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
+WoW.flush()
+H.eq(ref.refreshes, refreshesBefore + 1, "an invalidation refreshes the open tooltip")
+ref.refreshes = 0
 
 -- Unscored effects are named.
 WoW.showItem(ref, { type = 0, id = 63, hyperlink = WoW.link(63) })
