@@ -99,6 +99,10 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Probe P4.
   - Turn "expected" keys into measured ones in `Data/Stats.lua` and FORMATS.md (`test_formats_doc`
     keeps them in step).
+  - School-specific spell damage ("+20 Shadow Spell Damage"): find whether `GetItemStats` returns
+    it at all. If it doesn't, decide how Glass Gear detects it (for example `C_TooltipInfo`), so such
+    an item is never scored as if the bonus didn't exist without a warning
+    (research/default-weights.md).
 - **Validation:** game, then auto.
 
 ### GG-104: Spec mapping UI (P1, MVP)

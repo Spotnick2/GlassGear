@@ -182,8 +182,13 @@ once GG-103 has found the client keys and the scorer reads them:
 | `MAGE.ARCANE` / `MAGE.FIRE` / `MAGE.FROST` | ArcaneSpellDamage 1 / FireSpellDamage 1 / FrostSpellDamage 1 |
 | `DRUID.BALANCE` | ArcaneSpellDamage 0.5, NatureSpellDamage 0.5 |
 
-Until then, a school-specific item shows its unscored stat in the tooltip ("Not scored: …"), so
-the gap is visible rather than silent (tooltip notes, GG-107 / PR #33).
+Until then, whether the gap is visible depends on the client, which GG-103 still has to measure:
+
+- **If `GetItemStats` reports the school bonus** under a key Glass Gear doesn't map, the tooltip
+  names it ("Not scored: an unrecognised stat", GG-107) and the score is visibly incomplete.
+- **If it omits the bonus**, nothing in the item's stats shows it: the score misses it and the
+  tooltip gives **no** warning. Detecting school bonuses that `GetItemStats` doesn't return (for
+  example from `C_TooltipInfo`) is an open GG-103 requirement.
 
 ## Consequences for the code (follow-up GG-120)
 

@@ -91,6 +91,8 @@ says what it needs to find out, and records the result here with the build once 
 - **Question.**
   - Which keys does `C_Item.GetItemStats` return for spell damage, healing, mana per 5, school
     damage and weapon speed? [FORMATS.md](FORMATS.md) lists them as "expected".
+  - Is a school-specific bonus ("+20 Shadow Spell Damage") returned at all? If not, what in
+    `C_TooltipInfo` carries it? An omitted bonus is scored as missing with no warning (GG-103).
   - Does a random-suffix link return the suffix stats?
   - Does an enchanted link include the enchant? SimC's Forever code says it doesn't:
     `forever/stats.lua:70`.
