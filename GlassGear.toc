@@ -1,0 +1,39 @@
+## Interface: 16001
+## Title: |cff7fd4ffGlass|r Gear
+## Notes: Gear comparison and upgrade advice for every spec of your character. /gg
+## Category: |cff7fd4ffGlass|r
+## Author: Spotnick
+## Version: @project-version@
+## IconTexture: Interface\Icons\INV_Chest_Plate06
+## SavedVariables: GlassGearDB
+## SavedVariablesPerCharacter: GlassGearChar
+## OptionalDeps: AltStable, GlassUI
+## X-License: MIT
+
+Libs\LibGlass-1.0\LibGlass-1.0.xml
+Core\Init.lua
+Data\Stats.lua
+Data\Slots.lua
+Data\Classes.lua
+Data\ItemSets.lua
+Engine\Score.lua
+Engine\SlotCompare.lua
+Engine\SetBonus.lua
+Engine\Evaluate.lua
+Engine\Policy.lua
+Engine\EntrySync.lua
+Engine\Codec.lua
+Profiles\PawnString.lua
+Profiles\Profiles.lua
+Item\ItemContext.lua
+Character\Spec.lua
+Character\Baselines.lua
+Core\Callbacks.lua
+Core\DB.lua
+Core\Compat.lua
+Integrations\RosterProvider.lua
+Integrations\GlassUI.lua
+Presentation\Theme.lua
+API\PublicAPI.lua
+UI\Diagnostics.lua
+Core\Main.lua

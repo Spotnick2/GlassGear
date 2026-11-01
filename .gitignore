@@ -1,0 +1,26 @@
+# Packaged addon archives and packager output
+*.zip
+*.tar.gz
+dist/
+.release/
+
+# Compiled Lua
+luac.out
+
+# Logs
+*.log
+
+# Probe captures and SavedVariables copies hold real character data
+*.sv.lua
+docs/captures/
+
+# Local agent and editor state (project skills are shared)
+.claude/*
+!.claude/skills/
+.vscode/
+.idea/
+
+# The embedded LibGlass-1.0: the packager fetches it (.pkgmeta externals) and
+# Tools/deploy.ps1 copies it from ../LibGlass. Never committed.
+Libs/LibGlass-1.0/
+__pycache__/

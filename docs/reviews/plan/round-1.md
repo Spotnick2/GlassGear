@@ -1,0 +1,104 @@
+1. **BLOCKER — Q1/Q4: ADR-0001 and AltStable extensions lack an enforceable ownership boundary.**  
+   **Evidence:** [AltStable/Core.lua:888](C:/Projects/WoW/AltStable/Core.lua:888) invokes `OnSerialize(guid, sinceTS)` without destination information; [Core.lua:843](C:/Projects/WoW/AltStable/Core.lua:843) invokes `OnDeserialize(guid, blob)` without sender information. Ordinary database replies include plugin blobs, while own-account gating is applied separately to camps/preferences at [Core.lua:1923](C:/Projects/WoW/AltStable/Core.lua:1923). `ValidateIncoming` checks existing name/class consistency, accepting previously unknown GUIDs at [Core.lua:407](C:/Projects/WoW/AltStable/Core.lua:407).
+
+   Thus the proposed plugin cannot itself ensure that profiles go only to the owner’s accounts or that incoming profiles originated from owned characters. Whitelisted third-party peers are part of AltStable’s ordinary transport. Merely adding an `ownership` field does not establish its provenance, and an authenticated own-account sender can itself hold third-party roster records.
+
+   **Fix:** Extend AltStable with an explicitly **own-account-only plugin channel**, enforcing outbound and inbound restrictions before plugin callbacks. Define trusted per-character ownership provenance separately from roster membership and carry validated source information to consumers. Do not infer ownership from `account`, a received `ownerGuid`, or successful ordinary roster synchronization. This belongs in the AltStable extension’s acceptance criteria, not just Glass Gear’s provider implementation.
+
+2. **MAJOR — Q1: ADR-0001’s transport budget and registration/backfill requirements are incomplete.**  
+   **Evidence:** [Core.lua:898](C:/Projects/WoW/AltStable/Core.lua:898) silently omits blobs containing a newline. [Core.lua:3749](C:/Projects/WoW/AltStable/Core.lua:3749) requires `label` and `OnActivate` and adds a sidebar button. [Core.lua:843](C:/Projects/WoW/AltStable/Core.lua:843) drops the carrier after dispatching only to registered plugins. Existing plugin enablement resets watermarks specifically to backfill missed data at [Core.lua:3740](C:/Projects/WoW/AltStable/Core.lua:3740). Finally, [Core.lua:1826](C:/Projects/WoW/AltStable/Core.lua:1826) sends the **whole compressed database** as one LibAccountSync message; an oversized BNET payload has no fallback.
+
+   The proposed 1.5 KB/character budget neither demonstrates that all supported profiles/baselines fit nor guarantees that the aggregate database fits 32 KB. “Headless registration + namespaced blob” also leaves late registration and installation after previous sync undefined.
+
+   **Fix:** Specify a versioned, bounded, single-line codec; maximum profile/spec/item counts; explicit overflow reporting; and worst-case full-database size fixtures including existing AltStable data. Add headless registration **and backfill** semantics. Either provide AltStable-owned pagination or document and enforce a supported aggregate limit. State whether both endpoints must have Glass Gear enabled; unknown-plugin retention is optional if reliable full backfill is required instead.
+
+   **The architectural choice is feasible:** these are AltStable transport extensions, not evidence that Glass Gear needs its own LibAccountSync instance.
+
+3. **MAJOR — Q1: ADR-0001 does not complete the independent merge, revision-reset, and deletion protocol.**  
+   **Evidence:** [Core.lua:837](C:/Projects/WoW/AltStable/Core.lua:837) dispatches a blob from a losing core record only when `independentStamp` is set. The implemented precedent explicitly enables it at [AltStableProfessions.lua:1581](C:/Projects/WoW/AltStable/Plugins/Professions/AltStableProfessions.lua:1581). `TouchCharacter` only changes `lastUpdate` at [Core.lua:1200](C:/Projects/WoW/AltStable/Core.lua:1200); it does not send a message. Character forgetting invokes local plugin cleanup at [Core.lua:1074](C:/Projects/WoW/AltStable/Core.lua:1074), while forgotten characters can return after later play.
+
+   The plan mentions `independentStamp` as an ecosystem fact but does not require it in the protocol. “Higher rev wins” can permanently reject a newly reset owner database whose counter restarted. Equal revisions/timestamps with different contents remain unresolved. `OnForget` does not by itself define deletion of an individual profile or baseline.
+
+   **Fix:** Require independent dispatch and idempotent plugin-owned merging. Define writer/reset epochs or another explicit recovery rule, deterministic conflict handling, profile/baseline tombstones, and forget/unforget behavior. Never increment revisions or call `TouchCharacter` merely because remote data arrived. Clarify whether immutable remote records may be relayed or whether synchronization requires direct contact with their originating store. Document sync scheduling separately from dirty marking.
+
+4. **Q2 — No defect found in ADR-0002’s basic spec model, provided automatic inference remains probe-gated.**  
+   **Evidence:** The checked-out source is `forever`, build **70532**, commit `ca8368f2f`. Its [Camelot ClassTalentsFrame.lua:123](C:/Projects/WoW/wow-ui-source/Interface/AddOns/Blizzard_PlayerSpells/Camelot/ClassTalents/Blizzard_ClassTalentsFrame.lua:123) uses the active spec group, and [line 131](C:/Projects/WoW/wow-ui-source/Interface/AddOns/Blizzard_PlayerSpells/Camelot/ClassTalents/Blizzard_ClassTalentsFrame.lua:131) resolves a group through `C_SpecializationInfo.GetCombatConfigIDForSpecGroup`. [Line 107](C:/Projects/WoW/wow-ui-source/Interface/AddOns/Blizzard_PlayerSpells/Camelot/ClassTalents/Blizzard_ClassTalentsFrame.lua:107) obtains talent-group display/currency information; [line 343](C:/Projects/WoW/wow-ui-source/Interface/AddOns/Blizzard_PlayerSpells/Camelot/ClassTalents/Blizzard_ClassTalentsFrame.lua:343) renders the group’s spent currency.
+
+   This offers a more precise probe path: **spec group → combat config → tree/group information → spent points**. It does not establish a gameplay-role classifier. Keep manual selection available even when detection works, particularly for Feral cat/bear, ties, and unspent builds. Probe committed versus preview talent changes and use stable identifiers rather than localized tree names. No replacement of the proposed model is necessary.
+
+5. **MAJOR — Q3: ADR-0003 needs legal resulting equipment configurations, not simply “weaker slot” and “sum.”**  
+   **Evidence:** [Plan:53](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:53) specifies weaker-ring/trinket comparison and 2H versus MH+OH sums, while uniqueness is a separate eligibility bullet at [plan:82](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:82). The dump’s [GetItemUniqueness signature](C:/Projects/WoW/References/Forever/api/forever-api-1.60.1.70532.md:2268) returns a limit category and maximum, not just an item-ID duplicate flag.
+
+   A candidate sharing a unique category with the stronger ring may replace that ring legally while being unable to replace the weaker one. A blanket duplicate rejection also gives the wrong answer. Conversely, a 1H candidate against an equipped 2H needs an identified legal companion off-hand; the empty OH slot is not independently available while retaining the 2H.
+
+   **Fix:** Enumerate legal resulting configurations, remove displaced items, then apply category limits and score the affected slots. Specify both weapon-transition directions, main-hand/off-hand restrictions, and missing companion handling. Return the chosen replacement configuration. Restrict `EMPTY_SLOT` to confirmed, legal empty positions after eligibility checks; unknown occupancy must not become an empty-slot upgrade.
+
+6. **MAJOR — Q3/Q8: “Last-equipped estimate” does not define a safe unavailable-baseline policy.**  
+   **Evidence:** [Plan:80](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:80) combines stale and incomplete baselines into one fallback. [Core.lua:871](C:/Projects/WoW/AltStable/Core.lua:871) deliberately excludes item links from synchronization, so a public getter alone cannot recover a remote random suffix. The proposed first slice nevertheless evaluates all own specs at [plan:152](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:152).
+
+   There is no defined precedence among a saved off-spec set, last equipment observed for that spec, and current equipment scored with another profile. Nor is there a distinction between a confirmed empty slot, an unavailable saved-set item, missing suffix data, and an uncached item. A label alone cannot make these safe inputs for a destructive-action verdict.
+
+   **Fix:** Define baseline sources and precedence, per-slot completeness/occupancy, capture revision/time, and staleness rules. Require the AltStable extension to transport sufficient item-string data, with old records remaining incomplete. Permit explicitly labelled display estimates, but do not let an incomplete or unsuitable fallback establish `clear` for disenchant protection. Add saved off-spec equipment and unavailable-baseline fixtures to M0 and acceptance cases to M1/M2.
+
+7. **MAJOR — Q3: The scoring contract omits enchant treatment and unsupported-effect completeness.**  
+   **Evidence:** ADR-0003 and the proposed `Score`/`SlotCompare` modules do not choose an enchant policy. In the supplied Pawn ZIP, `Pawn/Pawn.lua:3598` normalizes the candidate to its unenchanted form; lines `3687–3694` do likewise for equipped comparisons. Its normalization preserves the remaining item-string fields, including suffix information, at `3024–3045`. Pawn also explicitly skips score-based trinket upgrades at `3597`.
+
+   Glass Gear intentionally goes beyond Pawn for trinkets, but neither `GetItemStats` availability nor “linear estimate” establishes that proc/use effects are represented. Missing effects must not silently become a complete zero score.
+
+   **Fix:** Choose and document symmetric enchant handling—base-item comparison is a defensible default—and preserve suffix fields during normalization. Publish supported Pawn/stat tokens and an unsupported-token policy. Distinguish “zero supported stats” from “fully modeled zero value”; attach limitations to effect-heavy items and define how that affects protection. Add enchanted-baseline, suffix-preservation, and proc-only trinket fixtures. Do not claim measured Forever enchant/stat coverage until probed.
+
+8. **MAJOR — Q4: Transfer rules need an explicit unknown state and account-binding precedence.**  
+   **Evidence:** [Plan:83](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:83) says “soulbound → never alt,” followed by separate account-bound rules. The public API describes `account` as a player-assigned label in [PUBLIC-API.md:46](C:/Projects/WoW/AltStable/docs/PUBLIC-API.md:46). The shared guide explicitly warns that exposed functions do not establish runtime behavior at [PORTING-TBC-TO-FOREVER.md:1064](C:/Projects/WoW/References/Docs/PORTING-TBC-TO-FOREVER.md:1064).
+
+   A generic bound-instance result must not automatically be equated with character-only binding before account-bound classification. An item link also cannot establish whether a particular BoE instance has already bound. Same-account label equality is not sufficient evidence for WoW-account-restricted transfers.
+
+   **Fix:** Define binding classification and precedence separately from ownership and transport eligibility. Use tri-state transfer results with evidence/reasons: eligible, ineligible, unknown. Distinguish actual bag instances from hypothetical loot/purchase links. Mark the BoA/mail rules as proposed until the relevant Forever probes pass, and leave same-WoW-account eligibility unknown without a trustworthy account identity.
+
+9. **MAJOR — Q5: Shatter’s check location is correct, but unsupported states and manual overrides are not fully specified.**  
+   **Evidence:** Queue construction calls the shared predicate at [ItemScanner.lua:190](C:/Projects/WoW/Shatter/ItemScanner.lua:190). Click-time validation restores the queued item’s mode before invoking it at [Disenchant.lua:181](C:/Projects/WoW/Shatter/Disenchant.lua:181). Mail queue construction uses `CanBeDisenchanted` at [MailMode.lua:614](C:/Projects/WoW/Shatter/Modes/MailMode.lua:614). **No defect found in that placement or the proposed Solo-only boundary.**
+
+   However, [plan:87](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:87) excludes protect/unknown/pending but leaves `unsupported` unspecified—even though the M0 API deliberately returns it. The override requires an assessment revision absent from the proposed public result. Solo `BuildItem` does not currently supply an item GUID at [ItemScanner.lua:148](C:/Projects/WoW/Shatter/ItemScanner.lua:148).
+
+   **Fix:** Define a verdict table for absent dependency, incompatible API, disabled protection, unsupported assessment, malformed result, and exception. When protection is enabled but cannot assess, retain the item with a reason. Return an opaque assessment token covering all protection inputs; resolve the current instance GUID and refuse an override without it. Make “Disenchant anyway” bypass **only the Glass Gear veto**, preserving Shatter’s other checks. Route invalidations through `SoloMode:ScheduleScan`, preserve Mail ownership and in-flight actions, and specify a UI path for overriding items excluded from the queue.
+
+   Keep the integration a bounded synchronous query before Shatter arms its button. [Disenchant.lua:258](C:/Projects/WoW/Shatter/Disenchant.lua:258) explicitly notes that an error in `PreClick` does not cancel a secure action. Wrap external calls, leave failures disarmed, and never arm or cast from an asynchronous completion callback. No new secure-button API is needed.
+
+10. **MINOR — Q6: Reveal state can stick across edit-box focus changes, and unconditional combat support exceeds the cited implementation.**  
+    **Evidence:** [Plan:75](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:75) says modifier events are ignored while an edit box has focus. Press Ctrl, focus an edit box, then release: ignoring that release can retain stale reveal state. The inverse focus transition can miss activation. [BagMarks.lua:83](C:/Projects/WoW/GlassPearls/Core/BagMarks.lua:83) creates marks lazily and defers first creation during combat, so a previously unmarked off-spec item cannot necessarily reveal immediately in combat.
+
+    **Fix:** Recompute effective reveal from current modifier and focus state; always reconcile releases and refresh on focus transitions and bag reopening. Account for both left/right modifier keys. Preallocate overlays out of combat where possible and document deferred behavior for newly encountered buttons. Preserve the tooltip identity/forbidden-frame/owner guards in [Shatter/Tooltip.lua:126](C:/Projects/WoW/Shatter/Tooltip.lua:126). Mark bag-replacement support unavailable until an adapter exists.
+
+    **No defect found in preserving Ctrl-click DRESSUP by not consuming clicks.** That supports coexistence, not a blanket “Ctrl is conflict-free” claim.
+
+11. **MAJOR — Q7: The proposed evaluation cache key is insufficient for the returned result.**  
+    **Evidence:** [Plan:99–104](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:99) returns character eligibility, transfer eligibility, and context-dependent assessments but keys results only by normalized link, profile revision, and baseline revision.
+
+    Two identical links can represent different bound instances. A BoE becoming bound can keep the same link and both revisions. Character level, ownership, selected scope, protection settings, and pending item-data completion can also change without that key changing. Profile/baseline revision numbers are not stated to be globally unique.
+
+    **Fix:** Separate immutable item/stat caching from contextual evaluations. Include identities and relevant revisions, or invalidate through explicit generation counters for recipient eligibility, ownership, policy, spec mapping, and item-data state. Re-read instance binding and identity for destructive checks. Specify whether normalization retains suffix/enchant data. Test identical links with different binding states and BoE→bound transitions without equipment/profile changes.
+
+12. **MAJOR — Q7: Public API v1 cannot yet express its advertised scopes or pending/protection lifecycle.**  
+    **Evidence:** [Plan:94–104](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:94) offers `own`, `selected`, and `tracked` scopes but no explicit selected character/spec targets. It shows one result record despite potentially evaluating many recipients. `requestId` and `ItemDataReady` lack a completion/retry contract, while the protection override depends on an unspecified revision. The AltStable callback precedent defines readiness and callback behavior much more concretely in [PUBLIC-API.md:25](C:/Projects/WoW/AltStable/docs/PUBLIC-API.md:25) and [PUBLIC-API.md:91](C:/Projects/WoW/AltStable/docs/PUBLIC-API.md:91).
+
+    **Fix:** Specify result cardinality/order, target selection, status enums, aggregation rules, and the separate `AssessProtection` result. Define API availability versus data readiness, consumer load-order handling, supported major-version checks plus feature detection, pending deduplication/retry/failure behavior, callback payloads/coalescing/reentrancy, and recursive copy guarantees. Bound batch sizes, queued item requests, and per-frame work. Explicitly advertise only M0-supported operations; unsupported scopes must not silently degrade to current-character evaluation.
+
+13. **MAJOR — Q8: The marker rule contradicts the central current-spec-only default.**  
+    **Evidence:** The Context says ordinary bag arrows show current-spec upgrades only. But [plan:72](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:72) permits amber for `transferable & eligible alt & "mark transferable" on` without requiring the reveal modifier. Only own off-spec upgrades are explicitly reveal-gated.
+
+    **Fix:** Make the default predicate unambiguous: green for current-spec upgrades; otherwise amber only while reveal is active for eligible own off-spec or owned-alt upgrades. If persistent alt markers are intended as an optional exception, specify an off-by-default setting and its interaction with reveal. Add acceptance cases for modifier press/release, green precedence, hidden arrows with active Shatter protection, and `None` modifier behavior.
+
+14. **MINOR — Q8: M0 needs a sharper completion boundary and acceptance traceability.**  
+    **Evidence:** [Plan:108–126](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:108) combines scaffold, substantial pure core, runtime adapters, themes, settings, contracts, tests, and packaging. Execution also includes generated mockups, deployment, issue publication, and up to four review rounds. The concrete behavior probes occur in M1 at [plan:150](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:150).
+
+    **Fix:** Define M0 completion as a loadable scaffold, fixture-tested pure decisions, explicit unavailable runtime capabilities, contracts, mockup inventory, and issue-ready backlog. Make generated-art completion separately reportable. Put contract decisions before implementation of the corresponding core rules. Add a traceability table covering every owner acceptance case, especially saved/offline baselines, missing/incompatible dependencies, theme opt-out/reload behavior, stale assessments, queue changes, and manual overrides.
+
+    **No defect found in the proposed first vertical slice:** manual/probed spec mapping + Pawn import + all-own-spec tooltip rows is a suitable first client feature. Its initial baseline source must be explicit.
+
+15. **MINOR — Q9: Correct the TOC metadata name; otherwise no invented runtime API found in the spot-check.**  
+    **Evidence:** [Plan:109](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:109) lists `PerCharacter: GlassGearChar`. The actual metadata is `SavedVariablesPerCharacter`, as used by [GlassPearls.toc:12](C:/Projects/WoW/GlassPearls/GlassPearls.toc:12). Writing the proposed spelling literally would not declare the intended saved variable.
+
+    **Fix:** Use `## SavedVariablesPerCharacter: GlassGearChar`. Keep the proposed Glass Gear API and required AltStable/Shatter additions explicitly labelled as proposals. The Glass UI “dynamic member” wording is valid: [Suite.lua:45](C:/Projects/WoW/GlassUI/Suite.lua:45) already supports `dynamic = true` entries in its fixed roster; GlassGear still needs an entry added.
+
+    Review commands were read-only file/range reads, targeted `rg` searches, Git branch/commit checks, and `unzip -p` inspection. No files changed and no runtime tests were run.
+
+**CHANGES NEEDED.**
