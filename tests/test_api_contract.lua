@@ -164,6 +164,33 @@ SlashCmdList.GLASSGEAR("spec 1 PRIEST.HOLY")
 for _ = 1, 20 do WoW.time = WoW.time + 1; WoW.flush(1) end
 H.eq(got and got.response.results[1].spec, first, "a timed-out request keeps its original targets too")
 
+-- A new baseline dependency that can't be queued ends the request (no strand).
+for id in pairs(GG.API._state.waiting) do GG.API._state.waiting[id] = nil end
+GG.API._state.waitingCount = 0
+for id in pairs(GG.API._state.requests) do GG.API._state.requests[id] = nil end
+GG.API._state.requestCount = 0
+local qsaved = GG.API.LIMITS.itemQueue
+GG.API.LIMITS.itemQueue = 1
+WoW.items[78] = { name = "Queued Belt", equipLoc = "INVTYPE_WAIST", classID = 4, subclassID = 1, stats = { ITEM_MOD_INTELLECT_SHORT = 2 } }
+WoW.items[79] = { name = "New Helm", equipLoc = "INVTYPE_HEAD", classID = 4, subclassID = 1, stats = {} }
+WoW.items[80] = { name = "New Gloves", equipLoc = "INVTYPE_HAND", classID = 4, subclassID = 1, stats = {} }
+WoW.cacheMiss[78], WoW.cacheMiss[79], WoW.cacheMiss[80] = true, true, true
+got = nil
+r = api.Evaluate({ item = WoW.link(78), scope = "own" })
+WoW.equipped[1], WoW.equipped[10] = 79, 80   -- two uncached baseline items appear meanwhile
+WoW.cacheMiss[78] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 78, true)
+WoW.flush()
+H.eq(got and got.requestId, r.requestId, "the request ends instead of waiting forever")
+H.eq(got and #got.response.results, 3, "...with every target row")
+H.eq(GG.API._state.requestCount, 0, "nothing left outstanding")
+H.eq(GG.API._state.waitingCount, 0, "and no orphaned item loads")
+WoW.equipped[1], WoW.equipped[10] = nil, nil
+WoW.cacheMiss[79], WoW.cacheMiss[80] = nil, nil
+GG.API.LIMITS.itemQueue = qsaved
+for id in pairs(GG.API._state.waiting) do GG.API._state.waiting[id] = nil end
+GG.API._state.waitingCount = 0
+
 -- Overload keeps the rows too.
 local saved = GG.API.LIMITS.requests
 GG.API.LIMITS.requests = 0

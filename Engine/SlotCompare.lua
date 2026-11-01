@@ -74,6 +74,10 @@ local function configure(candidate, baseline, s, ctx)
             end
         end
         placed[OH] = false
+    elseif (s == MH or s == OH) and mh.state == "unknown" then
+        -- Whether the main hand holds a two-hander decides the whole hand
+        -- configuration: without its data, nothing about the hands is known.
+        return nil, "unknown", "BASELINE_SLOT_UNKNOWN"
     elseif (s == MH or s == OH) and mh.state == "occupied" and isTwoHand(mh) then
         -- 1H/MH/OH while a 2H is equipped: legal only with an identified companion.
         local other = (s == MH) and OH or MH

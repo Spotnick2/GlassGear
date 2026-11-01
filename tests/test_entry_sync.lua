@@ -225,7 +225,8 @@ H.eq(select(2, Codec.Decode("GG1|p|x|v|||Bogus=1")), "bad-entry", "malformed pay
 local tomb = assert(Codec.Decode(assert(Codec.Encode({ id = "a", kind = "profile", version = "w:3", ancestors = {}, deleted = true }))))
 H.eq(tomb.deleted, true, "tombstone round trip")
 
--- Size budget (targets, adr/0001): worst case = the 40 longest token names, a 24-char name of
+-- Size budget (targets, adr/0001). A bounded stress fixture (not a proof of the
+-- maximum): the 40 longest token names, a 24-char name of
 -- characters that all need escaping, a long origin, 20 ancestors and a
 -- conflict-copy id and flag.
 local root = "Player-1234-0ABCDEF0:DRUID.FERAL_TANK:" .. string.rep("9", 20)
@@ -239,7 +240,13 @@ for _, t in ipairs(GG.Data.Stats.ORDER) do longest[#longest + 1] = t end
 table.sort(longest, function(a, b) return #a > #b or (#a == #b and a < b) end)
 for n = 1, 40 do worst.data.weights[longest[n]] = -123.456 end
 local wline = assert(Codec.Encode(worst))
-H.check(#wline <= Codec.MAX_BYTES, "worst-case profile entry fits 2 KB (" .. #wline .. " bytes)")
+H.check(#wline <= Codec.MAX_BYTES, "the stress profile entry fits 2 KB (" .. #wline .. " bytes)")
+-- The exact boundary: 2048 bytes encode, 2049 are too-large.
+local pad = #"GG1|p||w:1||d|"
+H.check(Codec.Encode({ id = string.rep("x", Codec.MAX_BYTES - pad), kind = "profile", version = "w:1", deleted = true }) ~= nil,
+    "an entry of exactly 2048 bytes encodes")
+H.eq(select(2, Codec.Encode({ id = string.rep("x", Codec.MAX_BYTES - pad + 1), kind = "profile", version = "w:1", deleted = true })),
+    "too-large", "2049 bytes is too-large")
 worst.data.name = string.rep("N", 25)
 H.eq(select(2, Codec.Encode(worst)), "bad-entry", "over-long name refused")
 local big = { id = string.rep("x", 2100), kind = "profile", version = "w:1", ancestors = {}, deleted = true }

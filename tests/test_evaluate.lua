@@ -218,6 +218,15 @@ H.eq(r.baseline.complete, false, "and the baseline is reported incomplete")
 local ring30 = F.item({ itemID = 103, equipLoc = "INVTYPE_FINGER", classID = 4, subclassID = 0, stats = { ITEM_MOD_INTELLECT_SHORT = 30 } })
 H.eq(eval({ item = ring30, profile = F.shadow, baseline = ringBase }).status, "upgrade", "a known upgrade still stands")
 
+-- An unknown main hand never lets an off-hand count as filling an empty slot.
+local shieldCand = F.item({ itemID = 104, equipLoc = "INVTYPE_SHIELD", classID = 4, subclassID = 6, stats = { ITEM_MOD_INTELLECT_SHORT = 5 } })
+local noData2H = F.baseline({ [16] = { state = "occupied", itemID = 10, equipLoc = "INVTYPE_2HWEAPON", classID = 2, subclassID = 5 } })
+r = eval({ item = shieldCand, recipient = hpal, spec = "PALADIN.HOLY", profile = hprof, baseline = noData2H })
+H.eq(r.status, "unknown", "two-hander without data: the off-hand isn't an empty-slot upgrade")
+local unknownMH = F.baseline({ [16] = { state = "unknown" } })
+r = eval({ item = shieldCand, recipient = hpal, spec = "PALADIN.HOLY", profile = hprof, baseline = unknownMH })
+H.eq(r.status, "unknown", "unknown main-hand occupancy: unknown")
+
 -- Limitations of the items being replaced travel with the result.
 local procBase = F.baseline({ [3] = (function() local x = F.slot(armor({ itemID = 90,
     stats = { ITEM_MOD_INTELLECT_SHORT = 8 } })); x.hasSpell = true; return x end)() })

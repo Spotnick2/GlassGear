@@ -210,20 +210,6 @@ function API.EvaluateBatch(requests)
     return out
 end
 
-function API.CancelRequest(requestId)
-    local entry = state.requests[requestId]
-    if not entry then return false end
-    state.requests[requestId] = nil
-    state.requestCount = state.requestCount - 1
-    -- Stop loading items no other request is waiting for.
-    for itemID in pairs(entry.itemIDs) do
-        local needed = false
-        for _, other in pairs(state.requests) do if other.itemIDs[itemID] then needed = true end end
-        if not needed then unwait(itemID) end
-    end
-    return true
-end
-
 local function finish(id, response)
     state.requests[id] = nil
     state.requestCount = state.requestCount - 1
@@ -232,26 +218,61 @@ end
 
 -- GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT. A failed load leaves the
 -- item waiting: the tick retries it until attempts run out.
+-- Release items no pending request depends on any more.
+local function releaseUnneeded(candidates)
+    for itemID in pairs(candidates) do
+        local needed = false
+        for _, entry in pairs(state.requests) do if entry.itemIDs[itemID] then needed = true end end
+        if not needed then unwait(itemID) end
+    end
+end
+
 function API._ItemDataArrived(itemID, success)
     if success == false or not state.waiting[itemID] then return end
-    -- Re-evaluate first: the waiting record (and its attempt budget) goes only
-    -- once the data is really usable.
-    local stillMissing = false
+    -- Pass 1: re-evaluate every request that waited on this item. The waiting
+    -- record (and its attempt budget) goes only once the data is really usable.
+    local affected, stillMissing = {}, false
     for id, entry in pairs(state.requests) do
         if entry.itemIDs[itemID] then
             local response, waitIDs = evaluateOne(entry.request, id, entry.specs)
-            entry.itemIDs = {}
-            for _, w in ipairs(waitIDs) do
-                entry.itemIDs[w] = true
-                if w == itemID then stillMissing = true else wait(w) end
-            end
-            if #waitIDs == 0 then finish(id, response) end
+            affected[#affected + 1] = { id = id, entry = entry, response = response, waitIDs = waitIDs }
+            for _, w in ipairs(waitIDs) do if w == itemID then stillMissing = true end end
         end
     end
+    local released = {}
     if not stillMissing then
         unwait(itemID)
         GG.Callbacks.Fire("ItemDataReady", { itemIDs = { itemID } })
     end
+    -- Pass 2: reconcile each request's dependencies. A dependency that can't
+    -- enter the queue ends the request (every row kept) instead of stranding it.
+    for _, a in ipairs(affected) do
+        for old in pairs(a.entry.itemIDs) do released[old] = true end
+        local deps, full = {}, false
+        for _, w in ipairs(a.waitIDs) do
+            if wait(w) then deps[w] = true else full = true end
+        end
+        if full then
+            for w in pairs(deps) do released[w] = true end   -- don't keep what was just queued
+            a.entry.itemIDs = {}
+            finish(a.id, { requestId = a.id, status = "unknown", results = rowsFor(a.entry.specs, "unknown", "ITEM_QUEUE_FULL") })
+        elseif #a.waitIDs == 0 then
+            a.entry.itemIDs = {}
+            finish(a.id, a.response)
+        else
+            a.entry.itemIDs = deps
+        end
+    end
+    releaseUnneeded(released)
+end
+
+function API.CancelRequest(requestId)
+    local entry = state.requests[requestId]
+    if not entry then return false end
+    state.requests[requestId] = nil
+    state.requestCount = state.requestCount - 1
+    releaseUnneeded(entry.itemIDs)   -- stop loading items nobody else waits for
+    return true
 end
 
 -- About once a second while items wait: retry timed-out loads; after the last
