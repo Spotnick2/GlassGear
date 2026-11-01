@@ -1,0 +1,41 @@
+package-as: GlassGear
+
+# The one embedded library is LibGlass-1.0 (the Glass look, adr/0004). The
+# WoW Forever look needs no library, but a nolib zip is not worth a second
+# download.
+enable-nolib-creation: no
+
+# LibGlass-1.0, pinned to a release tag. Never committed (.gitignore): the
+# packager fetches it, and Tools/deploy.ps1 copies the ../LibGlass checkout
+# for a dev build.
+externals:
+  Libs/LibGlass-1.0:
+    url: https://github.com/Spotnick2/LibGlass
+    tag: r11
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+# A YAML list. Comments on their own lines only - the packager's YAML reader
+# keeps an inline "# ..." as part of the value.
+# LICENSE deliberately ships.
+ignore:
+  - .github
+  - .claude
+  - docs
+  - tests
+  - Tools
+  - AGENTS.md
+  - CLAUDE.md
+  - README.md
+  - README.curseforge.md
+  - CHANGELOG.md
+  # The packager does not apply an external's own ignore list: LibGlass's
+  # non-dot entries, repeated. Its LICENSE ships.
+  - Libs/LibGlass-1.0/tests
+  - Libs/LibGlass-1.0/docs
+  - Libs/LibGlass-1.0/Tools
+  - Libs/LibGlass-1.0/AGENTS.md
+  - Libs/LibGlass-1.0/CLAUDE.md
+  - Libs/LibGlass-1.0/README.md

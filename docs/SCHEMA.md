@@ -1,0 +1,110 @@
+# SavedVariables, sync entries and migrations
+
+The layout is internal. Consumers use [API.md](API.md), never these tables.
+
+## `GlassGearDB` (account-wide)
+
+```lua
+GlassGearDB = {
+  schema   = 1,
+  settings = {                     -- per account; never synced
+    tooltip    = { specs = "all", alts = true },
+    markers    = { scope = "current", markTransferable = true, threshold = 0.005 },
+    reveal     = { modifier = "CTRL" },          -- "CTRL" | "ALT" | "NONE"
+    protection = { scope = "tracked", threshold = 0.005 },
+    appearance = { theme = "forever" },          -- kept unchanged while Glass UI decides the look
+  },
+  tracked  = { ["<charKey>"] = { ["PRIEST.HOLY"] = true } },  -- selected own/alt specs
+  entries  = {                     -- the entry store (adr/0001), local and remote side by side
+    ["<entryId>"] = {
+      id = "<guid>:PRIEST.SHADOW:<uuid>", kind = "profile" | "baseline",
+      version = "<writer>:<seq>", ancestors = { "<v>", ... },  -- at most 20
+      deleted = nil | true, conflict = nil | "<rootId>",
+      provenance = "self" | "own-account",
+      data = { ... },              -- per kind, below
+    },
+  },
+  replicaState = { ["<guid>"] = { maybeBehind = false } },  -- from manifest comparison (M2)
+}
+```
+
+`charKey` is the character's GUID. A display name is never a key, because names are not unique
+(AltStable `PUBLIC-API.md:39`).
+
+## `GlassGearChar` (per character)
+
+```lua
+GlassGearChar = {
+  schema = 1,
+  specMap = { [1] = "PRIEST.SHADOW", [2] = "PRIEST.HOLY" },  -- spec group -> spec key (manual)
+  equipSetMap = { ["PRIEST.HOLY"] = <equipmentSetID> },
+}
+```
+
+## Entry data
+
+**Profile** (`kind = "profile"`):
+
+```lua
+{ specKey = "PRIEST.SHADOW", name = "Raid", source = "imported-pawn", origin = "Karuzo - Shadow - Raid",
+  updatedAt = 1793500000, weights = { Intellect = 0.42, SpellDamage = 1.0, CritRating = 0.68 },
+  ignored = { Spirit = true } }      -- Pawn "X"
+```
+
+**Baseline** (`kind = "baseline"`):
+
+```lua
+{ specKey = "PRIEST.HOLY", source = "observed" | "equipment-set" | "fallback-current",
+  capturedAt = 1793500000,
+  slots = { [1] = { state = "occupied", item = "19019:0:0" }, [2] = { state = "empty" }, [3] = { state = "unknown" }, ... } }
+```
+
+## Wire codec `GG1` (one entry per line)
+
+```
+GG1|<kind p|b>|<id>|<version>|<ancestors comma-separated>|<flags d,c>|<payload>
+```
+
+**Escaping.** `\` becomes `\\`, `|` becomes `\p`, and a newline becomes `\n`. No raw newline is ever
+emitted.
+
+**Profile payload:**
+
+```
+<specKey>;<name>;<source>;<updatedAt base36>;<token>=<weight>,...;<ignored tokens>
+```
+
+A weight is written with 3 decimals and clamped to [-999.999, 999.999].
+
+**Baseline payload:**
+
+```
+<specKey>;<source>;<capturedAt base36>;<slot>:<o|e|u>:<id>:<enchant>:<suffix>,...
+```
+
+The occupancy codes are `o` occupied, `e` empty and `u` unknown.
+
+**Decoding.**
+
+- Any field that fails validation rejects the whole entry (`bad-entry`). The local entry is left
+  untouched.
+- An unknown `GG<n>` prefix is rejected as an unknown schema.
+
+**Limits** (enforced by the encoder, fixture-tested in `tests/test_entry_sync.lua`):
+
+| Limit | Value |
+|---|---|
+| Name | at most 24 characters |
+| Tokens per profile | at most 40 |
+| Ancestors | at most 20 |
+| Encoded entry | at most 2048 bytes |
+
+An entry over the size limit is `too-large`. It stays local and is reported.
+
+## Migrations
+
+- `schema` is an integer in both tables. `Core/DB.lua` runs migrations in order (`MIGRATIONS[n]`
+  upgrades n−1 to n) at `ADDON_LOADED`, before anything reads the data.
+- A table that is **newer** than the code is not touched. Glass Gear runs read-only for that session
+  and says so in `/gg diag`. This is the same "refused schema disables sync" rule as AltStableSync.
+- Schema 1 is the first, so there are no migrations yet.

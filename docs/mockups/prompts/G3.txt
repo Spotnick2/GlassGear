@@ -1,0 +1,14 @@
+TASK: Generate ONE raster UI mockup image with the imagegen skill's DEFAULT built-in `image_gen` tool (not the CLI fallback, no OPENAI_API_KEY path). Then copy the chosen generated PNG from $CODEX_HOME/generated_images/... into the current working directory under the exact filename given below. Do not create HTML, SVG or code substitutes; if the built-in image_gen tool is unavailable or fails, stop and say exactly why in your final message. Your final message must state the saved filename and whether the built-in tool was used.
+
+STYLE (match the attached reference boards): a 3:2 landscape presentation board (about 1586x992) for the World of Warcraft: Forever addon "Glass Gear". Dark, softly blurred gothic castle interior background with candles. A short serif title at the top. Two side-by-side panels with IDENTICAL content and layout: left labelled "WoW Forever" (native look: near-black panels, thin gold-bronze ornate borders, gold headings, Friz-Quadrata-like serif text), right labelled "Glass / Pearl" (same content on smoky blue-grey translucent glass panels with thin restrained light rims and a subtle top reflection; no heavy blur, no neon, no elaborate shader effects — layered flat textures only). Plausible in-game scale: compact windows and tooltips like real WoW UI, not website dashboards, not giant cards, not a marketing poster. Item icons are small square WoW-style icons. Green filled double chevron = current-spec upgrade; amber/orange OUTLINED chevron = other spec or eligible alt. Upgrade numbers are percentages labelled "item-score estimate". Footer text at bottom right, small: "Concept mockup • illustrative items and scores". Characters (use only these): Karuzo (level 60 Priest: Shadow is the current spec, Holy, Discipline), Drakuza (level 60 Mage, Account 2), Drakuzo (level 60 Warlock, Account 1), Elegia (level 60 Paladin). All text must be spelled exactly as written below; keep text short and legible.
+
+TARGET FILENAME: G3-import-formats.png
+
+BOARD CONTENT — title: "G3 / Import — supported formats".
+In EACH theme panel show a compact "Import weights" dialog for "Karuzo • Priest — Holy".
+- A "Type:" dropdown shown OPEN listing three options: "Pawn string", "WoWSims Pawn EP export" (highlighted/selected), and a greyed-out disabled option "SimulationCraft profile — needs an external simulation (not weights)".
+- A text box containing: ( Pawn: v1: "Holy WoWSims Weights": Class=Priest, Intellect=0.412, Spirit=0.288, Healing=1.000, Mana=0.050 )
+- A yellow warning line with a warning icon: "Line 1: unknown stat 'Mana' ignored; 2 stats dropped (WoWSims EP has no hit/crit/haste)".
+- A small provenance badge: "Source: WoWSims Pawn EP • imported 1.11.2026".
+- Buttons "Cancel" (red) and "Import profile" (green).
+Caption under the panels: "Character exports are not stat weights. Only weight strings import directly."

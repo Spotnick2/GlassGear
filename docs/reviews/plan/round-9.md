@@ -1,0 +1,31 @@
+**All four round-8 MAJORs and both MINORs are resolved at the plan-contract level. No remaining BLOCKER/MAJOR defect found in the M0 foundation scope.**
+
+I re-ran the counterexamples by tracing the revised contract against AltStable’s current carrier path and AltStableSync’s design, catalog reconciliation, and Link implementation. This is a plan review, not a claim that the proposed Glass Gear implementation or upstream extension has passed tests.
+
+| Round-8 finding | Disposition and counterexample replay |
+|---|---|
+| **MAJOR 1 — Delivery and confirmation could stall** | **Resolved; no defect found.** After page one delivers P but leaves Q outstanding, the required bounded timer and per-peer pull/retry mechanism continue without another edit. A receiver with nothing locally pending still exchanges manifests, so confirmation no longer depends on echoing another account’s character through AltStable’s account filter. The revised plan explicitly requires the idle, multi-page, lost-ack fixture. See [transport contract](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:85) and [fixtures](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:108). This matches the mechanisms in [Link’s exchange/recovery contract](C:/Projects/WoW/AltStableSync/docs/DESIGN.md:857) and [timeout requeue implementation](C:/Projects/WoW/AltStableSync/Plugins/Link/Sync.lua:372). |
+| **MAJOR 2 — An omitted weight update could leave protection falsely clear** | **Resolved; no defect found.** B holding P₀ while A advertises P₁ now has a receiver-visible inventory mismatch. Receiving Q does not clear that mismatch. The affected target remains `maybeBehind`, and protection cannot return `clear` until the relevant entries match. This directly closes the weight-only counterexample without requiring a gear change or baseline expiry. See [inventory/freshness rule](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:95) and [explicit protection fixture](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:114). |
+| **MAJOR 3 — Restored SavedVariables could reuse a version** | **Resolved; no defect found.** Restoring the backup containing sequence 10 no longer restores the writer identity used to produce the peer’s existing `I:11`. Successful initialization supplies a fresh in-memory writer token; the new edit therefore has a different version and reaches ancestry/divergence handling instead of the same-version ignore branch. See [revised writer contract](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:59), consistent with [AltStableSync’s writer model](C:/Projects/WoW/AltStableSync/docs/DESIGN.md:222). |
+| **MAJOR 4 — Receive-side retirement was prohibited from minting** | **Resolved; no defect found.** With A holding root a/copy b and B holding root b/mirror copy a, A’s resolution m carries both tips. B fast-forwards to m and may now mint the retirement tombstone for its own mirror copy, even if A never stored that copy. Duplicate m delivery makes no further change, and retirement does not trigger an immediate exchange. See [narrow mint exception](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:78), [fast-forward retirement](C:/Projects/WoW/AltStableSync/Catalog.lua:542), and [idempotent retirement](C:/Projects/WoW/AltStableSync/Catalog.lua:580). |
+
+The two MINORs are also closed:
+
+- **Late-replay claim — resolved; no defect found.** An already-recorded conflict identity remains suppressed by its live record or tombstone after ancestry expires. A version that originally fast-forwarded the root, and therefore never acquired a conflict record, may produce its **first** conservative copy after leaving the 20-version history. The [revised wording](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:68) now distinguishes these cases and promises no automatic root revision.
+- **Size and mutation contracts — resolved; no defect found.** The plan now includes ancestors, IDs, conflict metadata and escaping in entry-size fixtures; tombstones in backfill fixtures; a visible `too-large` outcome; and explicit stale expected-version rejection for edits and conflict actions. The numerical sizes remain targets to measure, not asserted guarantees. See [mutation guards](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:81) and [budget/fixture requirements](C:/Users/nicol/.claude/plans/magical-floating-giraffe.md:101).
+
+The earlier adversarial sequences remain sound under the revised contract:
+
+- **Shed baseline followed by a complete profile descendant:** no defect found. Profile ancestry cannot advance the omitted baseline’s entry version.
+- **Old dirty installation receives another installation’s divergent edit:** no defect found. Divergence preserves alternatives rather than automatically promoting the stale installation’s content.
+- **Recorded conflict replay after history eviction:** no defect found. Durable conflict identity suppression survives the bounded ancestry window.
+- **Delete versus edit, either delivery order; incomparable tombstones:** no defect found in the incorporated rules. The documented conservative conflict from a losing tombstone history remains an accepted limitation.
+- **Fresh reset, duplicate delivery, and omitted entries:** no defect found. Unknown entries can be adopted, duplicates do not advance roots, and omission is not deletion.
+
+**Elsewhere in the plan, no additional BLOCKER/MAJOR defect found.** The own-account trust prerequisite, legal equipment configurations, fail-closed baseline/effect policies, synchronous expiry and override invalidation, bounded asynchronous evaluation, and explicit unavailable runtime capabilities remain intact.
+
+The M0/M2 boundary is coherent: M0 can implement and fixture-test the consumer contracts and reconciliation decisions with simulated transport. AS-S1 can choose the upstream hosting, extraction, and wire implementation while satisfying those contracts. A finished transport protocol specification is not required to approve this foundation plan.
+
+Validation used read-only `Get-Content`, `Get-ChildItem`, `Test-Path`, and targeted `rg` searches. **No files changed; no implementation or in-game tests ran.**
+
+CONSENSUS (no BLOCKER/MAJOR left)
