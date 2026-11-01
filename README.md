@@ -41,9 +41,10 @@ see [docs/BACKLOG.md](docs/BACKLOG.md).
 ## Requirements
 
 - WoW Forever (Interface 16001).
-- **Optional:** AltStable for alts across your accounts, once AltStable gains AS-001/002/003
-  ([docs/INTEGRATION-GAPS.md](docs/INTEGRATION-GAPS.md)); Glass UI for the Glass look; Shatter
-  for disenchant protection.
+- **Optional:** AltStable for alts across your accounts, once AltStable gains AS-003 (AS-001
+  is in); Glass UI for the Glass look; Shatter for disenchant protection. Syncing your own weight
+  profiles between accounts uses a shared entry-sync library instead (ES-001), not AltStable
+  ([docs/INTEGRATION-GAPS.md](docs/INTEGRATION-GAPS.md)).
 
 ## Development
 

@@ -1,7 +1,7 @@
 ------------------------------------------------------------
 -- Engine/EntrySync.lua - the per-entry sync model of adr/0001. Pure and
 -- transport-agnostic: M0 tests it with a simulated transport; M2 maps
--- AltStable's entry-sync service (AS-002) onto it.
+-- the shared entry-sync library (ES-001, adr/0001) onto it.
 --
 -- A port of AltStableSync's catalog rules (Catalog.lua Upsert / Retire /
 -- RetireCovered / Resolve, docs/DESIGN.md:913-973, MIT, same author), adapted

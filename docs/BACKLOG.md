@@ -52,7 +52,8 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 | GG-404 | [#29](https://github.com/Spotnick2/GlassGear/issues/29) |
 | GG-501 | [#30](https://github.com/Spotnick2/GlassGear/issues/30) |
 | GG-502 | [#31](https://github.com/Spotnick2/GlassGear/issues/31) |
-| AS-001, AS-002, AS-003 | [AltStable#281](https://github.com/Spotnick2/AltStable/issues/281) |
+| AS-001, AS-003 | [AltStable#281](https://github.com/Spotnick2/AltStable/issues/281) (AS-001 done in AltStable #282) |
+| AS-002 → ES-001 | moved out of AltStable (#36); the library's repo is TBD, extracted under ASS-001 |
 | ASS-001 | [AltStableSync#101](https://github.com/Spotnick2/AltStableSync/issues/101) |
 | SH-001, SH-002 | [Shatter#52](https://github.com/Spotnick2/Shatter/issues/52) |
 | GUI-001 | [GlassUI#167](https://github.com/Spotnick2/GlassUI/issues/167) |
@@ -368,38 +369,48 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 
 ## M2: AltStable profiles, roster and the two-account flow
 
-The AltStable items (EXT) are detailed in INTEGRATION-GAPS.md. AS-001 **blocks** M2.
+The upstream items (EXT) are detailed in INTEGRATION-GAPS.md. adr/0001 was amended on 2026-11-01
+(#36): spike AS-S1 chose extraction, so profile and baseline sync moved from AltStable to a shared
+entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 
 | ID | P | Class | Repo | Outcome |
 |---|---|---|---|---|
-| AS-001 | P0 | EXT | AltStable | Own-account-only channel; per-character provenance `self` / `own-account` / `third-party`, enforced before callbacks |
-| AS-002 | P0 | EXT | AltStable | Namespaced own-account entry-sync service (manifests, pull, timers, size checks, `too-large`). Spike AS-S1: host it in AltStable, or extract AltStableSync Link |
+| AS-001 | P0 | EXT | AltStable | **Done** (AltStable #282): per-character provenance `self` / `own-account` / `third-party`, own-account channel, feature flags |
+| AS-002 | — | — | — | **Moved** to ES-001 |
 | AS-003 | P0 | EXT | AltStable | Public gear read API (item strings with suffix, per-slot completeness), `GearChanged`, gear-change stamp |
-| ASS-001 | P2 | SPIKE | AltStableSync | Extract Link's protocol into a shared module, only if AS-S1 picks extraction |
+| ASS-001 | P0 | EXT | AltStableSync | Extract Link's entry sync into the shared library; Link stays wire-compatible during the migration |
+| ES-001 | P0 | EXT | new library (repo and name TBD) | Shared entry-sync library on LibAccountSync: manifests, pull, own ack/retry, 16 KB batches, byte-sized timeouts, `too-large`, inventory |
 
 ### GG-201: AltStable roster provider (P0, MVP)
 
 - **Outcome.** Own characters from both accounts are discoverable, with provenance, level, class,
   realm and faction.
 - **Scope.** `RosterProvider` adapter; version and feature detection (the existing
-  `DetectAltStable`).
-- **Deps.** AS-001, AS-003.
+  `DetectAltStable`, moved to `AltStable.PUBLIC_API_FEATURES.provenance` and AS-003's flag).
+- **Deps.** AS-001 (done), AS-003.
 - **Acceptance.**
   - Without AltStable, or with an older one: `/gg` and the API say exactly what is missing.
   - A third-party character is never listed as a recipient.
 - **Validation:** auto (`DetectAltStable` fixtures), game (two accounts).
 
-### GG-202: Entry sync over AS-002 (P0, MVP)
+### GG-202: Entry sync over the shared library (ES-001) (P0, MVP)
 
 - **Outcome.** Weight profiles and baselines authored on either account are available on the
-  other.
+  other. This works without AltStable; alts still need it (GG-201, GG-203).
 - **Scope.**
-  - Map AS-002 onto `Engine/EntrySync` and `Engine/Codec`.
+  - Embed and pin the ES-001 library; map it onto `Engine/EntrySync` and `Engine/Codec`.
+  - Glass Gear's own LibAccountSync instance with a derived, permanent tag (for example
+    `GlassGearES`) on its own account-wide store getter. Check `inst.messages == true`; otherwise
+    sync reports unavailable.
+  - Manifests and inventory in `GlassGearDB`, never in the accountSync store table.
+  - The sync on/off switch in settings (the control in place of AltStable's refusals; adr/0001,
+    refusals). It flips every tag on the store together.
   - `maybeBehind` from manifests.
   - Conflict-copy UI in Profiles ("Keep this / Keep mine").
-- **Deps.** AS-002.
+- **Deps.** ES-001 (not AltStable).
 - **Acceptance.**
-  - The `test_entry_sync` fixtures pass against the real service adapter.
+  - The `test_entry_sync` fixtures pass against the real library adapter.
+  - Turning sync off stops sending and receiving on Glass Gear's instance.
   - An edit on account 2 shows on account 1 after exchange.
   - A conflict shows both versions.
 - **Validation:** auto, game (two accounts).
