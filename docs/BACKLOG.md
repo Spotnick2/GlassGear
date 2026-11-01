@@ -99,6 +99,10 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Probe P4.
   - Turn "expected" keys into measured ones in `Data/Stats.lua` and FORMATS.md (`test_formats_doc`
     keeps them in step).
+  - School-specific spell damage ("+20 Shadow Spell Damage"): find whether `GetItemStats` returns
+    it at all. If it doesn't, decide how Glass Gear detects it (for example `C_TooltipInfo`), so such
+    an item is never scored as if the bonus didn't exist without a warning
+    (research/default-weights.md).
 - **Validation:** game, then auto.
 
 ### GG-104: Spec mapping UI (P1, MVP)
@@ -139,6 +143,38 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   level 70. Evaluate community sources and the owner's own sims.
 - **Acceptance.** A recommendation with licence notes, written down.
 - **Validation:** n/a.
+- **Result.** [research/default-weights.md](research/default-weights.md): Pawn's numbers are not
+  shipped (the user can still export them from Pawn and import them). Recommended: our own simple
+  per-spec defaults as a stopgap until WoWSims weights exist, labelled "default weights", never
+  trusted by protection, replaced by any import. Follow-ups GG-120 and GG-121 (below).
+
+### GG-120: Default weights (P1, MVP; proposed, not filed yet)
+
+- **Outcome.** Every spec without an imported profile scores with Glass Gear's own default weights,
+  labelled "default weights", instead of showing "no weights".
+- **Scope.**
+  - `Data/Defaults.lua` from the owner-tuned table in research/default-weights.md.
+  - `Profiles.Active` falls back to it; defaults are never stored or synced.
+  - Provenance `default`; the tooltip tag and footer.
+  - Limitation `DEFAULT_WEIGHTS`, unsafe for protection (never `clear`).
+  - Setting `defaults.enabled` (on).
+  - Rescale the per-1 % stats after GG-103.
+  - Only tokens the scorer reads today. School-specific spell damage weights (the second table in
+    research/default-weights.md) wait for GG-103 to map their client keys and for the scorer to
+    read them.
+- **Deps.** The owner's numbers; GG-103 for the rating units **and** the school-specific spell
+  damage keys.
+- **Acceptance.** An import replaces the default; a default-based `no_upgrade` never gives `clear`;
+  rows carry the tag.
+- **Validation:** auto, game (P6).
+
+### GG-121: Import from Pawn (P3, MVP; proposed, not filed yet)
+
+- **Outcome.** With Pawn loaded, a click imports one of Pawn's scales (`PawnGetAllScalesEx`,
+  `PawnGetScaleTag`) through the normal importer. Nothing from Pawn ships with Glass Gear.
+- **Scope.** Explicit action only, `pcall`-wrapped, Pawn as an optional dependency; `origin`
+  marks read-only scales "Pawn built-in".
+- **Validation:** auto (stubbed Pawn), game.
 
 ### GG-107: Tooltip rows for all own specs (FIRST VERTICAL SLICE, P0, MVP)
 

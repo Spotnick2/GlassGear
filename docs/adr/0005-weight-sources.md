@@ -1,6 +1,6 @@
 # ADR-0005: Weight sources and provenance
 
-- Status: accepted (2026-11-01)
+- Status: accepted (2026-11-01); `default` row proposed by GG-106, pending the owner's numbers
 
 Every profile records `source`, `importedAt` / `updatedAt` and, when it is known, `origin` (a free
 text label, such as the Pawn scale name).
@@ -10,7 +10,7 @@ text label, such as the Pawn scale name).
 | `imported-pawn` | A Pawn v1 scale string | Pawn string import |
 | `wowsims-pawn-ep` | A WoWSims "Pawn EP" export, recognised by its scale name `"<Spec> WoWSims Weights"` | Pawn string import, with a warning about stats WoWSims drops |
 | `manual` | Edited in Glass Gear | Profile editor |
-| `default` | Shipped defaults | None in MVP. GG-106 researches a licence-clean source; Pawn's defaults are CC BY-NC-ND and are not copied |
+| `default` | Glass Gear's own simple per-spec defaults (`Data/Defaults.lua`, GG-120). Read-only data, never stored or synced; any import for the spec replaces it; never trusted by protection | None: used when a spec has no profile. Pawn's built-in numbers are CC BY-NC-ND and are never shipped ([research/default-weights.md](../research/default-weights.md)) |
 | `sim-result` | Results of an external simulation | Future (GG-502), through AltStable Companion (ASC-001) |
 
 These are **not weights**, and cannot be imported as weights:
