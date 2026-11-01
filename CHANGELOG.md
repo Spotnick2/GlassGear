@@ -17,5 +17,6 @@
   - **Pawn v1 scale strings:** import and export, including WoWSims "Pawn EP".
   - **Public API v1** (current character): capabilities, specs, profiles, Evaluate with pending
     item data.
-  - **`/gg` commands:** diagnostics, spec mapping and Pawn import.
+  - **`/gg` commands:** diagnostics, spec mapping (own class, groups 1–2) and Pawn import
+    (importing again for a spec replaces its weights).
   - No tooltips or markers yet.

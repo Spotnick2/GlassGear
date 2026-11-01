@@ -34,29 +34,45 @@ function Diagnostics.Lines()
     return lines
 end
 
+local function ownSpec(key)
+    for _, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
+        if s.key == key then return true end
+    end
+    return false
+end
+
+local function specExample()
+    local s = GG.Data.Classes.Specs(GG.player.class)[1]
+    return s and s.key or "PRIEST.SHADOW"
+end
+
 function Diagnostics.Slash(msg)
     msg = (msg or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local cmd, rest = msg:match("^(%S*)%s*(.-)$")
     if cmd == "spec" then
         local group, key = rest:match("^(%d+)%s+(%S+)$")
-        if not group or not GG.Data.Classes.Spec(key) then
-            out("usage: /gg spec <1|2> <SPEC.KEY>  e.g. /gg spec 1 PRIEST.SHADOW")
+        group = tonumber(group)
+        if not group or not GG.Spec.ValidMapping(GG.player.class, group, key) then
+            out(string.format("usage: /gg spec <1-%d> <SPEC.KEY> (a %s spec)  e.g. /gg spec 1 %s",
+                GG.Spec.MAX_GROUPS, tostring(GG.player.class), specExample()))
             return
         end
-        GG.charDB.specMap[tonumber(group)] = key
+        GG.charDB.specMap[group] = key
         GG.ResolveSpec()
         GG.API._Invalidate("spec", { GG.player.key })
         out("spec group " .. group .. " -> " .. key)
     elseif cmd == "import" then
         local spec, text = rest:match("^(%S+)%s+(.+)$")
-        if not spec or not GG.Data.Classes.Spec(spec) then
-            out("usage: /gg import <SPEC.KEY> ( Pawn: v1: \"Name\": ... )")
+        if not spec or not ownSpec(spec) then
+            out(string.format("usage: /gg import <SPEC.KEY> ( Pawn: v1: \"Name\": ... ) (a %s spec)",
+                tostring(GG.player.class)))
             return
         end
-        local entry, parsed = GG.Profiles.ImportPawn(GG.store, GG.player.key, spec, text, time(),
-            tostring(time()), GG.player.class)
+        local entry, parsed, replaced = GG.Profiles.ImportPawn(GG.store, GG.player.key, spec, text, time(),
+            nil, GG.player.class)
         if not entry then out("import failed: " .. tostring(parsed)) return end
-        out(string.format("imported %s for %s (%s)", parsed.name, spec, parsed.source))
+        out(string.format("%s %s for %s (%s)", replaced and "replaced weights with" or "imported",
+            parsed.name, spec, parsed.source))
         for _, w in ipairs(parsed.warnings) do out("  warning: " .. w) end
         GG.Callbacks.Fire("ProfilesChanged", { charKeys = { GG.player.key } })
         GG.API._Invalidate("profiles", { GG.player.key })

@@ -37,7 +37,9 @@ GlassGearDB = {
 ```lua
 GlassGearChar = {
   schema = 1,
-  specMap = { [1] = "PRIEST.SHADOW", [2] = "PRIEST.HOLY" },  -- spec group -> spec key (manual)
+  specMap = { [1] = "PRIEST.SHADOW", [2] = "PRIEST.HOLY" },  -- spec group (1-2) -> spec key of this
+                                                             -- class (manual); anything else is
+                                                             -- ignored as "invalid-mapping"
   equipSetMap = { ["PRIEST.HOLY"] = <equipmentSetID> },
 }
 ```

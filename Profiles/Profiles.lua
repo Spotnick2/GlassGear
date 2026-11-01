@@ -35,20 +35,35 @@ function Profiles.Active(store, guid, specKey)
         ignoredTokens = d.ignoredTokens or {}, missing = d.missing or {}, armor = d.armor }
 end
 
--- Import a Pawn string as a new profile for (guid, specKey). Everything the
--- string carries is kept (origin, unsupported tokens, missing WoWSims weights).
--- Returns entry, parsed | nil, err.
+-- Import a Pawn string for (guid, specKey). Everything the string carries is
+-- kept (origin, unsupported tokens, missing WoWSims weights).
+-- Until GG-105 adds the profile picker a spec has one profile, so importing
+-- again replaces the active profile's weights (a versioned edit of the same
+-- entry: it syncs as a newer version, never as a second profile). Otherwise a
+-- new entry is created under a collision-free id: `uuid` when given, else the
+-- import time plus this session's writer token, suffixed until unused (a
+-- tombstone keeps its id forever, so a deleted id is never reused).
+-- Returns entry, parsed, replaced | nil, err.
 function Profiles.ImportPawn(store, guid, specKey, text, now, uuid, classToken)
     local parsed, err = GG.PawnString.Parse(text, { class = classToken })
     if not parsed then return nil, err end
-    local id = prefix(guid, specKey) .. (uuid or tostring(now))
     local missing = (#parsed.missing > 0) and parsed.missing or nil
-    local entry, cerr = store:Create(id, "profile", {
+    local data = {
         specKey = specKey, name = parsed.name, origin = parsed.origin, source = parsed.source, updatedAt = now,
         weights = parsed.weights, ignored = parsed.ignored, ignoredTokens = parsed.ignoredTokens, missing = missing,
-    }, "self")
+    }
+    local active = Profiles.ForSpec(store, guid, specKey)[1]
+    if active then
+        local entry, eerr = store:Edit(active.id, active.version, data)
+        if not entry then return nil, eerr end
+        return entry, parsed, true
+    end
+    local base = prefix(guid, specKey) .. (uuid or (tostring(now) .. "-" .. store.writer))
+    local id, n = base, 1
+    while store:Get(id) do n = n + 1; id = base .. "-" .. n end
+    local entry, cerr = store:Create(id, "profile", data, "self")
     if not entry then return nil, cerr end
-    return entry, parsed
+    return entry, parsed, false
 end
 
 return Profiles

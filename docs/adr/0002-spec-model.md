@@ -26,7 +26,9 @@ off on Forever (`VgerCore.lua:49`).
    Display names come from the same table and are never parsed from game text.
 2. **Current spec** is resolved in this order:
    1. the **manual mapping** spec group → spec key, kept per character. It is always available and
-      always wins when it is set;
+      always wins when it is set. Only groups 1–2 and the character's own class's spec keys are
+      accepted; a saved mapping outside that (edited or copied SavedVariables) is ignored and
+      reported as `invalid-mapping`, never used;
    2. **automatic** detection: spec group → `GetCombatConfigIDForSpecGroup` → `C_Traits` group
       currency spent → the tree with the most points. It is **disabled until GG-101 measures it**.
       A tie, no points spent, or the Feral split gives `unknown-spec`;
