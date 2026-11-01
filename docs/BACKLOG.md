@@ -16,6 +16,48 @@ The game is offline until 2026-11-04, so every **game** item waits for it.
 Cross-repo items are detailed in [INTEGRATION-GAPS.md](INTEGRATION-GAPS.md). Contracts are in
 [API.md](API.md), [SCHEMA.md](SCHEMA.md) and [adr/](adr/), and mockups in [mockups/README.md](mockups/README.md).
 
+## Issue map
+
+M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the foundation PR.
+
+| Backlog | Issue |
+|---|---|
+| GG-101 | [#2](https://github.com/Spotnick2/GlassGear/issues/2) |
+| GG-102 | [#3](https://github.com/Spotnick2/GlassGear/issues/3) |
+| GG-103 | [#4](https://github.com/Spotnick2/GlassGear/issues/4) |
+| GG-104 | [#5](https://github.com/Spotnick2/GlassGear/issues/5) |
+| GG-105 | [#6](https://github.com/Spotnick2/GlassGear/issues/6) |
+| GG-106 | [#7](https://github.com/Spotnick2/GlassGear/issues/7) |
+| GG-107 | [#8](https://github.com/Spotnick2/GlassGear/issues/8) |
+| GG-108 | [#9](https://github.com/Spotnick2/GlassGear/issues/9) |
+| GG-109 | [#10](https://github.com/Spotnick2/GlassGear/issues/10) |
+| GG-110 | [#11](https://github.com/Spotnick2/GlassGear/issues/11) |
+| GG-111 | [#12](https://github.com/Spotnick2/GlassGear/issues/12) |
+| GG-112 | [#13](https://github.com/Spotnick2/GlassGear/issues/13) |
+| GG-113 | [#14](https://github.com/Spotnick2/GlassGear/issues/14) |
+| GG-114 | [#15](https://github.com/Spotnick2/GlassGear/issues/15) |
+| GG-115 | [#16](https://github.com/Spotnick2/GlassGear/issues/16) |
+| GG-116 | [#17](https://github.com/Spotnick2/GlassGear/issues/17) |
+| GG-117 | [#18](https://github.com/Spotnick2/GlassGear/issues/18) |
+| GG-118 | [#19](https://github.com/Spotnick2/GlassGear/issues/19) |
+| GG-119 | [#20](https://github.com/Spotnick2/GlassGear/issues/20) |
+| GG-201 | [#21](https://github.com/Spotnick2/GlassGear/issues/21) |
+| GG-202 | [#22](https://github.com/Spotnick2/GlassGear/issues/22) |
+| GG-203 | [#23](https://github.com/Spotnick2/GlassGear/issues/23) |
+| GG-204 | [#24](https://github.com/Spotnick2/GlassGear/issues/24) |
+| GG-301 | [#25](https://github.com/Spotnick2/GlassGear/issues/25) |
+| GG-401 | [#26](https://github.com/Spotnick2/GlassGear/issues/26) |
+| GG-402 | [#27](https://github.com/Spotnick2/GlassGear/issues/27) |
+| GG-403 | [#28](https://github.com/Spotnick2/GlassGear/issues/28) |
+| GG-404 | [#29](https://github.com/Spotnick2/GlassGear/issues/29) |
+| GG-501 | [#30](https://github.com/Spotnick2/GlassGear/issues/30) |
+| GG-502 | [#31](https://github.com/Spotnick2/GlassGear/issues/31) |
+| AS-001, AS-002, AS-003 | [AltStable#281](https://github.com/Spotnick2/AltStable/issues/281) |
+| ASS-001 | [AltStableSync#101](https://github.com/Spotnick2/AltStableSync/issues/101) |
+| SH-001, SH-002 | [Shatter#52](https://github.com/Spotnick2/Shatter/issues/52) |
+| GUI-001 | [GlassUI#167](https://github.com/Spotnick2/GlassUI/issues/167) |
+| ASC-001 | [AltStableCompanion#55](https://github.com/Spotnick2/AltStableCompanion/issues/55) |
+
 ## M0: Foundation, contracts and design (this PR)
 
 | ID | P | Class | Outcome | Status |
