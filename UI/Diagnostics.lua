@@ -30,7 +30,8 @@ function Diagnostics.Lines()
     add("AltStable: " .. (alt.present and ("present, " .. (alt.usable and "usable" or alt.reason)) or "absent")
         .. " - alt upgrades and sync unavailable")
     add("theme: " .. tostring(GG.themeName) .. (GG.themeInfo and GG.themeInfo.reason and (" (" .. GG.themeInfo.reason .. ")") or ""))
-    add("unavailable in this build: tooltips (GG-107), markers (GG-109/111), reveal (GG-110), protection (GG-301)")
+    add("tooltip rows: " .. (GG.tooltipHooked and "on" or ("unavailable (" .. tostring(GG.tooltipReason) .. ")")))
+    add("unavailable in this build: markers (GG-109/111), reveal (GG-110), protection (GG-301)")
     return lines
 end
 

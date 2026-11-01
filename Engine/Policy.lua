@@ -79,6 +79,10 @@ local function row(kind, r)
         pct = r.score and r.score.pct, delta = r.score and r.score.delta,
         emphasis = kind == "current", compact = kind ~= "current",
         noWeights = false, laterLevel = nil, label = nil,
+        reasons = r.reasons or {}, why = r.eligibility and r.eligibility.reasons or {},
+        limitations = r.limitations or {},
+        atLevel = r.eligibility and r.eligibility.atLevel,
+        levelsAway = r.eligibility and r.eligibility.levelsAway,
     }
     for _, reason in ipairs(r.reasons or {}) do
         if reason == "NO_WEIGHTS" then x.noWeights = true; x.label = "no weights" end

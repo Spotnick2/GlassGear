@@ -57,6 +57,24 @@ function Compat.ItemFacts(link)
     return facts
 end
 
+-- Tooltip helpers (GG-107). The equip location from the instant cache only.
+function Compat.EquipLoc(itemID)
+    local _, _, _, equipLoc = C_Item.GetItemInfoInstant(itemID)
+    return equipLoc
+end
+
+-- The link of the bag slot when it still holds itemID, else nil.
+function Compat.BagSlotLink(bag, slot, itemID)
+    if C_Container.GetContainerItemID(bag, slot) ~= itemID then return nil end
+    local info = C_Container.GetContainerItemInfo(bag, slot)
+    return info and info.hyperlink or nil
+end
+
+-- An item instance's current link (TooltipUtil.GetDisplayedItem's guid path).
+function Compat.LinkByGUID(guid)
+    return C_Item.GetItemLinkByGUID(guid)
+end
+
 function Compat.RequestItem(itemID)
     C_Item.RequestLoadItemDataByID(itemID)
 end

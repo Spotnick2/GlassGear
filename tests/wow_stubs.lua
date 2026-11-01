@@ -39,6 +39,7 @@ function WoW.reset()
     WoW.equipped = {}     -- [slot] = itemID
     WoW.bags = {}         -- [bag] = { [slot] = { itemID, isBound, guid } }
     WoW.settingsCategories = {}
+    WoW.postCalls = {}    -- [tooltip data type] = { fn, ... } (TooltipDataProcessor)
 end
 
 function WoW.link(itemID, enchant)
@@ -152,8 +153,17 @@ function C_Item.DoesItemExist(loc)                                              
     return b ~= nil and b[loc.slotIndex] ~= nil
 end
 function C_Item.GetItemGUID(loc) return WoW.bags[loc.bagID][loc.slotIndex].guid end                   -- 2235
+function C_Item.GetItemLinkByGUID(guid)                                                                -- 2251
+    for _, b in pairs(WoW.bags) do
+        for _, s in pairs(b) do if s.guid == guid then return WoW.link(s.itemID) end end
+    end
+end
 
 C_Container = {}
+function C_Container.GetContainerItemID(bag, slot)                                                     -- 1169
+    local b = WoW.bags[bag]
+    return b and b[slot] and b[slot].itemID or nil
+end
 function C_Container.GetContainerItemInfo(bag, slot)                                                   -- 1170
     local b = WoW.bags[bag]
     local s = b and b[slot]
@@ -178,6 +188,48 @@ Settings = {                                                                    
     RegisterCanvasLayoutCategory = function(frame, name) return { frame = frame, name = name } end,
     RegisterAddOnCategory = function(c) WoW.settingsCategories[#WoW.settingsCategories + 1] = c end,
 }
+
+-- Generated API docs (TooltipInfoSharedDocumentation.lua:89-96) and Blizzard
+-- Lua (Blizzard_SharedXMLGame/Tooltip/TooltipDataHandler.lua:199).
+Enum = { TooltipDataType = { Item = 0, Spell = 1, Unit = 2 } }
+TooltipDataProcessor = {
+    AddTooltipPostCall = function(kind, fn)
+        WoW.postCalls[kind] = WoW.postCalls[kind] or {}
+        table.insert(WoW.postCalls[kind], fn)
+    end,
+}
+
+-- A GameTooltip with the widget methods Glass Gear calls. Lines are recorded.
+function WoW.newTooltip(name)
+    local t = { name = name, lines = {}, shown = false, forbidden = false, refreshes = 0 }
+    function t:GetName() return self.name end
+    function t:IsForbidden() return self.forbidden end
+    function t:IsShown() return self.shown end
+    function t:GetOwner() return self.owner end
+    function t:GetPrimaryTooltipData() return self.data end
+    function t:AddLine(text, r, g, b) self.lines[#self.lines + 1] = { left = text, lc = { r, g, b } } end
+    function t:AddDoubleLine(l, rt, lr, lg, lb, rr, rg, rb)
+        self.lines[#self.lines + 1] = { left = l, right = rt, lc = { lr, lg, lb }, rc = { rr, rg, rb } }
+    end
+    function t:RefreshData() self.refreshes = self.refreshes + 1; WoW.showItem(self, self.data, self.owner) end
+    function t:Hide() self.shown = false end
+    return t
+end
+
+-- Show an item tooltip: Blizzard sets the lines, then runs the post-calls.
+function WoW.showItem(tooltip, data, owner)
+    tooltip.lines, tooltip.data, tooltip.owner, tooltip.shown = { { left = "item lines" } }, data, owner, true
+    for _, fn in ipairs(WoW.postCalls[Enum.TooltipDataType.Item] or {}) do fn(tooltip, data) end
+end
+
+-- A Blizzard bag item button (ContainerFrameItemButton: GetBagID, GetID).
+function WoW.bagButton(bag, slot, updates)
+    local b = { bag = bag, slot = slot }
+    function b:GetBagID() return self.bag end
+    function b:GetID() return self.slot end
+    if updates then function b:UpdateTooltip() end end
+    return b
+end
 
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) WoW.chatLines[#WoW.chatLines + 1] = msg end }
 SlashCmdList = {}

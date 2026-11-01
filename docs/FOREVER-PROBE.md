@@ -134,7 +134,12 @@ says what it needs to find out, and records the result here with the build once 
   - Is the owner a bag button with `GetBagID` and `GetID` (the `GlassPearls/Pearls/JunkSpot.lua:72-78`
     model)?
   - Does `RefreshData` rebuild an open tooltip when a modifier changes (the `Shatter/Tooltip.lua:127-138`
-    model)?
+    model), and when `EvaluationReady` arrives for a pending item (GG-107)?
+  - Which `TooltipData` fields arrive per surface: `guid` (bags, equipped; `C_Item.GetItemLinkByGUID`
+    keeps the suffix?), `hyperlink` (loot, vendor, chat links)? GG-107 falls back to
+    `tooltip:GetItem()` when neither is set.
+  - Comparison tooltips are named `ShoppingTooltip1/2` (`GameTooltip.xml:239`) and get no rows: is
+    that the name on Forever?
 - **Why.** Where the spec rows appear, and whether rows can identify the bag instance.
 - **Steps.** `run` installs a logging post-call. For each surface, the owner hovers it
   (`ask`: "rows shown?") and a screenshot is taken.
