@@ -1,11 +1,10 @@
 ------------------------------------------------------------
 -- UI/BagMarkers.lua - upgrade markers on Blizzard's bag buttons (GG-109).
 --
---   green: a current-spec upgrade (always wins) - Blizzard's own filled
---          upgrade arrow (atlas "bags-greenarrow", EquipmentFlyout.xml:10);
+--   green: a current-spec upgrade (always wins);
 --   amber: another own spec's upgrade on a transferable item (default on), or
---          on any item while the reveal modifier is held (GG-110) - the same
---          arrow drawn as an amber outline, so the two differ by shape too.
+--          on any item while the reveal modifier is held (GG-110).
+-- The look (filled green arrow, amber outline) is UI/Marks.lua's.
 -- What shows is Policy.Marker's decision (adr/0006), over the shared answers
 -- of UI/Results.lua and the instance's bind state read on every pass.
 --
@@ -22,71 +21,17 @@ local GG = GlassGear
 local Markers = {}
 GG.BagMarkers = Markers
 
-Markers.ATLAS = "bags-greenarrow"
-Markers.SIZE = 14
-Markers.STYLE = {
-    green = { color = { 1, 1, 1, 1 }, fallback = { 0.25, 1, 0.25, 0.95 } },
-    amber = { color = { 1, 0.72, 0.15, 1 }, desaturate = true, inner = { 0.08, 0.05, 0, 0.9 },
-        fallback = { 1, 0.72, 0.15, 0.95 } },
-}
-
 local marks = setmetatable({}, { __mode = "k" })     -- [button] = mark
 local pending = setmetatable({}, { __mode = "k" })   -- buttons met in combat
 local bagFrames = {}
 local hooked, scheduled = false, false
 local events
-local atlasOK
 
 local function where(button)
     local okB, bag = pcall(button.GetBagID, button)
     local okS, slot = pcall(button.GetID, button)
     if not (okB and okS) or type(bag) ~= "number" or type(slot) ~= "number" then return nil end
     return bag, slot
-end
-
-local function newMark(button)
-    local m = CreateFrame("Frame", nil, button)
-    m:SetSize(Markers.SIZE, Markers.SIZE)
-    m:SetPoint("TOPLEFT", button, "TOPLEFT", 1, -1)
-    m:EnableMouse(false)
-    m.fill = m:CreateTexture(nil, "OVERLAY")
-    m.fill:SetAllPoints(m)
-    -- The inner cut-out that turns the amber arrow into an outline.
-    m.inner = m:CreateTexture(nil, "OVERLAY", nil, 1)
-    m.inner:SetPoint("TOPLEFT", m, "TOPLEFT", 3, -3)
-    m.inner:SetPoint("BOTTOMRIGHT", m, "BOTTOMRIGHT", -3, 3)
-    if atlasOK == nil then atlasOK = GG.Compat.AtlasKnown(Markers.ATLAS) end
-    if atlasOK then
-        m.fill:SetAtlas(Markers.ATLAS)
-        m.inner:SetAtlas(Markers.ATLAS)
-    end
-    marks[button] = m
-    return m
-end
-
-local function paint(m, kind)
-    if m.kind == kind then return end
-    m.kind = kind
-    local s = Markers.STYLE[kind]
-    if atlasOK then
-        m.fill:SetDesaturated(s.desaturate == true)
-        m.fill:SetVertexColor(s.color[1], s.color[2], s.color[3], s.color[4])
-        if s.inner then
-            m.inner:SetDesaturated(true)
-            m.inner:SetVertexColor(s.inner[1], s.inner[2], s.inner[3], s.inner[4])
-            m.inner:Show()
-        else
-            m.inner:Hide()
-        end
-    else
-        m.fill:SetColorTexture(s.fallback[1], s.fallback[2], s.fallback[3], s.fallback[4])
-        if s.inner then
-            m.inner:SetColorTexture(s.inner[1], s.inner[2], s.inner[3], s.inner[4])
-            m.inner:Show()
-        else
-            m.inner:Hide()
-        end
-    end
 end
 
 -- The marker for one bag slot: "green" | "amber" | nil.
@@ -122,14 +67,10 @@ local function decorate(button, ctx)
             events:RegisterEvent("PLAYER_REGEN_ENABLED")
             return
         end
-        m = newMark(button)
+        m = GG.Marks.New(button)
+        marks[button] = m
     end
-    if kind then
-        paint(m, kind)
-        m:Show()
-    else
-        m:Hide()
-    end
+    GG.Marks.Set(m, kind)
 end
 
 local function pass(cf, ctx)

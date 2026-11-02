@@ -29,3 +29,6 @@
 - Reveal (GG-110): hold Ctrl (or Alt; or None) to show amber off-spec upgrades on any bag item.
   Releasing clears it at once, also while typing in chat. Clicks are never taken: Ctrl-click still
   opens the dressing room.
+- Loot markers (GG-111): the same arrows on the loot window and the group roll frames. Green for a
+  current-spec upgrade; off-spec upgrades show amber only while you hold the reveal key (BoP and
+  BoE alike). Marks work in combat (a small pool made beforehand).

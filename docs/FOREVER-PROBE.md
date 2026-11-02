@@ -29,7 +29,7 @@ says what it needs to find out, and records the result here with the build once 
 | P9 | Armor proficiency known at runtime | GG-118 | `gg armor` | queued |
 | P10 | `setID` from `C_Item.GetItemInfo`; item-set data source | GG-119 | `gg sets` | queued |
 | P11 | Required level and level window inputs | GG-117 | part of `gg armor` | queued |
-| P12 | Bag marker hooks and look | GG-109, GG-110 | `gg marks` | queued |
+| P12 | Bag and loot marker hooks and look | GG-109, GG-110, GG-111 | `gg marks` | queued |
 
 ---
 
@@ -71,11 +71,19 @@ says what it needs to find out, and records the result here with the build once 
 
 ## P3: Loot window and group roll frames (GG-102)
 
+- **From the source (wow-ui-source `forever`, 1.60.1.70532).** Forever (Camelot) loads the
+  Mainline loot UI (`Blizzard_UIPanels_Game.toc:127-130`):
+  - `LootFrame` is a ScrollBox of pooled elements (`Mainline/LootFrame.lua:74-96`); an item element
+    has `GetSlotIndex()` (`:433`) and the icon button `.Item`; Blizzard's `Init` runs on open and on
+    `LOOT_SLOT_CHANGED` (`:186-194`). GG-111 hooks `ScrollUtil.AddInitializedFrameCallback`
+    (`ScrollUtil.lua:21`), which fires after Blizzard's initializer (`ScrollBoxListView.lua:397-409`).
+  - Group rolls: `GroupLootFrame1..4` (`Mainline/GroupLootFrame.xml:641-644`) with `rollID` and the
+    `.IconFrame` button, set up on `OnShow` (`GroupLootFrame.lua:371`). The gamepad roll list
+    (`GamepadGroupLootRollFrameMixin`) is a different ScrollBox and is not covered.
 - **Question.**
-  - Which frames show boss loot on Forever: `LootFrame` buttons, or a ScrollBox of elements?
-  - Which frames show group rolls?
-  - How does a probe get each slot's link and its button?
-  - Do frames get created in combat?
+  - Is that what the client runs: does `/gg` report "loot window, 4 roll frames"?
+  - Do the loot elements get created in combat (mob loot with adds up)?
+  - Is `bindType` from `C_Item.GetItemInfo` available on loot links when the window opens?
 - **Why.** Loot-surface markers (GG-111) and the reveal surface list (P7).
 - **Steps**
   1. Loot a mob (`event = "LOOT_OPENED"`), then `run`: walk `LootFrame` children and log their
@@ -235,7 +243,7 @@ says what it needs to find out, and records the result here with the build once 
   level for links that come from loot and other characters.
 - **Steps.** Logged as part of `gg armor`, for the same item sample.
 
-## P12: Bag marker hooks and look (GG-109, GG-110)
+## P12: Bag and loot marker hooks and look (GG-109, GG-110, GG-111)
 
 - **Question.**
   - Are `ContainerFrameContainer.ContainerFrames[1..6]` and `ContainerFrameCombinedBags` the bag
@@ -250,6 +258,9 @@ says what it needs to find out, and records the result here with the build once 
     while typing in chat cleared within 0.1 s?
   - With bags opened in combat, do the marks appear after combat, with no taint message?
   - Do bag replacements (Baganator, Bagnon) hide Blizzard's frames, so no marks show (GG-401)?
+  - Loot (GG-111): does the mark sit in the top-left corner of the loot window's icon and the roll
+    frame's icon? Does it follow Ctrl with the loot window open? When looting in combat, do marks
+    show at once (pooled frames), with no taint message?
 - **Why.** The hooks and the visuals are modelled, not measured.
 - **Steps.** Screenshots of an open bag with a current-spec upgrade, a BoE off-spec upgrade and a
   soulbound off-spec upgrade: normal, then holding Ctrl. Then the same in combat.

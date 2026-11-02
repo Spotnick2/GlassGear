@@ -2,7 +2,8 @@
 -- Presentation/MarkerView.lua - an API response as the input of
 -- Policy.Marker (GG-109, adr/0006). Pure.
 --
---   MarkerView.View(response, bound, surface) -> view
+--   MarkerView.View(response, bound, surface, bindType) -> view
+--     bags: bound = the instance's bind state; loot: bindType (BoP/BoE rules)
 --   MarkerView.Settings(markerSettings, specKeys) -> Policy.Marker settings
 --
 -- The marker scope is its own setting (adr/0006): "current" marks only the
@@ -14,8 +15,8 @@ local GG = GlassGear
 local View = {}
 GG.MarkerView = View
 
-function View.View(response, bound, surface)
-    local view = { own = {}, alts = {}, bound = bound, surface = surface }
+function View.View(response, bound, surface, bindType)
+    local view = { own = {}, alts = {}, bound = bound, surface = surface, bindType = bindType }
     for _, r in ipairs(response and response.results or {}) do
         if r.status ~= "unsupported" and r.spec then
             if r.current and not view.current then
