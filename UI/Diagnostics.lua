@@ -34,9 +34,11 @@ function Diagnostics.Lines()
     add("tooltip rows: " .. (GG.tooltipHooked and "on" or ("unavailable (" .. tostring(GG.tooltipReason) .. ")")))
     add("bag markers: " .. (GG.bagMarkersOn and ("on (" .. tostring(GG.bagMarkersInfo) .. " bag frames)")
         or ("unavailable (" .. tostring(GG.bagMarkersInfo) .. ")")))
+    add("loot markers: " .. (GG.lootMarkersOn and ("on (" .. tostring(GG.lootMarkersInfo) .. ")")
+        or ("unavailable (" .. tostring(GG.lootMarkersInfo) .. ")")))
     local mod = GG.db and GG.db.settings.reveal.modifier or "CTRL"
     add("reveal: " .. (mod == "NONE" and "off" or ("hold " .. mod .. " to show off-spec upgrades")))
-    add("unavailable in this build: loot markers (GG-111), protection (GG-301)")
+    add("unavailable in this build: protection (GG-301), bag addons (GG-401)")
     return lines
 end
 

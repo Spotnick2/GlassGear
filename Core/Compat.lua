@@ -80,6 +80,23 @@ function Compat.BagKey(bag, slot, link, bound)
     return "bag:" .. bag .. ":" .. slot .. ":" .. (bound and "b" or "u") .. ":" .. link
 end
 
+-- Loot surfaces (GG-111). A loot-window slot's link, items only (money and
+-- currency slots give nil); a group roll's link.
+function Compat.LootSlotLink(slot)
+    if GetLootSlotType(slot) ~= Enum.LootSlotType.Item then return nil end
+    return GetLootSlotLink(slot)
+end
+
+function Compat.RollLink(rollID)
+    if not rollID then return nil end
+    return GetLootRollItemLink(rollID)
+end
+
+-- The item's bind type (1 = on pickup, 2 = on equip, ...), nil on a cache miss.
+function Compat.BindType(link)
+    return (select(14, C_Item.GetItemInfo(link)))
+end
+
 -- Reveal inputs (GG-110). modifier = "CTRL" | "ALT" | anything else (none).
 function Compat.ModifierDown(modifier)
     if modifier == "CTRL" then return IsControlKeyDown() == true end

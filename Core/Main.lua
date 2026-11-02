@@ -53,6 +53,7 @@ function handlers.PLAYER_LOGIN()
     GG.tooltipHooked, GG.tooltipReason = GG.Tooltip.Initialize()
     GG.Reveal.Initialize()
     GG.bagMarkersOn, GG.bagMarkersInfo = GG.BagMarkers.Initialize()
+    GG.lootMarkersOn, GG.lootMarkersInfo = GG.LootMarkers.Initialize()
     GG.API._SetReady()
 end
 

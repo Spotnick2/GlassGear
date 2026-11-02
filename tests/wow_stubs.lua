@@ -44,7 +44,10 @@ function WoW.reset()
     WoW.focus = nil       -- the edit box with keyboard focus
     WoW.combat = false
     WoW.atlases = { ["bags-greenarrow"] = true }
+    WoW.loot = {}         -- [lootSlot] = { itemID = n } | { money = true }
+    WoW.rolls = {}        -- [rollID] = itemID
     if WoW.makeBagFrames then WoW.makeBagFrames() end
+    if WoW.makeLootFrames then WoW.makeLootFrames() end
 end
 
 function WoW.link(itemID, enchant)
@@ -114,6 +117,9 @@ function CreateFrame(kind, name, parent)
     function f:CreateTexture() return newTexture() end
     function f:SetSize() end
     function f:SetPoint() end
+    function f:ClearAllPoints() end
+    function f:SetParent(p) self.parent = p end
+    function f:GetParent() return self.parent end
     function f:EnableMouse() end
     function f:SetID(id) self._id = id end
     function f:GetID() return self._id end
@@ -258,7 +264,22 @@ Settings = {                                                                    
 
 -- Generated API docs (TooltipInfoSharedDocumentation.lua:89-96) and Blizzard
 -- Lua (Blizzard_SharedXMLGame/Tooltip/TooltipDataHandler.lua:199).
-Enum = { TooltipDataType = { Item = 0, Spell = 1, Unit = 2 } }
+Enum = { TooltipDataType = { Item = 0, Spell = 1, Unit = 2 },
+    LootSlotType = { None = 0, Item = 1, Money = 2, Currency = 3 } }      -- LootConstantsDocumentation.lua:41-44
+
+function GetLootSlotType(slot)                                                                          -- 19129
+    local s = WoW.loot[slot]
+    if not s then return Enum.LootSlotType.None end
+    return s.money and Enum.LootSlotType.Money or Enum.LootSlotType.Item
+end
+function GetLootSlotLink(slot)                                                                          -- 19128
+    local s = WoW.loot[slot]
+    return s and s.itemID and WoW.link(s.itemID) or nil
+end
+function GetLootRollItemLink(rollID)                                                                    -- 19125
+    local id = WoW.rolls[rollID]
+    return id and WoW.link(id) or nil
+end
 TooltipDataProcessor = {
     AddTooltipPostCall = function(kind, fn)
         WoW.postCalls[kind] = WoW.postCalls[kind] or {}
@@ -335,6 +356,77 @@ function WoW.showBag(frame, slots)
     frame._size = #slots
     frame:Show()
     frame:UpdateItems()
+end
+
+-- Blizzard's loot UI on Forever (Mainline): LootFrame with a ScrollBox of pooled
+-- elements (LootFrame.lua:74-96; GetSlotIndex :433, icon button .Item), the
+-- ScrollBox OnInitializedFrame event (ScrollBox.lua:744) and
+-- ScrollUtil.AddInitializedFrameCallback (ScrollUtil.lua:21); GroupLootFrame1..4
+-- (GroupLootFrame.xml:641-644) with rollID and the .IconFrame button.
+ScrollBoxListMixin = { Event = { OnInitializedFrame = "OnInitializedFrame" } }
+ScrollUtil = {
+    AddInitializedFrameCallback = function(scrollBox, callback, owner, iterateExisting)
+        if iterateExisting then scrollBox:ForEachFrame(callback) end
+        scrollBox:RegisterCallback(ScrollBoxListMixin.Event.OnInitializedFrame, function(o, frame, data)
+            callback(o, frame, data)
+        end, owner)
+    end,
+}
+function WoW.makeLootFrames()
+    local lf = CreateFrame("Frame", "LootFrame")
+    lf.shown = false
+    local sb = { _callbacks = {}, _frames = {}, _size = 0 }
+    function sb:RegisterCallback(event, fn, owner)
+        self._callbacks[event] = self._callbacks[event] or {}
+        table.insert(self._callbacks[event], { fn = fn, owner = owner })
+    end
+    function sb:ForEachFrame(fn)
+        for i = 1, self._size do fn(self._frames[i], { slotIndex = self._frames[i]._slot }) end
+    end
+    lf.ScrollBox = sb
+    rawset(_G, "LootFrame", lf)
+    for i = 1, 4 do
+        local f = CreateFrame("Frame", "GroupLootFrame" .. i)
+        f.shown = false
+        f.IconFrame = CreateFrame("Button", nil, f)
+        rawset(_G, "GroupLootFrame" .. i, f)
+    end
+end
+-- Open the loot window on `slots` (loot slot indices), as LootFrame:Open does:
+-- the elements are (re)initialised, then the frame shows.
+function WoW.openLoot(slots)
+    local lf = LootFrame
+    local sb = lf.ScrollBox
+    for i, slot in ipairs(slots) do
+        local money = WoW.loot[slot] and WoW.loot[slot].money
+        local el = sb._frames[i]
+        if not el or (el.Item == nil) ~= (money == true) then
+            el = CreateFrame("Frame", nil, lf)
+            if not money then el.Item = CreateFrame("Button", nil, el) end
+            el.GetSlotIndex = function(self) return self._slot end
+            sb._frames[i] = el
+        end
+        el._slot = slot
+        el:Show()
+    end
+    sb._size = #slots
+    for i = 1, sb._size do
+        for _, cb in ipairs(sb._callbacks.OnInitializedFrame or {}) do
+            cb.fn(cb.owner, sb._frames[i], { slotIndex = sb._frames[i]._slot })
+        end
+    end
+    lf:Show()
+end
+function WoW.closeLoot()
+    LootFrame:Hide()
+    LootFrame.ScrollBox._size = 0
+end
+-- A group roll in roll frame i (GroupLootContainer_OpenNewFrame sets rollID, then shows).
+function WoW.startRoll(i, rollID)
+    local f = _G["GroupLootFrame" .. i]
+    f.rollID = rollID
+    f:Hide()
+    f:Show()
 end
 
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) WoW.chatLines[#WoW.chatLines + 1] = msg end }
