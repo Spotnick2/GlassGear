@@ -64,10 +64,41 @@ function Compat.EquipLoc(itemID)
 end
 
 -- The link of the bag slot when it still holds itemID, else nil.
+-- The bag slot's link and bind state, when it still holds itemID (any item
+-- when itemID is nil); else nil.
 function Compat.BagSlotLink(bag, slot, itemID)
-    if C_Container.GetContainerItemID(bag, slot) ~= itemID then return nil end
+    local here = C_Container.GetContainerItemID(bag, slot)
+    if not here or (itemID and here ~= itemID) then return nil end
     local info = C_Container.GetContainerItemInfo(bag, slot)
-    return info and info.hyperlink or nil
+    if not (info and info.hyperlink) then return nil end
+    return info.hyperlink, info.isBound == true, here
+end
+
+-- The cache key of a bag slot's item, shared by tooltips and markers: it
+-- changes when the item, its link or its bind state changes.
+function Compat.BagKey(bag, slot, link, bound)
+    return "bag:" .. bag .. ":" .. slot .. ":" .. (bound and "b" or "u") .. ":" .. link
+end
+
+-- Reveal inputs (GG-110). modifier = "CTRL" | "ALT" | anything else (none).
+function Compat.ModifierDown(modifier)
+    if modifier == "CTRL" then return IsControlKeyDown() == true end
+    if modifier == "ALT" then return IsAltKeyDown() == true end
+    return false
+end
+
+function Compat.KeyboardFocused()
+    return GetCurrentKeyBoardFocus() ~= nil
+end
+
+function Compat.InCombat()
+    return InCombatLockdown() == true
+end
+
+function Compat.AtlasKnown(name)
+    if not name or not (C_Texture and C_Texture.GetAtlasInfo) then return false end
+    local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+    return ok and type(info) == "table"
 end
 
 -- An item instance's current link (TooltipUtil.GetDisplayedItem's guid path).

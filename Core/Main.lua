@@ -1,8 +1,8 @@
 ------------------------------------------------------------
 -- Core/Main.lua - lifecycle (loaded last). ADDON_LOADED: SavedVariables,
 -- the Glass UI question and the theme. PLAYER_LOGIN: character, spec,
--- entry store, the tooltip hook (GG-107), then Ready. Bags and loot come
--- with GG-109/GG-111.
+-- entry store, the shared results, the tooltip hook (GG-107), the reveal
+-- modifier (GG-110) and the bag markers (GG-109), then Ready. Loot is GG-111.
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -49,7 +49,10 @@ function handlers.PLAYER_LOGIN()
     GG.store = GG.Engine.EntrySync.New(GG.db.entries, newWriter())
     GG.ResolveSpec()
     GG.Diagnostics.RegisterSettings()
+    GG.Results.Initialize()
     GG.tooltipHooked, GG.tooltipReason = GG.Tooltip.Initialize()
+    GG.Reveal.Initialize()
+    GG.bagMarkersOn, GG.bagMarkersInfo = GG.BagMarkers.Initialize()
     GG.API._SetReady()
 end
 

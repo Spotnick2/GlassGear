@@ -29,6 +29,7 @@ says what it needs to find out, and records the result here with the build once 
 | P9 | Armor proficiency known at runtime | GG-118 | `gg armor` | queued |
 | P10 | `setID` from `C_Item.GetItemInfo`; item-set data source | GG-119 | `gg sets` | queued |
 | P11 | Required level and level window inputs | GG-117 | part of `gg armor` | queued |
+| P12 | Bag marker hooks and look | GG-109, GG-110 | `gg marks` | queued |
 
 ---
 
@@ -233,3 +234,22 @@ says what it needs to find out, and records the result here with the build once 
 - **Why.** The "level-appropriate only, look ahead N levels" window needs a reliable required
   level for links that come from loot and other characters.
 - **Steps.** Logged as part of `gg armor`, for the same item sample.
+
+## P12: Bag marker hooks and look (GG-109, GG-110)
+
+- **Question.**
+  - Are `ContainerFrameContainer.ContainerFrames[1..6]` and `ContainerFrameCombinedBags` the bag
+    frames on Forever, with `UpdateItems` and `EnumerateValidItems` (Mainline
+    `ContainerFrame.lua:575`, `:1191`; GlassPearls hooks the same)? `/gg` says how many were hooked.
+  - Does atlas `bags-greenarrow` (`EquipmentFlyout.xml:10`) exist and read well at 14 px in a bag
+    slot's top-left corner?
+  - Does the amber version (the arrow desaturated and tinted, with a dark inner copy) read as an
+    **outline**, clearly a different shape from green, also for colour-blind players? If not, pick
+    another shape and record it here.
+  - Do marks follow Ctrl press and release with the bags open, and after reopening? Is a release
+    while typing in chat cleared within 0.1 s?
+  - With bags opened in combat, do the marks appear after combat, with no taint message?
+  - Do bag replacements (Baganator, Bagnon) hide Blizzard's frames, so no marks show (GG-401)?
+- **Why.** The hooks and the visuals are modelled, not measured.
+- **Steps.** Screenshots of an open bag with a current-spec upgrade, a BoE off-spec upgrade and a
+  soulbound off-spec upgrade: normal, then holding Ctrl. Then the same in combat.

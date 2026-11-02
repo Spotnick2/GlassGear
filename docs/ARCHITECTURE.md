@@ -30,7 +30,7 @@
 ┌──────────────────────────────────────────────────────────────┐
 │ Integrations: RosterProvider (local | AltStable), GlassUI     │
 └──────────────────────────────────────────────────────────────┘
-Profiles/ (storage + PawnString)   Core/DB (schema, migrations)   UI/Diagnostics, UI/Tooltip (hook)
+Profiles/ (storage + PawnString)   Core/DB (schema, migrations)   UI/Diagnostics, UI/Results (shared answers), UI/Tooltip, UI/Reveal, UI/BagMarkers (hooks)
 ```
 
 ## Module rules

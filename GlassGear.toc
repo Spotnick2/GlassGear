@@ -35,7 +35,11 @@ Integrations\RosterProvider.lua
 Integrations\GlassUI.lua
 Presentation\Theme.lua
 Presentation\TooltipView.lua
+Presentation\MarkerView.lua
 API\PublicAPI.lua
 UI\Diagnostics.lua
+UI\Results.lua
 UI\Tooltip.lua
+UI\Reveal.lua
+UI\BagMarkers.lua
 Core\Main.lua

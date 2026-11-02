@@ -23,4 +23,9 @@
   first and marked CURRENT, with the upgrade estimate, "no weights", "checking..." while item data
   loads, "at level N (in k)" for later items, set-bonus and unscored-effect notes, and the
   "Weighted item score · estimates" footer. Off-specs compare with your current gear until GG-108.
-  No markers yet.
+- Bag markers (GG-109): a green arrow on current-spec upgrades in Blizzard's bags; an amber outlined
+  arrow on transferable (unbound) items that are upgrades for another of your specs. Soulbound
+  off-spec upgrades stay quiet unless you hold the reveal key.
+- Reveal (GG-110): hold Ctrl (or Alt; or None) to show amber off-spec upgrades on any bag item.
+  Releasing clears it at once, also while typing in chat. Clicks are never taken: Ctrl-click still
+  opens the dressing room.

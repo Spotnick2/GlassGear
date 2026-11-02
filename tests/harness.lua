@@ -88,7 +88,8 @@ function H.loadPure()
         "Data/ItemSets.lua", "Engine/Score.lua", "Engine/SlotCompare.lua", "Engine/SetBonus.lua",
         "Engine/Evaluate.lua", "Engine/Policy.lua", "Engine/EntrySync.lua", "Engine/Codec.lua",
         "Profiles/PawnString.lua", "Profiles/Profiles.lua", "Item/ItemContext.lua",
-        "Character/Spec.lua", "Character/Baselines.lua", "Presentation/TooltipView.lua" }) do
+        "Character/Spec.lua", "Character/Baselines.lua", "Presentation/TooltipView.lua",
+        "Presentation/MarkerView.lua" }) do
         dofile(f)
     end
     return GlassGear
