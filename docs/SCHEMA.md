@@ -121,6 +121,10 @@ No raw newline is ever emitted.
     is `item:<id>`.
   - At most 64 characters (`Codec.MAX_ITEM`), so the largest legal baseline still fits one entry
     (fixture: 1837 of 2048 bytes). A longer string is captured as `unknown` for that slot (GG-108).
+    Measured by AltStable on the 205 stored beta links (2026-11-01): longest 40 characters
+    (`item:15304:::::::::::1:1:12728:1:28:5244`: context, one bonus, one modifier), median 22,
+    95th percentile 26. Only an enchant plus gems plus several bonuses could pass 64, and the
+    sample has no gemmed item (no sockets on Forever, `PORTING-TBC-TO-FOREVER.md:2064`).
 
 - The occupancy codes are `o` occupied, `e` empty and `u` unknown.
 - Slots must be gear slots (1–3, 5–18), each listed once.
