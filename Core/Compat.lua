@@ -19,16 +19,33 @@ function Compat.ItemString(link)
     return link:match("(item:[%-%d:]+)") or link
 end
 
--- Compact baseline form "id:enchant:suffix" (docs/SCHEMA.md).
--- item:itemID:enchantID:gem1:gem2:gem3:gem4:suffixID:...
-function Compat.CompactItem(link)
-    local s = Compat.ItemString(link)
-    if not s then return nil end
-    local f = {}
-    for v in (s:gsub("^item:", "") .. ":"):gmatch("([^:]*):") do f[#f + 1] = v end
-    local id = tonumber(f[1])
-    if not id then return nil end
-    return string.format("%d:%s:%s", id, f[2] ~= "" and f[2] or "0", f[7] ~= nil and f[7] ~= "" and f[7] or "0")
+-- The baseline form of an equipped item (docs/SCHEMA.md): the same trimmed
+-- item string AltStable's GetCharacterGear returns (AltStable Scanner.lua:96-129
+-- @1b35918, docs/PUBLIC-API.md), so own and alt baselines compare alike.
+-- Forever links are the Mainline layout:
+--   item:id:enchant:gem1:gem2:gem3:gem4:suffix:unique:linkLevel:spec:
+--        modifiersMask:context:numBonus[:bonus...]:numModifiers[:type:value...]:...
+-- A random suffix is a BONUS ID on Forever; the classic suffix field is always
+-- empty (measured by AltStable on 205 links). So the bonus and modifier block is
+-- kept; linkLevel and spec (the scanning character's) are blanked; what follows
+-- the modifiers (crafter GUID, relics) is dropped; trailing empties trimmed.
+--   "Beaded Wraps of the Sorcerer" -> "item:14094::::::::::::1:12745"
+function Compat.GearItemString(link)
+    if type(link) ~= "string" then return nil end
+    local body = link:match("item:([^|]+)")
+    if not body then return nil end
+    local f, n = {}, 0
+    for v in (body .. ":"):gmatch("([^:]*):") do n = n + 1; f[n] = v end
+    if not tonumber(f[1]) then return nil end
+    f[9], f[10] = "", ""
+    local bonuses = tonumber(f[13]) or 0
+    local mods = tonumber(f[14 + bonuses]) or 0
+    local last = 12
+    if bonuses > 0 or mods > 0 then last = 14 + bonuses + 2 * mods end
+    while last > 1 and (f[last] == nil or f[last] == "") do last = last - 1 end
+    local out = {}
+    for i = 1, last do out[i] = f[i] or "" end
+    return "item:" .. table.concat(out, ":")
 end
 
 -- Everything the engine needs about an item link. ready=false on a cache miss
@@ -187,7 +204,7 @@ function Compat.EquippedBaseline(now)
             if f and f.ready then
                 slots[slot] = { state = "occupied", itemID = f.itemID, equipLoc = f.equipLoc,
                     classID = f.classID, subclassID = f.subclassID,
-                    itemString = f.itemString, item = Compat.CompactItem(link), tokens = f.tokens,
+                    itemString = f.itemString, item = Compat.GearItemString(link), tokens = f.tokens,
                     unique = f.unique, setID = f.setID, hasSpell = f.hasSpell, unsupported = f.unsupported }
             else
                 slots[slot] = { state = "unknown" }

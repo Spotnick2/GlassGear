@@ -33,7 +33,9 @@ H.eq(ign.ignoredHit, "Stamina", "an X stat on the item is reported")
 
 H.eq(Score.StripEnchant("item:19019:2564:0:0:0:0:1234:0"), "item:19019::0:0:0:0:1234:0",
     "enchant removed, suffix 1234 kept")
-H.eq(Score.StripEnchant("19019:2564:1234"), "19019:0:1234", "compact form: enchant zeroed, suffix kept")
+H.eq(Score.StripEnchant("item:14094:1883:::::::::::1:12745"), "item:14094::::::::::::1:12745",
+    "Forever: enchant removed, the bonus ID that carries the random suffix kept")
+H.eq(Score.StripEnchant("item:288919"), "item:288919", "a plain trimmed string is unchanged")
 
 local unscored = Stats.UnscoredTokens({ weights = { Speed = 1, Intellect = 1 } }, { classID = 2 })
 H.eq(unscored[1], "Speed", "weighted but never scored tokens are listed for weapons")

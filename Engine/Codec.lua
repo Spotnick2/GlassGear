@@ -20,7 +20,9 @@ Codec.SOURCES = {
     baseline = { ["equipment-set"] = true, observed = true, ["fallback-current"] = true },
 }
 local STATES = { occupied = true, empty = true, unknown = true }
-local ITEM = "^%d+:%d+:%-?%d+$"
+-- A baseline item: the trimmed item string (Compat.GearItemString, AltStable's form).
+local ITEM = "^item:%d+[%d:%-]*$"
+Codec.MAX_ITEM = 64
 
 local function isKey(s) return type(s) == "string" and GG.Data.Classes.Spec(s) ~= nil end
 local function finite(n) return type(n) == "number" and n == n and n ~= math.huge and n ~= -math.huge end
@@ -71,7 +73,9 @@ function Codec.ValidData(kind, d)
         for slot, v in pairs(d.slots) do
             if not gear[slot] or type(v) ~= "table" or not STATES[v.state] then return false, "slot" end
             if v.state == "occupied" then
-                if type(v.item) ~= "string" or not v.item:match(ITEM) then return false, "slot-item" end
+                if type(v.item) ~= "string" or #v.item > Codec.MAX_ITEM or not v.item:match(ITEM) then
+                    return false, "slot-item"
+                end
             elseif v.item ~= nil then
                 return false, "slot-item"
             end

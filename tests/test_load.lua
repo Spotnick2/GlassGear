@@ -97,4 +97,29 @@ H.eq(GlassGear.readOnly, true, "newer data -> read-only")
 H.eq(GlassGearDB.keep, "me", "newer data untouched")
 H.eq(GlassGearDB.schema, 99, "schema not downgraded")
 
+-- Baseline item strings: AltStable's trimmed form (Scanner.lua:96-129 @1b35918).
+local GIS = GlassGear.Compat.GearItemString
+H.eq(GIS("|cff1eff00|Hitem:14094::::::::10:1482:::1:12745|h[Beaded Wraps of the Sorcerer]|h|r"),
+    "item:14094::::::::::::1:12745", "suffix bonus ID kept; the scanner's level and spec blanked")
+H.eq(GIS("|cffffffff|Hitem:288919::::::::60:258::::::|h[Plain]|h|r"), "item:288919", "a plain item is just item:<id>")
+H.eq(GIS("item:5000:1883:::::::60:258:::2:9:1:1:28:2071:Player-1-0ABC"),
+    "item:5000:1883" .. string.rep(":", 11) .. "2:9:1:1:28:2071", "enchant, bonuses and modifiers kept; crafter dropped")
+H.eq(GIS("not a link"), nil, "not an item")
+
+-- AltStable detection: a feature flag and its function (AltStable docs/PUBLIC-API.md).
+local Detect = GlassGear.Integrations.RosterProvider.DetectAltStable
+local fn = function() end
+H.eq(Detect({}).present, false, "no AltStable")
+local old = Detect({ AltStable = { PUBLIC_API_VERSION = 1, GetCharacterProvenance = fn, GetCharacterGear = fn } })
+H.eq(table.concat(old.missing, ","), "AS-001,AS-003", "an AltStable without the flags table offers neither")
+local half = Detect({ AltStable = { PUBLIC_API_VERSION = 1, PUBLIC_API_FEATURES = { provenance = true },
+    GetCharacterProvenance = fn } })
+H.eq(table.concat(half.missing, ","), "AS-003", "provenance only: AS-003 missing")
+local noFn = Detect({ AltStable = { PUBLIC_API_VERSION = 1, PUBLIC_API_FEATURES = { provenance = true, gear = true },
+    GetCharacterProvenance = fn } })
+H.eq(table.concat(noFn.missing, ","), "AS-003", "a flag without its function is not enough")
+local full = Detect({ AltStable = { PUBLIC_API_VERSION = 1, PUBLIC_API_FEATURES = { provenance = true, gear = true },
+    GetCharacterProvenance = fn, GetCharacterGear = fn } })
+H.eq(full.usable, true, "AS-001 and AS-003 flagged and present: usable")
+
 H.done("test_load")

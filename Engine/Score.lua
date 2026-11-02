@@ -33,15 +33,14 @@ function Score.Compute(tokens, profile)
     return { score = total, ignoredHit = ignoredHit, noSupported = not any, used = used }
 end
 
--- Item strings: "item:<id>:<enchant>:..." links or "<id>:<enchant>:<suffix>"
--- compact strings. StripEnchant keeps every other field (suffix, unique id),
--- as Pawn does (Pawn.lua:3024-3045), so both sides compare without enchants.
+-- Item strings: "item:<id>:<enchant>:..." links and trimmed baseline strings.
+-- StripEnchant keeps every other field (gems, the bonus block that carries a
+-- Forever random suffix), as Pawn does (Pawn.lua:3024-3045), so both sides
+-- compare without enchants.
 function Score.StripEnchant(itemString)
     if type(itemString) ~= "string" then return itemString end
     local head, id, enchant, rest = itemString:match("^(.-item:)(%-?%d+):(%-?%d*)(.*)$")
     if head then return head .. id .. ":" .. rest end
-    local cid, cench, crest = itemString:match("^(%d+):(%d*)(.*)$")
-    if cid then return cid .. ":0" .. crest end
     return itemString
 end
 

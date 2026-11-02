@@ -194,7 +194,8 @@ All of these are proposals until GG-116 measures them.
   - It is `AltStableDB[guid]`, a flat record over `GEAR_SLOTS` (`Scanner.lua:66`) holding item
     level, quality, item id, name and enchant/socket mods.
   - `gearlink_*` and `gearsubtype_*` are **local-only** and never synced (`Core.lua:871-873`), so a
-    remote random suffix survives only as name text.
+    remote random suffix survives only as name text. *(Before AS-003; AltStable #283 now syncs a
+    trimmed item string per slot, see INTEGRATION-GAPS.md.)*
   - `lastUpdate` is stamped only when the data is complete (`Scanner.lua:974-978`).
 - **Spec:** retired. "No spec: GetNumTalentTabs / GetTalentTabInfo are gone on Forever" (`Scanner.lua:718`).
 - **Ownership signals**
@@ -215,8 +216,8 @@ All of these are proposals until GG-116 measures them.
 - **Forget:** `ForgetCharacter` (`Core.lua:1052`). `STALE_DAYS = 90` (`:1095`).
 
 ### Not present / proposed
-- A public gear read API, per-slot completeness, item strings with suffix, and a gear-change stamp
-  (AS-003).
+- ~~A public gear read API, per-slot completeness, item strings with suffix, and a gear-change
+  stamp (AS-003).~~ Shipped in AltStable #283 (`1b35918`).
 - Per-spec gear, equipment sets, stat weights, BiS.
 - An own-account-only channel with sender/destination enforcement, and persistent per-character
   ownership provenance (AS-001).

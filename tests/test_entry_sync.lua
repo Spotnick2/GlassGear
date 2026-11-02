@@ -195,7 +195,7 @@ local full = { id = "G-1:PALADIN.PROTECTION:u1", kind = "profile", version = "w:
 H.check(deepEq(assert(Codec.Decode(assert(Codec.Encode(full)))), full), "profile entry round-trips completely")
 local fullB = { id = "G-1:PALADIN.PROTECTION:baseline", kind = "baseline", version = "w:6", ancestors = {},
     data = { specKey = "PALADIN.PROTECTION", source = "observed", capturedAt = 1793500000, group = 2,
-        slots = { [1] = { state = "occupied", item = "19019:0:1234" }, [2] = { state = "empty" }, [3] = { state = "unknown" } } } }
+        slots = { [1] = { state = "occupied", item = "item:14094::::::::::::1:12745" }, [2] = { state = "empty" }, [3] = { state = "unknown" } } } }
 H.check(deepEq(assert(Codec.Decode(assert(Codec.Encode(fullB)))), fullB), "baseline entry round-trips (spec group kept)")
 local good = assert(Codec.Encode(full))
 H.eq(select(2, Codec.Decode((good:gsub("Stamina=1", "Stamina=1.2.3", 1)))), "bad-entry", "malformed number refused")
@@ -215,9 +215,13 @@ H.eq(back.data.updatedAt, 1793500000, "timestamp base36 round trip")
 H.check(not Codec.Encode(tricky):find("\n"), "never a raw newline")
 local bl = { id = "G-1:PRIEST.HOLY:baseline", kind = "baseline", version = "w:2", ancestors = {},
     data = { specKey = "PRIEST.HOLY", source = "observed", capturedAt = 1793500000,
-        slots = { [1] = { state = "occupied", item = "19019:0:1234" }, [2] = { state = "empty" }, [3] = { state = "unknown" } } } }
+        slots = { [1] = { state = "occupied", item = "item:14094::::::::::::1:12745" }, [2] = { state = "empty" }, [3] = { state = "unknown" } } } }
 back = assert(Codec.Decode(assert(Codec.Encode(bl))))
-H.eq(back.data.slots[1].item, "19019:0:1234", "suffix kept in baselines")
+H.eq(back.data.slots[1].item, "item:14094::::::::::::1:12745", "the bonus ID carrying the suffix is kept in baselines")
+local oldForm = (assert(Codec.Encode(bl)):gsub("item%:14094%:%:%:%:%:%:%:%:%:%:%:%:1%:12745", "19019:0:1234", 1))
+H.eq(select(2, Codec.Decode(oldForm)), "bad-entry", "the old id:enchant:suffix form is refused")
+local long = (assert(Codec.Encode(bl)):gsub("item%:14094%:%:%:%:%:%:%:%:%:%:%:%:1%:12745", "item:1" .. string.rep(":1", 40), 1))
+H.eq(select(2, Codec.Decode(long)), "bad-entry", "an item string over MAX_ITEM is refused")
 H.eq(back.data.slots[2].state, "empty", "empty")
 H.eq(back.data.slots[3].state, "unknown", "unknown")
 H.eq(select(2, Codec.Decode("GG2|p|x|v||| ")), "unknown-schema", "newer schema refused")
@@ -257,7 +261,22 @@ H.eq(select(2, Codec.Encode(big)), "too-large", "oversized entry -> too-large, s
 -- 16 KB batch limit even if escaping doubles it (adr/0001, transport limits).
 worst.data.name = string.rep("N", 24)
 local slots = {}
-for _, slot in ipairs(GG.Data.Slots.GEAR) do slots[slot] = { state = "occupied", item = "99999:9999:-9999" } end
+-- A heavy but real-looking item: enchant, suffix bonus, two more bonuses, one modifier.
+local HEAVY = "item:99999:9999::::::::::99:3:99999:99999:99999:1:9:99999"
+for _, slot in ipairs(GG.Data.Slots.GEAR) do slots[slot] = { state = "occupied", item = HEAVY } end
+-- The largest legal baseline: every gear slot at MAX_ITEM, 20 worst-case
+-- ancestors, a conflict-copy id. It must still fit one entry.
+local maxSlots = {}
+for _, slot in ipairs(GG.Data.Slots.GEAR) do
+    maxSlots[slot] = { state = "occupied", item = ("item:99999" .. string.rep(":9", 40)):sub(1, Codec.MAX_ITEM) }
+end
+local maxB = { id = string.format("Player-1234-%08X:%s:baseline~ffffffffffffffff:99999", 1, "PALADIN.PROTECTION"),
+    kind = "baseline", version = worst.version, ancestors = worst.ancestors,
+    conflict = { of = string.format("Player-1234-%08X:%s:baseline", 1, "PALADIN.PROTECTION") },
+    data = { specKey = "PALADIN.PROTECTION", source = "fallback-current", capturedAt = 1793500000, group = 2, slots = maxSlots } }
+local maxEnc, maxErr = Codec.Encode(maxB)
+H.check(maxEnc ~= nil, "the largest legal baseline fits one entry (" .. tostring(maxEnc and #maxEnc or maxErr) .. " bytes)")
+
 local total, ids = 0, {}
 for c = 1, 50 do
     for sp = 1, 3 do

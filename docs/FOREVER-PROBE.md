@@ -102,7 +102,11 @@ says what it needs to find out, and records the result here with the build once 
     damage and weapon speed? [FORMATS.md](FORMATS.md) lists them as "expected".
   - Is a school-specific bonus ("+20 Shadow Spell Damage") returned at all? If not, what in
     `C_TooltipInfo` carries it? An omitted bonus is scored as missing with no warning (GG-103).
-  - Does a random-suffix link return the suffix stats?
+  - Does a random-suffix link return the suffix stats? On Forever the suffix is a **bonus ID**
+    (`item:14094::::::::10:1482:::1:12745`, AltStable's measurement), not link field 7.
+  - Do `GetItemStats` and `GetItemInfo` read the **trimmed** string baselines store
+    (`item:14094::::::::::::1:12745`: level and spec blanked, crafter dropped) the same as the full
+    link? Alt baselines from AltStable come only in that form (AS-003).
   - Does an enchanted link include the enchant? SimC's Forever code says it doesn't:
     `forever/stats.lua:70`.
   - How long after `C_Item.RequestLoadItemDataByID` does `ITEM_DATA_LOAD_RESULT` or
