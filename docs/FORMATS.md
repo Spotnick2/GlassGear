@@ -25,6 +25,21 @@ with scale factors, then import the Pawn string it produces." It never says only
 The reference is Pawn 2.14.0 in `References/Addons/BagsInventory/Pawn/Pawn`, used for behaviour
 only (CC BY-NC-ND, so no code is copied).
 
+### From Pawn's own scales
+
+Glass Gear ships none of Pawn's numbers ([research/default-weights.md](research/default-weights.md)),
+but a player who has Pawn can bring any of its scales over, built-in ones included:
+
+1. In Pawn, open the **Scale** tab and select the scale (for example the built-in "Classic" one).
+2. Click **Export** (it works on read-only built-in scales too) and copy the string.
+3. In game: `/gg import <SPEC.KEY> <string>`, for example `/gg import PRIEST.SHADOW ( Pawn: v1: ... )`.
+
+The import replaces that spec's active profile. Built-in scales carry `Class=` and `Spec=`; `Spec=`
+is ignored on Forever. Caster scales lose their spell-hit and spell-crit weights: Pawn writes them
+as `SpellHitRating` and `SpellCritRating`, which aren't on our token list, so they come in as
+`UNSUPPORTED_TOKEN` warnings (whether Forever items carry spell hit separately is GG-103).
+A one-click "Import from Pawn" is GG-121, later.
+
 ### Grammar
 - Pawn's own patterns are at `Pawn.lua:3105` and `:3114`.
 

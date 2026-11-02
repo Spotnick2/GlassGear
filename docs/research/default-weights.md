@@ -1,6 +1,7 @@
 # Default weights (GG-106)
 
-- Status: recommendation, waiting for the owner's numbers (2026-11-01)
+- Status: decided by the owner (2026-11-01, [below](#owner-decisions-2026-11-01)); code in GG-120
+  ([#40](https://github.com/Spotnick2/GlassGear/issues/40)), after GG-103
 - Issue: [#7](https://github.com/Spotnick2/GlassGear/issues/7)
 - Not legal advice. Every licence reading here is the conservative one.
 
@@ -10,15 +11,17 @@
    CC BY-NC-ND 3.0 licence rules it out, and the numbers come from a third party with unknown terms.
 2. **Ship our own simple defaults instead.** A hand-written table, one row per spec: the primary
    stat, a few obvious secondaries, our own round numbers. The owner asked for exactly this ("a
-   simple default stat weight, and use common sense until we have a working wowsim"). The proposed
-   table is [below](#proposed-defaults); the owner tunes the numbers before it becomes code.
+   simple default stat weight, and use common sense until we have a working wowsim"). The draft
+   table is [below](#proposed-defaults). It is not shipped literally: GG-103's measurements revise
+   it first.
 3. **Defaults are a rough starting point.** As the owner put it, weights "always [depend] on gear",
    so a default "is never going to be awesome". WoWSims-generated weights are the intended
    replacement (GG-502, ASC-001).
 4. **Pawn's numbers stay available to the user**, without Glass Gear distributing them: Pawn's own
    Export button works on its built-in scales, and the string imports today with `/gg import`.
-5. **Defaults are labelled "default weights", never let protection return `clear`, and any
-   imported profile replaces them.**
+5. **Defaults are labelled "default weights", and any imported profile replaces them.** In
+   protection a default-based upgrade protects, and a default-based "no upgrade" is unchecked, never
+   a reason for `clear`.
 
 ## The owner's question: can we use Pawn's defaults?
 
@@ -63,8 +66,8 @@ The last two rows matter apart from licensing: Pawn's numbers are not tuned for 
 
 | Path | What happens | Is it copying by us? | Verdict |
 |---|---|---|---|
-| **Paste (works today)** | In Pawn: Scale tab → pick the built-in "Classic" scale → **Export** (enabled for read-only scales, `PawnUI.lua:405-406`) → copy → `/gg import <SPEC.KEY> <string>` | No. The user copies from their own installed Pawn for personal use. Glass Gear distributes nothing. | **Document it** (FORMATS.md, the import dialog in GG-105). |
-| **"Import from Pawn" at runtime** | While Pawn is loaded, Glass Gear calls Pawn's global `PawnGetScaleTag(name)` (`Pawn.lua:5307`, which Pawn's own Export uses), on a user's click only, and feeds the string to the existing importer | Not distribution: nothing ships, and the values go from the user's Pawn into the user's own SavedVariables, unchanged. The same as the paste path, one click shorter. | **Optional** (GG-121, P3). Explicit action only, never automatic, `pcall`-wrapped, Pawn only as an optional dependency. |
+| **Paste (works today)** | In Pawn: Scale tab → pick the built-in "Classic" scale → **Export** (enabled for read-only scales, `PawnUI.lua:405-406`) → copy → `/gg import <SPEC.KEY> <string>` | No. The user copies from their own installed Pawn for personal use. Glass Gear distributes nothing. | **Documented** ([FORMATS.md](../FORMATS.md#from-pawns-own-scales); the import dialog in GG-105). |
+| **"Import from Pawn" at runtime** | While Pawn is loaded, Glass Gear calls Pawn's global `PawnGetScaleTag(name)` (`Pawn.lua:5307`, which Pawn's own Export uses), on a user's click only, and feeds the string to the existing importer | Not distribution: nothing ships, and the values go from the user's Pawn into the user's own SavedVariables, unchanged. The same as the paste path, one click shorter. | **Later** (GG-121, P3, not in the MVP). Explicit action only, never automatic, `pcall`-wrapped, Pawn only as an optional dependency. |
 | **Reading Pawn's SavedVariables** | Read `PawnCommon.Scales` | — | **Doesn't work.** Pawn deletes built-in scale values before saving (`Pawn.lua:5661-5668`, `PawnUnitializePlugins`). Only the user's own custom scales are saved. |
 
 Export details that matter for import:
@@ -114,8 +117,11 @@ estimate", and the "default weights" tag says what the estimate rests on.
 
 ## Proposed defaults
 
-Our own round numbers, primary stat (or Healing / spell damage) = 1. **The owner tunes these
-before they become code.**
+Our own round numbers, primary stat (or Healing / spell damage) = 1. **This is the first draft
+(owner, 2026-11-01): kept as written, not shipped literally.** GG-103 establishes the rating units
+and how school-specific damage is reported; the affected weights are rescaled or revised from those
+results, then shipped and tuned from measured evidence. More intuition-based tuning before that is
+unlikely to improve them.
 
 Notes for every row:
 
@@ -220,42 +226,46 @@ Until then, whether the gap is visible depends on the client, which GG-103 still
 | `/gg` diagnostics and the profiles UI (GG-105) | `PRIEST.SHADOW: Glass Gear default weights [default]`, with "Import" next to it |
 | Detailed comparison (GG-113) | "Source: default weights (not tuned to your gear)" |
 
-Bag and loot markers (GG-109, GG-111) use defaults like any other profile. Without that, the
-defaults would add nothing in bags. Every marker's tooltip shows the tag.
+Bag and loot markers (GG-109, GG-111) use defaults like any other profile, at **normal**
+brightness (owner decision): green and amber already say which spec benefits, and a dimmer variant
+would give a small icon a second, ambiguous meaning. The "default weights" qualification lives in the
+tooltip and the profile UI. Without markers, the defaults would add nothing in bags.
 
-**Protection never trusts a default**
+**Protection: soft (owner decision)**
 
 - Evaluate adds the limitation `DEFAULT_WEIGHTS` to every result scored with a default profile.
-- Policy adds `DEFAULT_WEIGHTS` to its unsafe limitations (`Engine/Policy.lua:135-137`):
-  - a default-based `no_upgrade` gives `unknown` (keep), never `clear`;
-  - a default-based `upgrade` still gives `protect` (keeping is the safe direction).
-- Shatter shows its usual fail-closed reason, "Glass Gear can't confirm yet", plus "default
-  weights" in the detail.
-- Consequence: until the user imports weights for a spec, Shatter keeps every item that spec can
-  use. That is fail-closed by design (adr/0003).
+- A default-based `upgrade` gives `protect` (keeping is the safe direction); the recipient's detail
+  says "default weights".
+- A default-based `no_upgrade` is **unchecked**, like a spec without weights: it follows
+  `protection.noWeights` (default "ignore"), is listed under the unchecked specs, and is never a
+  reason for `clear`. Specs with real weights decide.
+- When every relevant spec is unchecked (no weights, or defaults that found no upgrade), the
+  verdict is `unknown` (keep). "Relevant" means the specs that can use the item: `Policy.Protection`
+  today compares the unchecked count with all results (`Engine/Policy.lua:196`), ineligible ones
+  included, so an ineligible spec beside an unchecked one gives `clear`. GG-120 counts only the
+  eligible ones.
+- Why not strict (`DEFAULT_WEIGHTS` as an unsafe limitation, `unknown` on every default
+  `no_upgrade`): Shatter would keep nearly every usable item until the user imports profiles.
 
 **adr/0005.** `default` changes from "none in MVP" to "Glass Gear's own table (`Data/Defaults.lua`)".
 A Pawn built-in scale the user imports is `imported-pawn`, not `default`.
 
-## Follow-up backlog items (proposed, not filed yet)
+## Follow-up backlog items
 
 | ID | P | Class | Outcome |
 |---|---|---|---|
-| GG-120 | P1 | MVP | Default weights: `Data/Defaults.lua` from the table above (owner-tuned), fallback in `Profiles.Active`, provenance `default`, the "default weights" label, the `DEFAULT_WEIGHTS` unsafe limitation, the setting, tests. The † units are rescaled after GG-103. |
-| GG-121 | P3 | MVP | Optional "Import from Pawn": list Pawn's scales (`PawnGetAllScalesEx`) and import one through `PawnGetScaleTag` on a click, `pcall`-wrapped, Pawn as an optional dependency; `origin` notes "Pawn built-in" for read-only scales. |
-| (FORMATS) | P2 | docs | Document the paste path from Pawn's Scale tab → Export, with the caster spell-hit caveat. |
+| GG-120 ([#40](https://github.com/Spotnick2/GlassGear/issues/40)) | P1 | MVP | Default weights: `Data/Defaults.lua` from the draft table, revised after GG-103; fallback in `Profiles.Active`, provenance `default`, the "default weights" label, the `DEFAULT_WEIGHTS` limitation with soft protection, the setting, tests. |
+| GG-121 ([#41](https://github.com/Spotnick2/GlassGear/issues/41)) | P3 | Future | "Import from Pawn": list Pawn's scales (`PawnGetAllScalesEx`) and import one through `PawnGetScaleTag` on a click, `pcall`-wrapped, Pawn as an optional dependency; `origin` notes "Pawn built-in" for read-only scales. Only if users ask for it. |
+| (FORMATS) | P2 | docs | Done: [FORMATS.md](../FORMATS.md#from-pawns-own-scales) documents the paste path, with the caster spell-hit caveat. |
 
 The replacement for the defaults is already in the backlog: GG-502 (import sim results) and
 ASC-001 (Companion sim orchestration).
 
-## Open questions for the owner
+## Owner decisions (2026-11-01)
 
-1. **The numbers.** Tune the table, or say "ship as is"; it's meant to be edited.
-2. **Protection with defaults.** The recommendation is strict: a default-weighted spec is
-   `unknown`, so Shatter keeps everything it can use until weights are imported. The softer
-   option treats it like a spec without weights (listed as unchecked, decided by
-   `protection.noWeights`, whose default is "ignore"): then other specs with real weights decide.
-   Strict or soft?
-3. **Markers from defaults.** Should default-weighted upgrades draw the normal green and amber
-   markers (recommended), or a dimmer variant?
-4. **GG-121.** Is "Import from Pawn" worth building, given the paste path already works?
+| Question | Decision |
+|---|---|
+| The numbers | Keep the round numbers as the first draft; don't ship them literally. GG-103 establishes the rating units and how school-specific damage is reported; rescale or revise the affected weights from those results, then ship and tune from measured evidence. |
+| Protection with defaults | **Soft.** A default-based upgrade protects; a default-based "no upgrade" is unchecked and never justifies `clear`; if every relevant spec uses defaults (or has none), the verdict stays `unknown`. This keeps today's `noWeights = "ignore"` behaviour. The strict proposal would have made Shatter keep nearly every usable item until the user imports profiles. |
+| Markers from defaults | **Normal** green and amber. The "default weights" qualification goes in the tooltip and the profile UI. |
+| GG-121 | **Not in the MVP.** Document the Pawn Export → `/gg import` path and see whether users need a button; Pawn's own UI already exports a selected scale. A later P3 idea. |

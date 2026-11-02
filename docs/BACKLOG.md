@@ -41,6 +41,8 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 | GG-117 | [#18](https://github.com/Spotnick2/GlassGear/issues/18) |
 | GG-118 | [#19](https://github.com/Spotnick2/GlassGear/issues/19) |
 | GG-119 | [#20](https://github.com/Spotnick2/GlassGear/issues/20) |
+| GG-120 | [#40](https://github.com/Spotnick2/GlassGear/issues/40) |
+| GG-121 | [#41](https://github.com/Spotnick2/GlassGear/issues/41) |
 | GG-201 | [#21](https://github.com/Spotnick2/GlassGear/issues/21) |
 | GG-202 | [#22](https://github.com/Spotnick2/GlassGear/issues/22) |
 | GG-203 | [#23](https://github.com/Spotnick2/GlassGear/issues/23) |
@@ -149,30 +151,37 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   per-spec defaults as a stopgap until WoWSims weights exist, labelled "default weights", never
   trusted by protection, replaced by any import. Follow-ups GG-120 and GG-121 (below).
 
-### GG-120: Default weights (P1, MVP; proposed, not filed yet)
+### GG-120: Default weights (P1, MVP)
 
 - **Outcome.** Every spec without an imported profile scores with Glass Gear's own default weights,
   labelled "default weights", instead of showing "no weights".
 - **Scope.**
-  - `Data/Defaults.lua` from the owner-tuned table in research/default-weights.md.
+  - `Data/Defaults.lua` from the draft table in research/default-weights.md, not shipped
+    literally: rescaled or revised from GG-103's measurements first.
   - `Profiles.Active` falls back to it; defaults are never stored or synced.
   - Provenance `default`; the tooltip tag and footer.
-  - Limitation `DEFAULT_WEIGHTS`, unsafe for protection (never `clear`).
+  - Markers at normal brightness; the qualification is in the tooltip and the profile UI.
+  - Limitation `DEFAULT_WEIGHTS`, soft protection: a default-based upgrade protects; a
+    default-based `no_upgrade` is unchecked (`protection.noWeights`), never a reason for `clear`;
+    only default or no-weight specs relevant → `unknown`. "Relevant" counts eligible specs only
+    (`Policy.Protection` counts all results today).
   - Setting `defaults.enabled` (on).
   - Rescale the per-1 % stats after GG-103.
   - Only tokens the scorer reads today. School-specific spell damage weights (the second table in
     research/default-weights.md) wait for GG-103 to map their client keys and for the scorer to
     read them.
-- **Deps.** The owner's numbers; GG-103 for the rating units **and** the school-specific spell
-  damage keys.
+- **Deps.** GG-103 for the rating units **and** the school-specific spell damage keys (blocking).
 - **Acceptance.** An import replaces the default; a default-based `no_upgrade` never gives `clear`;
-  rows carry the tag.
+  only default or no-weight specs relevant → `unknown`, also beside an ineligible spec; rows carry
+  the tag; markers draw normally.
 - **Validation:** auto, game (P6).
 
-### GG-121: Import from Pawn (P3, MVP; proposed, not filed yet)
+### GG-121: Import from Pawn (P3, Future: not in the MVP)
 
 - **Outcome.** With Pawn loaded, a click imports one of Pawn's scales (`PawnGetAllScalesEx`,
   `PawnGetScaleTag`) through the normal importer. Nothing from Pawn ships with Glass Gear.
+- **Why later.** Pawn's own Export plus `/gg import` already works (FORMATS.md); build the button
+  only if users ask for it.
 - **Scope.** Explicit action only, `pcall`-wrapped, Pawn as an optional dependency; `origin`
   marks read-only scales "Pawn built-in".
 - **Validation:** auto (stubbed Pawn), game.
