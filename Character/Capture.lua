@@ -111,6 +111,39 @@ local function hydrate(e)
     return b, missing
 end
 
+-- Map a spec to a saved set by name, or "none" (no set, not even the
+-- client's) or "auto" (the client's, if any). The one setter behind
+-- /gg set and the comparison window. Returns ok, message.
+function Capture.MapSet(spec, name)
+    if GG.readOnly then return false, "read-only this session: the set mapping can't change" end
+    if not (GG.player and GG.charDB) then return false, "not ready" end
+    local lower = tostring(name or ""):lower()
+    local msg
+    if lower == "none" then
+        GG.charDB.equipSetMap[spec] = { none = true }
+        msg = spec .. ": no equipment set, not even one assigned in the client; compared with the gear it wore"
+    elseif lower == "auto" then
+        GG.charDB.equipSetMap[spec] = nil
+        msg = spec .. ": the equipment set assigned to it in the client, if any; else the gear it wore"
+    else
+        local sets = GG.Compat.EquipmentSets()
+        if not sets then return false, "equipment sets are not available" end
+        local found
+        for _, s in ipairs(sets) do if s.name:lower() == lower then found = s end end
+        if not found then
+            local names = {}
+            for _, s in ipairs(sets) do names[#names + 1] = s.name end
+            return false, "no equipment set named '" .. tostring(name) .. "'"
+                .. (#names > 0 and (". Sets: " .. table.concat(names, ", ")) or "")
+        end
+        GG.charDB.equipSetMap[spec] = { id = found.id, name = found.name }
+        msg = spec .. " -> equipment set '" .. found.name .. "'"
+    end
+    Capture.CheckSets()
+    GG.API._Invalidate("baselines", { GG.player.key })
+    return true, msg
+end
+
 -- The ids of the sets the own specs use, distinct.
 local function setsInUse()
     local ids, seen = {}, {}

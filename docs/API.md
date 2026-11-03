@@ -81,7 +81,7 @@ end
                       -- (BASELINE_ITEM_DATA_PENDING): a stored or set baseline's items, or,
                       -- for a spec compared with the worn gear (or a candidate pairing with
                       -- a worn hand), a worn item. The others aren't held up.
-      replaces    = { slots = { 3 }, items = { "itemString" } },
+      replaces    = { slots = { 3 }, items = { "itemString" }, companion = "itemString" | nil },
       score       = { candidate = 108.6, baseline = 100.0, delta = 8.6, pct = 0.086 },
       method      = "weights-linear",
       eligibility = { equipNow = true, reasons = {} },

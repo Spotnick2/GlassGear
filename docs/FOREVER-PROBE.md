@@ -35,6 +35,7 @@ needs to find out, and records the result here with the build once it is run.
 | P13 | Settings page | GG-112 | `gg options` | narrowed |
 | P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
 | P15 | Profiles window | GG-105 | `gg profiles` | queued |
+| P16 | Comparison window | GG-113 | `gg compare` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -373,3 +374,14 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** `/gg profiles`; paste the sample Pawn string from mockup 05; Add; edit a weight, rename,
   toggle armor; Export and paste the copy into chat; drag, `/reload`, reopen; Escape with and
   without focus.
+
+## P16: Comparison window (GG-113)
+
+- **Question.**
+  - Does `/gg compare` followed by a Shift-clicked item link pass the link through the slash command
+    intact (the `|H...|h` codes), and does `/gg compare` alone pick the item last hovered?
+  - Do the stat table's columns line up with `GameFontHighlightSmall`, and does a 12-row table fit?
+  - Do the saved-set buttons map the set (the gear line then names it)?
+- **Why.** Layout and link passing are unmeasured; the stubs model the text only.
+- **Steps.** Hover a bag item, `/gg compare`; `/gg compare ` + Shift-click an item; switch spec tabs;
+  for a spec with no recorded gear, click a saved set; View profile.

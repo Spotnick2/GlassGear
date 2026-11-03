@@ -151,6 +151,14 @@ local function notes(rows, setWarnings)
     return out
 end
 
+-- One result's short verdict ("+3.1%", "no weights", "can't tell yet"), and
+-- the notes for a set of rows: shared with the comparison (GG-113).
+function View.ResultText(result)
+    local rows = GG.Engine.Policy.TooltipRows({ current = result, own = {} }, { specs = "current" }, false)
+    return rows[1] and (rightOf(rows[1])) or ""
+end
+function View.Notes(rows, setWarnings) return notes(rows, setWarnings) end
+
 function View.Build(response, settings, ctx)
     if type(response) ~= "table" or type(response.results) ~= "table" then return nil end
     ctx = ctx or {}
