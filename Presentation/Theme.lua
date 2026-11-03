@@ -6,6 +6,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Theme = {}
 GG.Theme = Theme
 
@@ -23,7 +24,7 @@ end
 -- Returns name, info. `suite` is GlassUI.Ask's answer.
 function Theme.Decide(suite)
     if not (suite and suite.following) then
-        return "forever", { reason = suite and suite.reason or "not following Glass UI" }
+        return "forever", { reason = suite and suite.reason or L["not following Glass UI"] }
     end
     local lib, why = Theme.LibGlass()
     if not lib then return "forever", { reason = why } end
