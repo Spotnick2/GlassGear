@@ -21,6 +21,8 @@ local GG = GlassGear
 local Markers = {}
 GG.BagMarkers = Markers
 
+Markers.MAX_CONTAINER_FRAMES = 20      -- NUM_CONTAINER_FRAMES is 13 on Mainline
+
 local marks = setmetatable({}, { __mode = "k" })     -- [button] = mark
 local pending = setmetatable({}, { __mode = "k" })   -- buttons met in combat
 local bagFrames = {}
@@ -123,13 +125,23 @@ function Markers.Initialize()
     events:SetScript("OnEvent", function(_, event)
         if event == "PLAYER_REGEN_ENABLED" then guarded(afterCombat) end
     end)
-    local list = {}
+    -- Both routes, each frame once: the ContainerFrame1..N globals (GlassUI
+    -- hooks UpdateItems on those, measured on 70450, GlassUI docs/BAGS.md:127)
+    -- and the ContainerFrameContainer list (Mainline ContainerFrame.lua:2282),
+    -- plus the combined bag.
+    local list, seen = {}, {}
+    local function add(cf)
+        if type(cf) == "table" and not seen[cf] then
+            seen[cf] = true
+            list[#list + 1] = cf
+        end
+    end
+    for i = 1, Markers.MAX_CONTAINER_FRAMES do add(rawget(_G, "ContainerFrame" .. i)) end
     local container = rawget(_G, "ContainerFrameContainer")
     if type(container) == "table" and type(container.ContainerFrames) == "table" then
-        for _, cf in ipairs(container.ContainerFrames) do list[#list + 1] = cf end
+        for _, cf in ipairs(container.ContainerFrames) do add(cf) end
     end
-    local combined = rawget(_G, "ContainerFrameCombinedBags")
-    if type(combined) == "table" then list[#list + 1] = combined end
+    add(rawget(_G, "ContainerFrameCombinedBags"))
     for _, cf in ipairs(list) do
         if type(cf.UpdateItems) == "function" and type(cf.EnumerateValidItems) == "function" then
             hooksecurefunc(cf, "UpdateItems", onUpdateItems)

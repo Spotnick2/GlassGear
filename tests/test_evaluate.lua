@@ -128,8 +128,10 @@ local trinket = F.item({ itemID = 80, equipLoc = "INVTYPE_TRINKET", classID = 4,
 r = eval({ item = trinket, profile = F.shadow, baseline = F.baseline() })
 H.check(H.has(r.limitations, "EFFECT_NOT_SCORED"), "proc/use trinket: effect not scored")
 H.check(H.has(r.limitations, "NO_SUPPORTED_STATS"), "...and no supported stats: not a modelled zero")
-r = eval({ profile = { weights = { Intellect = 1, FireSpellDamage = 2 }, ignored = {} } })
-H.check(H.has(r.limitations, "TOKEN_NOT_SCORED:FireSpellDamage"), "weighted token that is never scored is listed")
+local dagger = F.item({ itemID = 81, equipLoc = "INVTYPE_WEAPON", classID = 2, subclassID = 15,
+    stats = { ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 10, ITEM_MOD_STAMINA_SHORT = 5 } })
+r = eval({ item = dagger, profile = { weights = { Stamina = 1, Speed = 2 }, ignored = {} } })
+H.check(H.has(r.limitations, "TOKEN_NOT_SCORED:Speed"), "weighted token that is never scored is listed")
 
 -- WoWSims missing weights: an item with that stat gets WEIGHT_MISSING.
 local wowsims = { weights = { Intellect = 1 }, ignored = {}, missing = { "Healing" } }

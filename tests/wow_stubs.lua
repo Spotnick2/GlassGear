@@ -302,7 +302,10 @@ function IsControlKeyDown() return WoW.keys.CTRL == true end                    
 function IsAltKeyDown() return WoW.keys.ALT == true end                                                 -- 5431
 function GetCurrentKeyBoardFocus() return WoW.focus end                                                 -- 18891
 function InCombatLockdown() return WoW.combat end                                                       -- 19837
-C_Texture = { GetAtlasInfo = function(name) if WoW.atlases[name] then return { width = 16 } end end }  -- 3754
+C_Texture = {                                                                                          -- 3752, 3754
+    GetAtlasExists = function(name) return WoW.atlases[name] == true end,
+    GetAtlasInfo = function(name) if WoW.atlases[name] then return { width = 16 } end end,
+}
 
 C_Container = {}
 function C_Container.GetContainerItemID(bag, slot)                                                     -- 1169
@@ -423,7 +426,11 @@ end
 -- Fresh, unhooked bag frames on every WoW.reset() (a reloaded addon hooks anew).
 function WoW.makeBagFrames()
     local container = { ContainerFrames = {} }
-    for i = 1, 6 do container.ContainerFrames[i] = newBagFrame("ContainerFrame" .. i) end
+    -- The same frames are the ContainerFrame1..N globals (ContainerFrame.lua:141).
+    for i = 1, 6 do
+        container.ContainerFrames[i] = newBagFrame("ContainerFrame" .. i)
+        rawset(_G, "ContainerFrame" .. i, container.ContainerFrames[i])
+    end
     rawset(_G, "ContainerFrameContainer", container)
     rawset(_G, "ContainerFrameCombinedBags", newBagFrame("ContainerFrameCombinedBags"))
 end

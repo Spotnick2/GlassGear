@@ -95,9 +95,21 @@ global-string names such as `ITEM_MOD_STAMINA_SHORT`, and armor as `RESISTANCE0_
 addon reads them on Forever, `Simulationcraft/forever/stats.lua:96-98`). It never parses tooltip
 text, which keeps it locale-independent.
 
-The exact keys this client returns for spell damage, healing, mana regeneration and school damage
-have **not been measured**: GG-103 measures them. Until then those rows are "expected" and the
-fixtures use the expected keys.
+**Measured on 1.60.1.70425** (Wanderful's probe log, `WanderfulProbe.lua` in the beta
+SavedVariables; docs/FOREVER-PROBE.md P4), on wands and one mace:
+
+- "Increases damage and healing done by magical spells by up to N" is **one** key,
+  `ITEM_MOD_SPELL_POWER_SHORT`, which feeds both SpellDamage and Healing (items 11287, 11288).
+- School damage has its own key: `ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT` (7001) and
+  `ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT` (12984). Fire, Frost, Nature and Holy follow the same pattern
+  but were not sampled.
+- Resistance comes back **twice**: `ITEM_MOD_FIRE_RESISTANCE_SHORT=3` and `RESISTANCE2_NAME=3` on
+  the same item (279896). It counts once.
+- Spirit is `ITEM_MOD_SPIRIT_SHORT`; DPS is `ITEM_MOD_DAMAGE_PER_SECOND_SHORT` (unrounded, 11.333…).
+  No weapon-speed key comes back, although the tooltip shows "Speed 1.50".
+
+Not sampled yet (GG-103): healing-only and damage-only items, mana per 5, hit and crit (per cent or
+rating), suffix and enchanted links. Those rows stay "expected".
 
 `Data/Stats.lua` implements this table. A test fails if the table and this doc disagree on a
 token's status.
@@ -133,10 +145,10 @@ Status meanings:
 | BlockValue | `ITEM_MOD_BLOCK_VALUE_SHORT` | supported |
 | Hp5 | `ITEM_MOD_HEALTH_REGEN_SHORT` | supported |
 | Mp5 | expected `ITEM_MOD_POWER_REGEN0_SHORT` (Pawn's mapping, `UIStrings.lua:77`) | supported; key confirmed by GG-103 |
-| SpellDamage | expected `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT` | supported; key confirmed by GG-103 |
-| Healing | expected `ITEM_MOD_SPELL_HEALING_DONE_SHORT` | supported; key confirmed by GG-103 |
-| Fire/Nature/Frost/Shadow/ArcaneResist | `RESISTANCE2_NAME` … `RESISTANCE6_NAME` | supported |
-| Fire/Shadow/Nature/Arcane/Frost/HolySpellDamage | not known | reported-unsupported until GG-103 |
+| SpellDamage | `ITEM_MOD_SPELL_POWER_SHORT` (damage and healing, measured 70425); damage-only expected `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT` | supported |
+| Healing | `ITEM_MOD_SPELL_POWER_SHORT` (with SpellDamage, measured 70425); healing-only expected `ITEM_MOD_SPELL_HEALING_DONE_SHORT` | supported |
+| Fire/Nature/Frost/Shadow/ArcaneResist | `RESISTANCE2_NAME` … `RESISTANCE6_NAME`; the twin `ITEM_MOD_FIRE_RESISTANCE_SHORT` … counts only when the first is absent (both measured 70425) | supported |
+| Fire/Shadow/Nature/Arcane/Frost/HolySpellDamage | `ITEM_MOD_<SCHOOL>_DAMAGE_DONE_SHORT` (Shadow and Arcane measured 70425; the others by pattern) | supported |
 
 ### Weapon tokens
 
@@ -145,7 +157,7 @@ Status meanings:
 | Dps | `ITEM_MOD_DAMAGE_PER_SECOND_SHORT` | supported |
 | MeleeDps | derived from Dps on a melee weapon (WoWSims exports it, `individual_pawn_ep_exporter.tsx:97`) | derived |
 | RangedDps | derived from Dps on a ranged weapon | derived |
-| Speed, MinDamage, MaxDamage and the other Melee/Ranged/MainHand/OffHand/OneHand/TwoHand Dps/Min/Max/Speed variants, SpeedBaseline | not returned by `GetItemStats` | reported-unsupported (GG-103 measures what `C_TooltipInfo` offers) |
+| Speed, MinDamage, MaxDamage and the other Melee/Ranged/MainHand/OffHand/OneHand/TwoHand Dps/Min/Max/Speed variants, SpeedBaseline | not returned by `GetItemStats` (speed measured absent, 70425) | reported-unsupported (GG-103 measures what `C_TooltipInfo` offers) |
 
 ### Item-type tokens
 
