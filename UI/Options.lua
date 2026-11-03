@@ -18,6 +18,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Options = {}
 GG.Options = Options
 
@@ -209,7 +210,7 @@ end
 -- Read on every refresh: /gg spec can change the current spec while the page is open.
 local function specLabel(s, always)
     if s.key ~= GG.currentSpec then return s.name end
-    return s.name .. (always and " (current, always shown)" or " (current)")
+    return always and L["%s (current, always shown)"]:format(s.name) or L["%s (current)"]:format(s.name)
 end
 
 -- A scope's "selected" spec list, dimmed unless that scope is "selected".
@@ -243,14 +244,14 @@ local function specMapping(col)
     local X = { col.x + 170, col.x + 240 }
     local heads = {}
     for g = 1, GG.Spec.MAX_GROUPS do
-        heads[g] = label(col.parent, "Group " .. g, "GameFontHighlightSmall")
+        heads[g] = label(col.parent, L["Group %d"]:format(g), "GameFontHighlightSmall")
         heads[g]:SetPoint("TOPLEFT", col.parent, "TOPLEFT", X[g] - 8, col.y)
         groups[g] = {}
     end
     col.y = col.y - 16
     local rows = {}
     for _, s in ipairs(specs()) do rows[#rows + 1] = { key = s.key, name = s.name } end
-    rows[#rows + 1] = { key = "none", name = "Not set" }
+    rows[#rows + 1] = { key = "none", name = L["Not set"] }
     for _, r in ipairs(rows) do
         local name = label(col.parent, r.name)
         place(col, name, 22, 8)
@@ -276,11 +277,12 @@ local function specMapping(col)
                 rb:SetChecked(rb.value == mapped)
                 dim(rb, GG.readOnly)
             end
-            local tag = (GG.specGroup == g and " (active)") or ((n and g > n) and " (not learned)") or ""
-            heads[g]:SetText("Group " .. g .. tag)
+            heads[g]:SetText((GG.specGroup == g and L["Group %d (active)"]:format(g))
+                or ((n and g > n) and L["Group %d (not learned)"]:format(g))
+                or L["Group %d"]:format(g))
         end
-        status:SetText(GG.currentSpec and ("Current spec: " .. (GG.Data.Classes.Spec(GG.currentSpec) or {}).name)
-            or "Current spec: not set. Choose the spec of your active group.")
+        status:SetText(GG.currentSpec and L["Current spec: %s"]:format((GG.Data.Classes.Spec(GG.currentSpec) or {}).name)
+            or L["Current spec: not set. Choose the spec of your active group."])
     end
     Options.specRadios, Options.specHeads = groups, heads
     return groups
@@ -335,7 +337,7 @@ local function buildPreview(col)
     local holder = CreateFrame("Frame", nil, box)
     holder:SetSize(36, 36)
     holder:SetPoint("TOPLEFT", box, "TOPLEFT", 4, -4)
-    local caption = label(box, "Transferable item (not bound)", "GameFontNormalSmall")
+    local caption = label(box, L["Transferable item (not bound)"], "GameFontNormalSmall")
     caption:SetPoint("LEFT", icon, "RIGHT", 8, 0)
     local mark = GG.Marks.New(holder)
     local rows = {}
@@ -371,11 +373,13 @@ end
 
 function Options.AppearanceText()
     if GG.themeName == "glass" then
-        return "Look: Glass, following Glass UI. Change it in Glass UI's settings; /reload to apply."
+        return L["Look: Glass, following Glass UI. Change it in Glass UI's settings; /reload to apply."]
     end
     local why = GG.themeInfo and GG.themeInfo.reason
-    return "Look: WoW Forever" .. (why and (" (" .. why .. ")") or "")
-        .. ". Glass Gear follows Glass UI once Glass UI lists it (GUI-001)."
+    if why then
+        return L["Look: WoW Forever (%s). Glass Gear follows Glass UI once Glass UI lists it (GUI-001)."]:format(why)
+    end
+    return L["Look: WoW Forever. Glass Gear follows Glass UI once Glass UI lists it (GUI-001)."]
 end
 
 local function build()
@@ -399,60 +403,59 @@ local function build()
         bg:SetAllPoints(profiles)
         bg:SetColorTexture(0.2, 0.2, 0.25, 0.9)
     end
-    profiles:SetText("Weight profiles...")
+    profiles:SetText(L["Weight profiles..."])
     profiles:SetPoint("TOPLEFT", content, "TOPLEFT", W * 2 - 116, -8)
     profiles:SetScript("OnClick", function() GG.ProfilesWindow.Open() end)
     Options.profilesButton = profiles
 
     -- Specs
-    header(left, "SPECS")
-    note(left, "Which spec each spec group is. Automatic detection comes after the in-game probe (GG-101).")
+    header(left, L["SPECS"])
+    note(left, L["Which spec each spec group is. Automatic detection comes after the in-game probe (GG-101)."])
     specMapping(left)
 
     -- Tooltips
-    header(left, "TOOLTIPS")
-    radios(left, { { "all", "All my specs" }, { "current", "Current spec only" }, { "selected", "Selected specs:" } },
+    header(left, L["TOOLTIPS"])
+    radios(left, { { "all", L["All my specs"] }, { "current", L["Current spec only"] }, { "selected", L["Selected specs:"] } },
         get("tooltip.specs"), set("tooltip.specs"))
     specChecks(left, "tooltip", "tooltip.specs")
-    local alts = checkbox(left, "Show eligible alt upgrades", get("tooltip.alts"), set("tooltip.alts"))
-    tip(alts, "Alt rows need AltStable and arrive with GG-203. The setting is kept until then.")
-    checkbox(left, "Set-bonus warnings", get("setBonusWarnings"), set("setBonusWarnings"))
+    local alts = checkbox(left, L["Show eligible alt upgrades"], get("tooltip.alts"), set("tooltip.alts"))
+    tip(alts, L["Alt rows need AltStable and arrive with GG-203. The setting is kept until then."])
+    checkbox(left, L["Set-bonus warnings"], get("setBonusWarnings"), set("setBonusWarnings"))
 
     -- Bag and loot arrows
-    header(left, "BAG AND LOOT ARROWS")
-    radios(left, { { "current", "Current spec" }, { "selected", "Current + selected specs:" }, { "own", "All my specs" } },
+    header(left, L["BAG AND LOOT ARROWS"])
+    radios(left, { { "current", L["Current spec"] }, { "selected", L["Current + selected specs:"] }, { "own", L["All my specs"] } },
         get("markers.scope"), set("markers.scope"))
     specChecks(left, "markers", "markers.scope")
-    checkbox(left, "Mark transferable off-spec upgrades (amber)", get("markers.markTransferable"),
+    checkbox(left, L["Mark transferable off-spec upgrades (amber)"], get("markers.markTransferable"),
         set("markers.markTransferable"))
-    header(left, "REVEAL KEY")
-    radios(left, { { "CTRL", "Ctrl" }, { "ALT", "Alt" }, { "NONE", "None" }, { "SHIFT", "Shift", GG.Prefs.SHIFT_REASON } },
+    header(left, L["REVEAL KEY"])
+    radios(left, { { "CTRL", L["Ctrl"] }, { "ALT", L["Alt"] }, { "NONE", L["None"] }, { "SHIFT", L["Shift"], GG.Prefs.SHIFT_REASON } },
         get("reveal.modifier"), set("reveal.modifier"), true)
-    note(left, "Hold it to show other specs' upgrades as amber arrows. Releasing it restores the normal arrows. "
-        .. "Shift is used by item comparison.")
+    note(left, L["Hold it to show other specs' upgrades as amber arrows. Releasing it restores the normal arrows. Shift is used by item comparison."])
 
     -- Upgrade rules
-    header(right, "UPGRADE RULES")
-    slider(right, { label = "Minimum upgrade", min = 0, max = GG.Prefs.THRESHOLD_MAX * 100, step = 0.1,
+    header(right, L["UPGRADE RULES"])
+    slider(right, { label = L["Minimum upgrade"], min = 0, max = GG.Prefs.THRESHOLD_MAX * 100, step = 0.1,
         get = function() return GG.Prefs.MinimumUpgrade() * 100 end,
         set = function(v) GG.Prefs.SetMinimumUpgrade(v / 100) end,
-        fmt = function(v) return string.format("%.1f %%", v) end })
-    note(right, "For arrows and protection; tooltip rows always show the change.")
-    checkbox(right, "Only level-appropriate upgrades", get("levelWindow.enabled"), set("levelWindow.enabled"))
-    local ahead = slider(right, { label = "Look ahead", min = 0, max = GG.Prefs.LOOK_AHEAD_MAX, step = 1,
+        fmt = function(v) return L["%.1f %%"]:format(v) end })
+    note(right, L["For arrows and protection; tooltip rows always show the change."])
+    checkbox(right, L["Only level-appropriate upgrades"], get("levelWindow.enabled"), set("levelWindow.enabled"))
+    local ahead = slider(right, { label = L["Look ahead"], min = 0, max = GG.Prefs.LOOK_AHEAD_MAX, step = 1,
         get = get("levelWindow.lookAhead"), set = set("levelWindow.lookAhead"),
-        fmt = function(v) return string.format("%d level%s", v, v == 1 and "" or "s") end })
+        fmt = function(v) return v == 1 and L["%d level"]:format(v) or L["%d levels"]:format(v) end })
     controls[#controls + 1] = function()
         local off = not GG.Prefs.Get("levelWindow.enabled")
         ahead:SetEnabled(not off)
         ahead:SetAlpha(off and 0.5 or 1)
     end
-    checkbox(right, "Spec armor rules", get("specArmor"), set("specArmor"))
-    note(right, "Each spec gets its armor types: a Holy Paladin can use cloth, Protection can't.")
+    checkbox(right, L["Spec armor rules"], get("specArmor"), set("specArmor"))
+    note(right, L["Each spec gets its armor types: a Holy Paladin can use cloth, Protection can't."])
 
     -- Protection
-    header(right, "DISENCHANT PROTECTION")
-    note(right, "Specs Shatter keeps upgrades for (Shatter's integration: GG-301, SH-001).")
+    header(right, L["DISENCHANT PROTECTION"])
+    note(right, L["Specs Shatter keeps upgrades for (Shatter's integration: GG-301, SH-001)."])
     local charsBtn, ctemplated = safeFrame("Button", content, "UIPanelButtonTemplate", "Text")
     charsBtn:SetSize(150, 22)
     if not ctemplated then
@@ -460,7 +463,7 @@ local function build()
         bg:SetAllPoints(charsBtn)
         bg:SetColorTexture(0.2, 0.2, 0.25, 0.9)
     end
-    charsBtn:SetText("All characters...")
+    charsBtn:SetText(L["All characters..."])
     place(right, charsBtn, 26, 8)
     -- Through the slash command: a refusal is said, never swallowed.
     charsBtn:SetScript("OnClick", function() GG.Diagnostics.Slash("characters") end)
@@ -474,13 +477,13 @@ local function build()
             function(on) if GG.player then GG.Prefs.SetTracked(GG.player.key, s.key, on, keys) end end, 8)
         controls[#controls + 1] = function() cb.label:SetText(text()) end
     end
-    note(right, "Specs without weights:", 4, "GameFontHighlight")
-    radios(right, { { "ignore", "Ignore" }, { "keep", "Keep" } }, get("protection.noWeights"),
+    note(right, L["Specs without weights:"], 4, "GameFontHighlight")
+    radios(right, { { "ignore", L["Ignore"] }, { "keep", L["Keep"] } }, get("protection.noWeights"),
         set("protection.noWeights"), true)
-    note(right, "Hiding a marker does not disable disenchant protection.", 4, "GameFontNormalSmall")
+    note(right, L["Hiding a marker does not disable disenchant protection."], 4, "GameFontNormalSmall")
 
     -- Appearance
-    header(right, "APPEARANCE")
+    header(right, L["APPEARANCE"])
     local look = note(right, Options.AppearanceText())
     controls[#controls + 1] = function() look:SetText(Options.AppearanceText()) end
     buildPreview(right)
@@ -494,7 +497,7 @@ local function build()
         bg:SetAllPoints(reset)
         bg:SetColorTexture(0.2, 0.2, 0.25, 0.9)
     end
-    reset:SetText("Defaults")
+    reset:SetText(L["Defaults"])
     reset:SetPoint("TOPLEFT", content, "TOPLEFT", 16, bottom)
     reset:SetScript("OnClick", function()
         GG.Prefs.Reset()
