@@ -250,11 +250,35 @@ H.check(H.has(r.limitations, "SET_BONUS_LOST:500:2"), "replacing a set piece bre
 local third = F.item(armor({ itemID = 93, setID = 500, equipLoc = "INVTYPE_CHEST", stats = { ITEM_MOD_INTELLECT_SHORT = 5 } }))
 r = eval({ item = third, profile = F.shadow, baseline = setBase, setThresholds = { [500] = { 2, 3 } } })
 H.check(H.has(r.limitations, "SET_BONUS_GAINED:500:3"), "a third piece completes the 3-piece bonus")
-r = eval({ item = third, profile = F.shadow, baseline = setBase })
+r = eval({ item = third, profile = F.shadow, baseline = setBase, setThresholds = {} })
 H.check(H.has(r.limitations, "SET_BONUS_NOT_SCORED"), "no threshold data -> SET_BONUS_NOT_SCORED")
 local samePiece = F.item(armor({ itemID = 94, setID = 500, stats = { ITEM_MOD_INTELLECT_SHORT = 40 } }))
-r = eval({ item = samePiece, profile = F.shadow, baseline = setBase })
+r = eval({ item = samePiece, profile = F.shadow, baseline = setBase, setThresholds = {} })
 H.check(H.has(r.limitations, "SET_BONUS_NOT_SCORED"), "swapping within an unmodelled set still warns")
+
+-- The generated client data (GG-119) is the default.
+local D = GG.Data.ItemSets
+H.check(type(GG.Data.ItemSetsBuild) == "string" and GG.Data.ItemSetsBuild:match("^%d+%.%d+%.%d+%.%d+$") ~= nil,
+    "ItemSets records the build it was generated from")
+local nSets, sane = 0, true
+for setID, t in pairs(D) do
+    nSets = nSets + 1
+    local last = 0
+    for _, n in ipairs(t) do
+        if type(n) ~= "number" or n <= last or n > 17 then sane = false end
+        last = n
+    end
+    if type(setID) ~= "number" then sane = false end
+end
+H.check(nSets > 400, "ItemSets holds the client's sets (" .. nSets .. ")")
+H.check(sane, "every threshold list is increasing piece counts within 1-17")
+H.eq(table.concat(D[1], ","), "2,3,4,5", "The Gladiator (set 1): bonuses at 2, 3, 4 and 5 pieces")
+local gladBase = F.baseline({ [1] = setPiece(11729, 1, "INVTYPE_HEAD"), [3] = setPiece(11726, 1, "INVTYPE_SHOULDER") })
+r = eval({ item = nonSet, profile = F.shadow, baseline = gladBase })
+H.check(H.has(r.limitations, "SET_BONUS_LOST:1:2"), "by default the real data names the broken 2-piece bonus")
+H.check(not H.has(r.limitations, "SET_BONUS_NOT_SCORED"), "...a known set is not 'not scored'")
+r = eval({ item = nonSet, profile = F.shadow, baseline = F.baseline({ [3] = setPiece(1, 999999, "INVTYPE_SHOULDER") }) })
+H.check(H.has(r.limitations, "SET_BONUS_NOT_SCORED"), "a set the data doesn't know (newer than the build): not scored")
 
 -- Baseline flags travel into reasons.
 r = eval({ profile = F.shadow, baseline = F.baseline({ [3] = equippedShoulder }, { stale = true, source = "fallback-current" }) })

@@ -51,3 +51,6 @@
   export as a Pawn string to copy. Character exports (SimulationCraft, WoWSims JSON) are explained,
   not imported. A change made elsewhere meanwhile is never overwritten. `/gg import` still replaces
   the active profile's weights.
+- Set bonuses (GG-119): the client's item-set data (545 sets, build 1.60.1.70753) is built in, so
+  tooltips say "Completes a 2-piece set bonus" / "Breaks a 4-piece set bonus" instead of only "Set
+  item: bonus not scored". The bonus itself is still never scored.

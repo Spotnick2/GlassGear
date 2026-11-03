@@ -392,6 +392,9 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Generate `Data/ItemSets.lua`.
   - The engine is done (`Engine/SetBonus.lua`, `test_evaluate`).
 - **Validation:** auto, game (P10).
+- **Done (auto), game P10.** `Tools/gen_item_sets.py` → `Data/ItemSets.lua` (build 1.60.1.70753,
+  545 sets). A set newer than the generated build still reports `SET_BONUS_NOT_SCORED`. For a new
+  build: `wago.py get ItemSet ItemSetSpell`, then re-run the generator.
 
 ## M2: AltStable profiles, roster and the two-account flow
 
