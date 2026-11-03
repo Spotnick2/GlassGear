@@ -157,13 +157,17 @@ function Profiles.Rename(store, id, expected, name, now)
     if name == "" then return nil, "EMPTY_NAME" end
     if name:find('"', 1, true) then return nil, "BAD_NAME" end
     if #name > Profiles.MAX_NAME then name = name:sub(1, Profiles.MAX_NAME) end
-    return edit(store, id, expected, function(d) d.name = name; d.updatedAt = now end)
+    return edit(store, id, expected, function(d)
+        if d.name == name then return false, "UNCHANGED" end
+        d.name, d.source, d.updatedAt = name, "manual", now
+    end)
 end
 
 -- A weight typed in the editor: "" or 0 removes it, "X" ignores the stat
--- (Pawn's "never an upgrade"), a number in range is rounded to 3 decimals.
--- Any change makes the profile "manual" (edited in Glass Gear); the origin
--- (the imported scale's name) stays.
+-- (Pawn's "never an upgrade"), a number in range is rounded to 3 decimals
+-- (half away from zero). Any editor change (weight, name, armor) makes the
+-- profile "manual" (edited in Glass Gear); the origin (the imported scale's
+-- name) stays.
 function Profiles.ParseWeight(text)
     text = tostring(text or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if text == "" then return "clear" end
@@ -172,7 +176,8 @@ function Profiles.ParseWeight(text)
     if not (text:match("^%-?%d+%.?%d*$") or text:match("^%-?%.%d+$")) then return nil, "NOT_A_NUMBER" end
     local n = tonumber(text)
     if not n or math.abs(n) > GG.PawnString.MAX_ABS then return nil, "VALUE_OUT_OF_RANGE" end
-    n = math.floor(n * 1000 + (n >= 0 and 0.5 or -0.5)) / 1000
+    local sign = n < 0 and -1 or 1
+    n = sign * math.floor(math.abs(n) * 1000 + 0.5) / 1000
     if n == 0 then return "clear" end
     return "weight", n
 end
@@ -213,7 +218,9 @@ function Profiles.SetArmor(store, id, expected, armor, now)
         armor = copy(armor)
         table.sort(armor)
     end
-    return edit(store, id, expected, function(d) d.armor = armor; d.updatedAt = now end)
+    return edit(store, id, expected, function(d)
+        d.armor, d.source, d.updatedAt = armor, "manual", now
+    end)
 end
 
 function Profiles.Delete(store, id, expected)

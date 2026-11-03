@@ -256,6 +256,7 @@ function CreateFrame(kind, name, parent, template)
             if WoW.focus == self then return end
             if type(WoW.focus) == "table" and WoW.focus.ClearFocus then WoW.focus:ClearFocus() end
             WoW.focus = self
+            if self._scripts.OnEditFocusGained then self._scripts.OnEditFocusGained(self) end
         end
         function f:ClearFocus()
             if WoW.focus ~= self then return end

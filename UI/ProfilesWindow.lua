@@ -186,12 +186,33 @@ function Win.MakeActive()
     act(function() return GG.Profiles.SetActive(GG.store, state.id, state.version, time()) end)
 end
 
-function Win.CommitName(text)
-    act(function() return GG.Profiles.Rename(GG.store, state.id, state.version, text, time()) end)
+-- A typed field commits against the version it began editing (`version`):
+-- a change that arrived meanwhile makes it stale, never silently overwritten.
+function Win.CommitName(text, version)
+    act(function() return GG.Profiles.Rename(GG.store, state.id, version or state.version, text, time()) end)
 end
 
-function Win.CommitWeight(token, text)
-    act(function() return GG.Profiles.SetWeight(GG.store, state.id, state.version, token, text, time()) end)
+function Win.CommitWeight(token, text, version)
+    act(function() return GG.Profiles.SetWeight(GG.store, state.id, version or state.version, token, text, time()) end)
+end
+
+-- A text field remembers what it showed, and for which version, when the
+-- player started typing. A refresh while it has focus leaves the draft alone.
+local function draftField(box, commit)
+    box:SetScript("OnEditFocusGained", function(self)
+        self.baseVersion, self.baseText, self.baseId = state.version, self.shown, state.id
+    end)
+    box:SetScript("OnEditFocusLost", function(self)
+        self:HighlightText(0, 0)    -- what InputBoxTemplate's own handler does
+        local base, baseText, text = self.baseVersion, self.baseText, self:GetText()
+        local same = self.baseId == state.id
+        self.baseVersion, self.baseText, self.baseId = nil, nil, nil
+        if same and base and text ~= (baseText or "") then
+            commit(self, text, base)
+        else
+            Win.Refresh()           -- nothing typed: show what is stored now
+        end
+    end)
 end
 
 function Win.SetArmorDefault(on)
@@ -308,9 +329,8 @@ local function buildWeightRow(i)
     row.box:SetScript("OnEnterPressed", function(self)
         self:ClearFocus()      -- focus lost commits
     end)
-    row.box:SetScript("OnEditFocusLost", function(self)
-        self:HighlightText(0, 0)    -- what InputBoxTemplate's own handler does
-        if row.token and self:GetText() ~= row.shown then Win.CommitWeight(row.token, self:GetText()) end
+    draftField(row.box, function(_, text, version)
+        if row.token then Win.CommitWeight(row.token, text, version) end
     end)
     row.box:SetScript("OnEscapePressed", function(self)
         self:SetText(row.shown or "")
@@ -331,7 +351,9 @@ local function build()
     frame:Hide()
     backdrop(frame, COLORS.window)
     applyPosition()
-    setEscapeCloses(true)
+    -- Opened first during a fight: no REGEN_DISABLED comes for it, so the
+    -- Escape entry waits for REGEN_ENABLED.
+    setEscapeCloses(not GG.Compat.InCombat())
     frame:RegisterEvent("PLAYER_REGEN_DISABLED")
     frame:RegisterEvent("PLAYER_REGEN_ENABLED")
     frame:SetScript("OnEvent", function(_, event)
@@ -396,9 +418,8 @@ local function build()
     W.name = at(editBox(frame, 200), X + 6, -92)
     W.name:SetMaxLetters(GG.Profiles.MAX_NAME)
     W.name:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-    W.name:SetScript("OnEditFocusLost", function(self)
-        self:HighlightText(0, 0)
-        if state.id and self:GetText() ~= W.name.shown then Win.CommitName(self:GetText()) end
+    draftField(W.name, function(_, text, version)
+        if state.id then Win.CommitName(text, version) end
     end)
     W.active = at(label(frame, "Active", "GameFontNormal"), X + 216, -96)
     color(W.active, "ok")
@@ -497,6 +518,7 @@ local function refreshWeights(e, off)
         row.token = t
         row.name:SetText(V().StatLabel(t))
         row.shown = V().WeightText(p, t)
+        row.box.shown = row.shown
         if not row.box:HasFocus() then row.box:SetText(row.shown) end
         dim(row.box, off)
         row:Show()

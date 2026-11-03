@@ -76,7 +76,14 @@ H.eq(a.data.ignored.Intellect, nil, "...not ignored any more")
 H.eq(select(2, w("abc")), "NOT_A_NUMBER", "text is refused")
 H.eq(select(2, w("1000")), "VALUE_OUT_OF_RANGE", "out of range is refused")
 H.check(w("-2"), "a negative weight")
+H.eq(a.data.weights.Intellect, -2, "...stored exactly (-2, not -2.001)")
 H.eq(select(2, w("-2")), "UNCHANGED", "the same value again changes nothing")
+H.check(w("-0.4567"), "a negative fraction")
+H.eq(a.data.weights.Intellect, -0.457, "...rounded half away from zero")
+H.check(w("-1.25"), "an exact negative fraction")
+H.eq(a.data.weights.Intellect, -1.25, "...unchanged by rounding")
+H.check(w("0.0005"), "a positive half")
+H.eq(a.data.weights.Intellect, 0.001, "...rounds up")
 local e0 = store:Get(a.id)
 H.check(P.SetWeight(store, a.id, e0.version, "Intellect", "", now), "clear Intellect")
 e0 = store:Get(a.id)
@@ -88,6 +95,18 @@ local s = assert(P.ImportNew(store, guid, "PRIEST.HOLY", SIMS, now, "PRIEST"))
 H.check(H.has(s.data.missing, "HitRating"), "a WoWSims import lists HitRating as missing")
 s = assert(P.SetWeight(store, s.id, s.version, "HitRating", "0.3", now))
 H.check(not H.has(s.data.missing or {}, "HitRating"), "setting a missing stat removes it from the missing list")
+
+-- Rename-only and armor-only edits are edits too.
+local fresh = assert(P.ImportNew(store, guid, "PRIEST.DISCIPLINE", SHADOW, now, "PRIEST"))
+fresh = assert(P.Rename(store, fresh.id, fresh.version, "Renamed", now))
+H.eq(fresh.data.source, "manual", "a rename alone makes the profile 'manual'")
+H.eq(fresh.data.origin, "Shadow", "...keeping the imported scale's name as origin")
+H.eq(select(2, P.Rename(store, fresh.id, fresh.version, "Renamed", now)), "UNCHANGED", "the same name changes nothing")
+fresh = assert(P.ImportReplace(store, fresh.id, fresh.version, SHADOW, now, "PRIEST"))
+H.eq(fresh.data.source, "imported-pawn", "(replaced: imported again)")
+fresh = assert(P.SetArmor(store, fresh.id, fresh.version, { 1 }, now))
+H.eq(fresh.data.source, "manual", "an armor change alone makes the profile 'manual'")
+assert(P.Delete(store, fresh.id, fresh.version))
 
 -- Names.
 local r = assert(P.Rename(store, s.id, s.version, "  Holy raid  ", now))
@@ -228,6 +247,36 @@ H.eq(row("SpellDamage").box:GetText(), "2", "...the window shows the other chang
 WoW.type(row("Intellect").box, "3")
 H.eq(P.Active(store, guid, "PRIEST.SHADOW").weights.Intellect, 3, "...and the next edit goes through")
 
+-- A field being typed in while a change arrives: the draft never overwrites it.
+local box = row("Intellect").box
+WoW.type(box, "5", false)                   -- typing, no Enter yet
+cur = P.ActiveEntry(store, guid, "PRIEST.SHADOW")
+assert(P.SetWeight(store, cur.id, cur.version, "Intellect", "4", now))
+P.Changed(guid)
+WoW.flush()                                 -- the window refreshes while the box has focus
+H.eq(box:GetText(), "5", "a refresh leaves the focused draft alone")
+box:ClearFocus()
+H.eq(P.Active(store, guid, "PRIEST.SHADOW").weights.Intellect, 4, "focus lost: the draft doesn't overwrite the newer 4")
+H.check(Wd.message:GetText():find("Changed elsewhere", 1, true) ~= nil, "...it is refused as stale")
+H.eq(row("Intellect").box:GetText(), "4", "...and the box shows the newer value")
+box = row("Intellect").box
+box:SetFocus()                              -- focused, nothing typed
+cur = P.ActiveEntry(store, guid, "PRIEST.SHADOW")
+assert(P.SetWeight(store, cur.id, cur.version, "Intellect", "3", now))
+P.Changed(guid)
+WoW.flush()
+box:ClearFocus()
+H.eq(row("Intellect").box:GetText(), "3", "focused without typing: on focus loss the box shows the newer value")
+H.eq(P.Active(store, guid, "PRIEST.SHADOW").weights.Intellect, 3, "...nothing written")
+
+WoW.type(Wd.name, "Draft name", false)
+cur = P.ActiveEntry(store, guid, "PRIEST.SHADOW")
+assert(P.Rename(store, cur.id, cur.version, "Theirs", now))
+P.Changed(guid)
+WoW.flush()
+Wd.name:ClearFocus()
+H.eq(P.Active(store, guid, "PRIEST.SHADOW").name, "Theirs", "a name draft doesn't overwrite a newer rename")
+
 -- Rename.
 WoW.type(Wd.name, "Shadow raid")
 H.eq(P.Active(store, guid, "PRIEST.SHADOW").name, "Shadow raid", "the name box renames")
@@ -338,6 +387,18 @@ H.eq(frame:IsShown(), false, "closed")
 GG.Options._Panel():Show()
 GG.Options.profilesButton:Click()
 H.eq(frame:IsShown(), true, "the settings page's Weight profiles button opens the window")
+frame:Hide()
+
+-- Opened for the first time during a fight: no Escape entry until it ends.
+WoW.combat = true
+WoW.fire("PLAYER_REGEN_DISABLED")
+Win._Reset()
+SlashCmdList.GLASSGEAR("profiles")
+H.eq(Win._Frame():IsShown(), true, "first opened in combat: the window opens")
+H.eq(H.has(UISpecialFrames, Win.NAME), false, "...without an Escape entry during the fight")
+WoW.combat = false
+WoW.fire("PLAYER_REGEN_ENABLED")
+H.eq(H.has(UISpecialFrames, Win.NAME), true, "...the entry comes after it")
 
 H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
 for name in pairs(WoW.globalWrites) do H.check(false, "undeclared global written: " .. name) end
