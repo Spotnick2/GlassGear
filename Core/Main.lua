@@ -58,6 +58,7 @@ function handlers.PLAYER_LOGIN()
     GG.API._SetReady()
     GG.Capture.Request()          -- this spec's gear (GG-108)
     GG.Capture.CheckSets()        -- where the sets' pieces are now
+    GG.Owned.Refresh()            -- the gear carried in the bags (GG-122)
 end
 
 function handlers.ACTIVE_TALENT_GROUP_CHANGED()
@@ -98,7 +99,10 @@ end
 -- A set piece moved in or out of the bags (from the bank, sold, a second
 -- copy looted): the sets that use it resolve differently.
 function handlers.BAG_UPDATE_DELAYED()
-    if GG.player then GG.Capture.CheckSets() end
+    if GG.player then
+        GG.Owned.Refresh()
+        GG.Capture.CheckSets()
+    end
 end
 
 -- Started by the API when an item begins waiting for its data.
@@ -107,7 +111,11 @@ function GG.StartTick()
 end
 
 local function itemArrived(itemID, success)
-    if GG.player and itemID then GG.API._ItemDataArrived(itemID, success) end
+    if GG.player and itemID then
+        -- The bag index first: the jobs re-evaluated next then see the item.
+        if success ~= false then GG.Owned.ItemArrived(itemID) end
+        GG.API._ItemDataArrived(itemID, success)
+    end
 end
 handlers.GET_ITEM_INFO_RECEIVED = itemArrived
 handlers.ITEM_DATA_LOAD_RESULT = itemArrived

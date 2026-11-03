@@ -72,6 +72,7 @@ local function rightOf(row)
         return text, C.good
     end
     if row.status == "no_upgrade" then
+        if has(row.reasons, "OWNED_BETTER") then return "you own better", C.muted end
         -- An item for a later level keeps saying so, whatever the score.
         local later = row.laterLevel and (" " .. laterText(row)) or ""
         if row.pct and row.pct < 0 then return pctText(row.pct) .. later, C.bad end
@@ -189,6 +190,14 @@ function View.Build(response, settings, ctx)
     end
     for _, n in ipairs(notes(rows, (settings or {}).setBonusWarnings ~= false)) do
         lines[#lines + 1] = { left = n, lc = C.later }
+    end
+    -- Better gear already owned (GG-122): name it.
+    for _, row in ipairs(rows) do
+        local o = row.ownedBetter
+        local name = o and o.link and o.link:match("%[(.-)%]")
+        if name then
+            lines[#lines + 1] = { left = "You own better for " .. specName(row.spec) .. ": " .. name, lc = C.later }
+        end
     end
     -- A spec compared with gear recorded too long ago says so (GG-108).
     local stale = {}
