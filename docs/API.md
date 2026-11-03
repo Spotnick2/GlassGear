@@ -41,12 +41,12 @@ end
 | `GetCapabilities()` | `{apiVersion, build, features = {evaluate, evaluateBatch, assessProtection, alts, sync, frameBudget, resultCache, ...}, limits = {perFrame, jobs, requests, cache, ...}, unavailable = {[feature] = reason}}` | yes |
 | `IsReady()` | boolean | yes |
 | `GetCharacters()` | list of `{key, guid, name, realm, faction, class, level, provenance, current, hidden, account, provenanceVia}`: the current character first, then the player's own others from AltStable (GG-201; `provenance` `self` or `own-account`, never `third-party`). The current character only without AltStable AS-001 + AS-003 (`features.roster`) | yes (local) |
-| `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order, for the current character or an own alt (an alt's `current` is always false: its spec isn't known) | yes |
+| `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order, for the current character or an own alt (an alt's `current` is always false: its spec isn't known). `key` is the stable identifier; `name` is for display, in the client's language (GG-403) | yes |
 | `GetProfile(charKey, specKey)` | The spec's **active** profile (of up to 4; SCHEMA, latest `activeAt`): `{id, specKey, name, source, origin, version, updatedAt, weights = {[token] = n}}` or `nil, reason` | yes (local) |
 | `Evaluate(request)` | response (below) | yes (current character, local baselines) |
 | `EvaluateBatch(requests)` | list of responses (at most 64 items) | yes |
 | `CancelRequest(requestId)` | `true` / `false` | yes |
-| `AssessProtection(itemRef, opts)` | protection result (below) | `unsupported` until GG-301 |
+| `AssessProtection(itemRef, opts)` | protection result (below) | yes (the current character's tracked specs, GG-301) |
 | `RegisterCallback(event, fn, owner)` / `UnregisterCallback(event, owner)` | — | yes |
 
 ### Request

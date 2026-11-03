@@ -21,6 +21,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local View = {}
 GG.CompareView = View
 
@@ -97,12 +98,12 @@ local function statRows(cand, repl, profile)
             local level = "muted"
             local label = GG.ProfileView.StatLabel(token)
             if w == "X" then
-                label = label .. " (ignored)"
+                label = L["%s (ignored)"]:format(label)
             elseif type(w) == "number" and w ~= 0 then
                 local effect = delta * w
                 if compared then level = effect > 0 and "ok" or effect < 0 and "error" or "muted" end
             else
-                label = label .. " (not weighted)"
+                label = L["%s (not weighted)"]:format(label)
             end
             rows[#rows + 1] = { label = label, equipped = compared and num(a or 0) or "",
                 candidate = num(b or 0), change = compared and signed(delta) or "", level = level }
@@ -112,9 +113,9 @@ local function statRows(cand, repl, profile)
 end
 
 local BASELINE = {
-    ["equipment-set"] = "a saved equipment set",
-    observed = "saved %s equipment",
-    ["fallback-current"] = "your current gear (estimate)",
+    ["equipment-set"] = L["a saved equipment set"],
+    observed = L["saved %s equipment"],
+    ["fallback-current"] = L["your current gear (estimate)"],
 }
 
 function View.Build(result, data)
@@ -125,13 +126,13 @@ function View.Build(result, data)
     view.candidate = names(candItems)
     view.compared = data.replaced ~= nil
     if not view.compared then
-        view.equipped = "not compared"
+        view.equipped = L["not compared"]
     else
-        view.equipped = #data.replaced > 0 and names(data.replaced) or "nothing (an empty slot)"
+        view.equipped = #data.replaced > 0 and names(data.replaced) or L["nothing (an empty slot)"]
     end
 
     if result.status == "pending" then
-        view.status = { text = "Checking...", level = "muted" }
+        view.status = { text = L["Checking..."], level = "muted" }
         return view
     end
     -- An item still loading: say so, never show its stats as zeros.
@@ -157,30 +158,32 @@ function View.Build(result, data)
 
     if result.status == "upgrade" then
         local later = result.eligibility and result.eligibility.equipNow == false and result.eligibility.atLevel
-        view.status = { text = "Potential upgrade for " .. spec .. (later and (" at level " .. later) or ""),
-            level = later and "warn" or "ok" }
+        local text = later and L["Potential upgrade for %s at level %s"]:format(spec, tostring(later))
+            or L["Potential upgrade for %s"]:format(spec)
+        view.status = { text = text, level = later and "warn" or "ok" }
     elseif result.status == "no_upgrade" then
-        view.status = { text = "Not an upgrade for " .. spec, level = "muted" }
+        view.status = { text = L["Not an upgrade for %s"]:format(spec), level = "muted" }
     else
-        view.status = { text = spec .. ": " .. GG.TooltipView.ResultText(result), level = "warn" }
+        view.status = { text = L["%s: %s"]:format(spec, GG.TooltipView.ResultText(result)), level = "warn" }
     end
 
     local p = data.profile
-    view.info[#view.info + 1] = { label = "Method", text = "stat weights (item score estimate)" }
-    view.info[#view.info + 1] = { label = "Profile", text = p and (spec .. " \226\128\148 " .. p.name) or "no weights" }
-    view.info[#view.info + 1] = { label = "Source", text = p and GG.ProfileView.SourceLabel(p.source) or "\226\128\148" }
+    view.info[#view.info + 1] = { label = L["Method"], text = L["stat weights (item score estimate)"] }
+    view.info[#view.info + 1] = { label = L["Profile"], text = p and (spec .. " \226\128\148 " .. p.name) or L["no weights"] }
+    view.info[#view.info + 1] = { label = L["Source"], text = p and GG.ProfileView.SourceLabel(p.source) or "\226\128\148" }
     local b = result.baseline
-    local base = b and (BASELINE[b.source] or tostring(b.source)) or "none"
+    local base = b and (BASELINE[b.source] or tostring(b.source)) or L["none"]
     if b and b.source == "observed" then base = base:format(spec) end
-    view.info[#view.info + 1] = { label = "Baseline", text = base }
+    view.info[#view.info + 1] = { label = L["Baseline"], text = base }
 
     local rows = GG.Engine.Policy.TooltipRows({ current = result, own = {} }, { specs = "current" }, false)
     for _, n in ipairs(GG.TooltipView.Notes(rows, data.setWarnings ~= false)) do view.warnings[#view.warnings + 1] = n end
-    if view.loading then table.insert(view.warnings, 1, "Item data still loading: stats shown once it arrives") end
+    if view.loading then table.insert(view.warnings, 1, L["Item data still loading: stats shown once it arrives"]) end
     if view.moreRows and view.moreRows > 0 then
-        view.warnings[#view.warnings + 1] = view.moreRows .. " more unweighted stat" .. (view.moreRows == 1 and "" or "s") .. " not shown"
+        local more = view.moreRows == 1 and L["%d more unweighted stat not shown"] or L["%d more unweighted stats not shown"]
+        view.warnings[#view.warnings + 1] = more:format(view.moreRows)
     end
-    if b and b.stale then view.warnings[#view.warnings + 1] = "The saved " .. spec .. " gear is over 14 days old" end
+    if b and b.stale then view.warnings[#view.warnings + 1] = L["The saved %s gear is over 14 days old"]:format(spec) end
     view.noBaseline = b ~= nil and b.source == "fallback-current" and not data.current
     return view
 end

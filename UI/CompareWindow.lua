@@ -10,6 +10,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Win = {}
 GG.CompareWindow = Win
 
@@ -39,7 +40,7 @@ local function itemData(itemString)
         waiting[f.itemID] = true
         GG.Compat.RequestItem(f.itemID)
     end
-    return { name = GG.Compat.ItemName(itemString) or ("item " .. tostring(f and f.itemID or "?")),
+    return { name = GG.Compat.ItemName(itemString) or L["item %s"]:format(tostring(f and f.itemID or "?")),
         tokens = ready and f.tokens or nil }
 end
 
@@ -78,7 +79,7 @@ end
 
 local function build()
     frame = UIW.New({ name = Win.NAME, key = "compare", width = Win.W, height = Win.H,
-        title = "Glass Gear \194\183 Compare", onShow = function() Win.Render() end, offsetX = 300,
+        title = L["Glass Gear \194\183 Compare"], onShow = function() Win.Render() end, offsetX = 300,
         onHide = function()
             -- Nothing left running for a closed window.
             if state.requestId then GG.API.CancelRequest(state.requestId); state.requestId = nil end
@@ -96,16 +97,16 @@ local function build()
     specButtons()
     W.baseline = at(label(frame, "", "GameFontHighlightSmall"), 14, -62)
     W.baseline:SetWidth(440)
-    at(label(frame, "Equipped", "GameFontDisableSmall"), 14, -82)
+    at(label(frame, L["Equipped"], "GameFontDisableSmall"), 14, -82)
     W.equipped = at(label(frame, "", "GameFontHighlight"), 14, -96)
     W.equipped:SetWidth(210)
-    at(label(frame, "Candidate", "GameFontDisableSmall"), 240, -82)
+    at(label(frame, L["Candidate"], "GameFontDisableSmall"), 240, -82)
     W.candidate = at(label(frame, "", "GameFontHighlight"), 240, -96)
     W.candidate:SetWidth(210)
 
     -- The stat table.
     local cols = { 14, 210, 290, 380 }
-    local heads = { "Stat", "Equipped", "Candidate", "Change" }
+    local heads = { L["Stat"], L["Equipped"], L["Candidate"], L["Change"] }
     for i, h in ipairs(heads) do at(label(frame, h, "GameFontNormalSmall"), cols[i], -124) end
     W.rows = {}
     for i = 1, GG.CompareView.MAX_ROWS do
@@ -117,7 +118,7 @@ local function build()
     end
     W.score = {}
     for c = 1, 4 do W.score[c] = at(label(frame, "", "GameFontHighlight"), cols[c], -352) end
-    W.scoreNote = at(label(frame, "Scores on the same profile scale.", "GameFontDisableSmall"), 14, -370)
+    W.scoreNote = at(label(frame, L["Scores on the same profile scale."], "GameFontDisableSmall"), 14, -370)
     W.status = at(label(frame, "", "GameFontNormal"), 14, -392)
     W.status:SetWidth(440)
     W.info = {}
@@ -139,8 +140,8 @@ local function build()
         W.sets[i] = b
     end
 
-    W.viewProfile = at(button(frame, "View profile", 120, function() GG.ProfilesWindow.Open(state.spec) end), 14, -570)
-    W.close = at(button(frame, "Close", 90, function() frame:Hide() end), 366, -570)
+    W.viewProfile = at(button(frame, L["View profile"], 120, function() GG.ProfilesWindow.Open(state.spec) end), 14, -570)
+    W.close = at(button(frame, L["Close"], 90, function() frame:Hide() end), 366, -570)
 
     GG.Callbacks.Register("EvaluationReady", function(_, p)
         if frame:IsShown() and p and p.requestId == state.requestId then
@@ -190,9 +191,9 @@ function Win.Render()
         setWarnings = GG.db.settings.setBonusWarnings ~= false,
     })
     -- The gear line: short (the long hint is /gg's).
-    local status = GG.Capture.Status(spec, time())
-    if status:find("^none recorded") then status = "none recorded (compared with your current gear)" end
-    W.baseline:SetText((s and s.name or spec) .. " gear: " .. status)
+    local status, kind = GG.Capture.Status(spec, time())
+    if kind == "none" then status = L["none recorded (compared with your current gear)"] end
+    W.baseline:SetText(L["%s gear: %s"]:format(s and s.name or spec, status))
     W.equipped:SetText(view.equipped)
     W.candidate:SetText(view.candidate)
     for i, row in ipairs(W.rows) do
@@ -204,7 +205,7 @@ function Win.Render()
         if v then color(row[1], v.level == "muted" and "muted" or "white"); color(row[4], v.level) end
     end
     local sc = view.score
-    W.score[1]:SetText(sc and "Item score" or "")
+    W.score[1]:SetText(sc and L["Item score"] or "")
     W.score[2]:SetText(sc and sc.equipped or "")
     W.score[3]:SetText(sc and sc.candidate or "")
     W.score[4]:SetText(sc and sc.change or "")
@@ -213,14 +214,16 @@ function Win.Render()
     color(W.status, view.status and view.status.level or "muted")
     for i, line in ipairs(W.info) do
         local v = view.info[i]
-        line[1]:SetText(v and (v.label .. ":") or "")
+        line[1]:SetText(v and L["%s:"]:format(v.label) or "")
         line[2]:SetText(v and v.text or "")
     end
     W.warnings:SetText(table.concat(view.warnings, "\n"))
     color(W.warnings, "warn")
 
     W.noBase:SetShown(view.noBaseline)
-    W.noBase:SetText(view.noBaseline and ("No " .. (s and s.name or spec) .. " equipment recorded: compared with your current gear (estimate). Use a saved set:") or "")
+    W.noBase:SetText(view.noBaseline
+        and L["No %s equipment recorded: compared with your current gear (estimate). Use a saved set:"]:format(s and s.name or spec)
+        or "")
     local sets = view.noBaseline and GG.Compat.EquipmentSets() or {}
     for i, b in ipairs(W.sets) do
         local set = sets and sets[i]
@@ -233,13 +236,13 @@ end
 
 -- Returns true | false, reason.
 function Win.Open(ref, spec)
-    if not (GG.player and GG.store and GG.API.IsReady()) then return false, "not ready" end
+    if not (GG.player and GG.store and GG.API.IsReady()) then return false, L["not ready"] end
     if not frame then
         local ok, err = pcall(build)
         if not ok then
             frame = nil
             geterrorhandler()("GlassGear compare window: " .. tostring(err))
-            return false, "build failed"
+            return false, L["build failed"]
         end
     end
     state.ref = ref

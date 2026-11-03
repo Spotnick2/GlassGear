@@ -306,6 +306,7 @@ C_Timer = { After = function(_, fn) WoW.timers[#WoW.timers + 1] = fn end }   -- 
 function GetTime() return WoW.time end
 function time() return WoW.epoch end
 function GetBuildInfo() return "1.60.1", "70532", "Oct 30 2026", 16001 end    -- 4722
+function GetLocale() return WoW.locale or "enUS" end                                     -- 4982
 function geterrorhandler() return function(e) WoW.errors[#WoW.errors + 1] = e end end
 
 function UnitName(u) if u == "player" then return WoW.player.name end end
@@ -639,7 +640,10 @@ function WoW.loadAddon(opts)
     local toc = assert(io.open("GlassGear.toc", "rb")):read("*a"):gsub("\r\n", "\n")
     for line in (toc .. "\n"):gmatch("([^\n]*)\n") do
         local file = line:match("^%s*([^#%s].-)%s*$")
-        if file and not file:match("^Libs\\") then dofile((file:gsub("\\", "/"))) end
+        if file and not file:match("^Libs\\") then
+            dofile((file:gsub("\\", "/")))
+            if opts.afterFile then opts.afterFile(file) end   -- e.g. a test locale after Core\Locale.lua
+        end
     end
     if opts.db then GlassGearDB = opts.db end
     if opts.charDB then GlassGearChar = opts.charDB end

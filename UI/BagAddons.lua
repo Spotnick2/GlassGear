@@ -31,12 +31,13 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local BagAddons = {}
 GG.BagAddons = BagAddons
 
 BagAddons.UNSUPPORTED = { "AdiBags", "ArkInventory", "BetterBags", "EllesmereUIBags" }
 BagAddons.WIDGET_ID = "glassgear"            -- Baganator's corner widget id (its saved settings use it)
-BagAddons.WIDGET_LABEL = "Glass Gear upgrades"
+BagAddons.WIDGET_LABEL = L["Glass Gear upgrades"]   -- the name Baganator's corner settings show
 
 local buttons = setmetatable({}, { __mode = "k" })   -- Bagnon buttons met: [button] = true
 local frames = setmetatable({}, { __mode = "k" })    -- their windows, hooked for the reveal
@@ -232,18 +233,18 @@ end
 -- One line for /gg.
 function BagAddons.Status()
     local name, supported = BagAddons.Detect()
-    if not name then return "bag addon: none (Blizzard's bags)" end
+    if not name then return L["bag addon: none (Blizzard's bags)"] end
     if supported and BagAddons.active == "Baganator" then
         local okW, on = pcall(baganatorAPI().IsCornerWidgetActive, BagAddons.WIDGET_ID)
         if okW and on == false then
-            return "bag addon: Baganator - markers off (add '" .. BagAddons.WIDGET_LABEL
-                .. "' to an icon corner in Baganator's settings)"
+            return L["bag addon: Baganator - markers off (add '%s' to an icon corner in Baganator's settings)"]:format(
+                BagAddons.WIDGET_LABEL)
         end
-        return "bag addon: Baganator (markers in an icon corner: '" .. BagAddons.WIDGET_LABEL .. "')"
+        return L["bag addon: Baganator (markers in an icon corner: '%s')"]:format(BagAddons.WIDGET_LABEL)
     end
-    if supported and BagAddons.active then return "bag addon: " .. name .. " (markers on its buttons)" end
-    if supported then return "bag addon: " .. name .. " - markers unavailable (the hook failed: see the error)" end
-    return "bag addon: " .. name .. " - markers unavailable there (tooltips work)"
+    if supported and BagAddons.active then return L["bag addon: %s (markers on its buttons)"]:format(name) end
+    if supported then return L["bag addon: %s - markers unavailable (the hook failed: see the error)"]:format(name) end
+    return L["bag addon: %s - markers unavailable there (tooltips work)"]:format(name)
 end
 
 -- Test seams.

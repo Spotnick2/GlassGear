@@ -71,6 +71,21 @@ see [docs/BACKLOG.md](docs/BACKLOG.md).
   - [In-game checks](docs/FOREVER-PROBE.md)
   - [Mockups](docs/mockups/README.md)
 
+## Translations
+
+Every text Glass Gear shows goes through `GG.L`, keyed by its English text. To translate, copy the
+keys you translate from [Locales/enUS.lua](Locales/enUS.lua) into `Locales/<locale>.lua`:
+
+```lua
+GlassGear.Locale.Register("deDE", {
+    ["Not an upgrade for %s"] = "Kein Upgrade f\195\188r %s",
+})
+```
+
+and list the file in `GlassGear.toc` right after `Core\Locale.lua`. Keep each placeholder (`%s`,
+`%d`, ...) in the same order; a translation that changes them is ignored, and so is one
+with a lone `%` (write `%%` for a percent sign).
+
 ## License
 
 MIT. Glass Gear reads Pawn's documented scale-string format but contains no Pawn code.

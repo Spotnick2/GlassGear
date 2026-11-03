@@ -13,6 +13,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Tooltip = {}
 GG.Tooltip = Tooltip
 
@@ -117,7 +118,7 @@ function Tooltip.Initialize()
     local TDP = rawget(_G, "TooltipDataProcessor")
     local enum = rawget(_G, "Enum")
     local kind = type(enum) == "table" and enum.TooltipDataType and enum.TooltipDataType.Item
-    if not (TDP and TDP.AddTooltipPostCall and kind) then return false, "TooltipDataProcessor missing" end
+    if not (TDP and TDP.AddTooltipPostCall and kind) then return false, L["TooltipDataProcessor missing"] end
     registered = true
     local handler = geterrorhandler()
     TDP.AddTooltipPostCall(kind, function(tooltip, data)

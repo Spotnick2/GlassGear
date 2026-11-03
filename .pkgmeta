@@ -31,6 +31,8 @@ ignore:
   - README.md
   - README.curseforge.md
   - CHANGELOG.md
+  # The translators' template (GG-403): never loaded, so never shipped.
+  - Locales/enUS.lua
   # The packager does not apply an external's own ignore list: LibGlass's
   # non-dot entries, repeated. Its LICENSE ships.
   - Libs/LibGlass-1.0/tests

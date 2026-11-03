@@ -190,6 +190,16 @@ function Compat.ResolveItemRef(ref)
     return b.link, { bag = b.bag, slot = b.slot, guid = b.guid, bound = b.isBound }
 end
 
+-- A class's name in the client's language, for display only (the client's
+-- LOCALIZED_CLASS_NAMES_MALE, wow-ui-source forever
+-- Blizzard_FrameXMLBase/Constants.lua:37); nil when the client has none.
+-- An export's Class= stays ProfileView.ClassLabel's English.
+function Compat.ClassName(token)
+    local t = rawget(_G, "LOCALIZED_CLASS_NAMES_MALE")
+    local name = type(t) == "table" and type(token) == "string" and t[token]
+    if type(name) == "string" and name ~= "" then return name end
+end
+
 function Compat.Player()
     local name = UnitName("player")
     local _, class = UnitClass("player")

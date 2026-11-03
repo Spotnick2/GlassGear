@@ -12,6 +12,7 @@
 
 Libs\LibGlass-1.0\LibGlass-1.0.xml
 Core\Init.lua
+Core\Locale.lua
 Data\Stats.lua
 Data\Slots.lua
 Data\Classes.lua

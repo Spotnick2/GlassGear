@@ -13,6 +13,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local View = {}
 GG.TooltipView = View
 
@@ -26,25 +27,25 @@ View.COLORS = {
     muted = { 0.55, 0.55, 0.55 },
 }
 local C = View.COLORS
-View.BADGE = "|cff7fd4ffCURRENT|r"
+View.BADGE = "|cff7fd4ff" .. L["CURRENT"] .. "|r"
 
 -- Short texts for terminal reasons (ineligible / unknown). First match wins.
 local REASON_TEXT = {
-    NO_WEIGHTS = "no weights",
-    UNKNOWN_SPEC = "spec not set",
-    NOT_SPEC_ARMOR = "not for this spec",
-    PROFICIENCY = "can't use",
-    NEEDS_TRAINING = "needs training",
-    NOT_EQUIPPABLE = "can't use",
-    UNIQUE_EQUIPPED = "unique, equipped",
-    NEEDS_COMPANION = "needs an off-hand",
-    COMPANION_DATA_MISSING = "needs an off-hand",
-    COMPANION_NOT_LEGAL = "needs an off-hand",
-    NO_LEGAL_SLOT = "no free slot",
-    NO_SUPPORTED_STATS = "no scored stats",
-    ITEM_DATA_UNAVAILABLE = "item data unavailable",
-    ITEM_QUEUE_FULL = "busy, hover again",
-    OVERLOADED = "busy, hover again",
+    NO_WEIGHTS = L["no weights"],
+    UNKNOWN_SPEC = L["spec not set"],
+    NOT_SPEC_ARMOR = L["not for this spec"],
+    PROFICIENCY = L["can't use"],
+    NEEDS_TRAINING = L["needs training"],
+    NOT_EQUIPPABLE = L["can't use"],
+    UNIQUE_EQUIPPED = L["unique, equipped"],
+    NEEDS_COMPANION = L["needs an off-hand"],
+    COMPANION_DATA_MISSING = L["needs an off-hand"],
+    COMPANION_NOT_LEGAL = L["needs an off-hand"],
+    NO_LEGAL_SLOT = L["no free slot"],
+    NO_SUPPORTED_STATS = L["no scored stats"],
+    ITEM_DATA_UNAVAILABLE = L["item data unavailable"],
+    ITEM_QUEUE_FULL = L["busy, hover again"],
+    OVERLOADED = L["busy, hover again"],
 }
 
 local function has(list, v) for _, x in ipairs(list or {}) do if x == v then return true end end end
@@ -55,44 +56,48 @@ local function pctText(pct)
     return string.format("%+.1f%%", v)
 end
 
-local function laterText(row)
-    if not row.atLevel then return nil end
-    if row.levelsAway and row.levelsAway > 0 then
-        return string.format("at level %d (in %d)", row.atLevel, row.levelsAway)
+-- "at level 40 (in 3)"; with `verdict`, "+2.0% at level 40 (in 3)".
+local function laterText(row, verdict)
+    if not row.atLevel then return verdict end
+    local away = row.levelsAway and row.levelsAway > 0 and row.levelsAway
+    if verdict then
+        if away then return L["%s at level %d (in %d)"]:format(verdict, row.atLevel, away) end
+        return L["%s at level %d"]:format(verdict, row.atLevel)
     end
-    return string.format("at level %d", row.atLevel)
+    if away then return L["at level %d (in %d)"]:format(row.atLevel, away) end
+    return L["at level %d"]:format(row.atLevel)
 end
 
 -- The right-hand text and color of one row.
 local function rightOf(row)
-    if row.status == "pending" then return "checking...", C.muted end
+    if row.status == "pending" then return L["checking..."], C.muted end
     if row.status == "upgrade" then
-        local text = row.pct and pctText(row.pct) or (row.label or "upgrade")
-        if row.laterLevel then return text .. " " .. laterText(row), C.later end
+        local text = row.pct and pctText(row.pct) or (row.label or L["upgrade"])
+        if row.laterLevel then return laterText(row, text), C.later end
         return text, C.good
     end
     if row.status == "no_upgrade" then
-        if has(row.reasons, "OWNED_BETTER") then return "you own better", C.muted end
+        if has(row.reasons, "OWNED_BETTER") then return L["you own better"], C.muted end
         -- An item for a later level keeps saying so, whatever the score.
-        local later = row.laterLevel and (" " .. laterText(row)) or ""
-        if row.pct and row.pct < 0 then return pctText(row.pct) .. later, C.bad end
-        if row.pct then return pctText(row.pct) .. later, C.muted end
-        return "no upgrade" .. later, C.muted
+        local function later(text) return row.laterLevel and laterText(row, text) or text end
+        if row.pct and row.pct < 0 then return later(pctText(row.pct)), C.bad end
+        if row.pct then return later(pctText(row.pct)), C.muted end
+        return later(L["no upgrade"]), C.muted
     end
     if row.status == "ineligible" then
-        if has(row.why, "ABOVE_LEVEL_WINDOW") then return laterText(row) or "later level", C.muted end
+        if has(row.why, "ABOVE_LEVEL_WINDOW") then return laterText(row) or L["later level"], C.muted end
         for _, list in ipairs({ row.why, row.reasons }) do
             for _, r in ipairs(list) do
                 if REASON_TEXT[r] then return REASON_TEXT[r], C.muted end
             end
         end
-        return "can't use", C.muted
+        return L["can't use"], C.muted
     end
     -- unknown (and anything else)
     for _, r in ipairs(row.reasons) do
         if REASON_TEXT[r] then return REASON_TEXT[r], C.muted end
     end
-    return "can't tell yet", C.muted
+    return L["can't tell yet"], C.muted
 end
 
 local function specName(key)
@@ -105,7 +110,7 @@ local function statGap(l, side)
     local p = side == "baseline" and "BASELINE_" or ""
     local token = l:match("^" .. p .. "TOKEN_NOT_SCORED:(.+)$") or l:match("^" .. p .. "WEIGHT_MISSING:(.+)$")
     if token then return token end
-    if l:match("^" .. p .. "UNSUPPORTED_STAT:") then return "an unrecognised stat" end
+    if l:match("^" .. p .. "UNSUPPORTED_STAT:") then return L["an unrecognised stat"] end
 end
 
 local function joined(set)
@@ -142,13 +147,13 @@ local function notes(rows, setWarnings)
         table.sort(ks)
         return ks
     end
-    for _, n in ipairs(sorted(gained)) do out[#out + 1] = string.format("Completes a %d-piece set bonus (not scored)", n) end
-    for _, n in ipairs(sorted(lost)) do out[#out + 1] = string.format("Breaks a %d-piece set bonus (not scored)", n) end
-    if setUnscored and #out == 0 then out[#out + 1] = "Set item: bonus not scored" end
-    if effect then out[#out + 1] = "Has an effect that isn't scored" end
-    if baseEffect then out[#out + 1] = "The replaced item has an effect that isn't scored" end
-    if next(gaps) then out[#out + 1] = "Not scored: " .. joined(gaps) end
-    if next(baseGaps) then out[#out + 1] = "Not scored on the replaced item: " .. joined(baseGaps) end
+    for _, n in ipairs(sorted(gained)) do out[#out + 1] = L["Completes a %d-piece set bonus (not scored)"]:format(n) end
+    for _, n in ipairs(sorted(lost)) do out[#out + 1] = L["Breaks a %d-piece set bonus (not scored)"]:format(n) end
+    if setUnscored and #out == 0 then out[#out + 1] = L["Set item: bonus not scored"] end
+    if effect then out[#out + 1] = L["Has an effect that isn't scored"] end
+    if baseEffect then out[#out + 1] = L["The replaced item has an effect that isn't scored"] end
+    if next(gaps) then out[#out + 1] = L["Not scored: %s"]:format(joined(gaps)) end
+    if next(baseGaps) then out[#out + 1] = L["Not scored on the replaced item: %s"]:format(joined(baseGaps)) end
     return out
 end
 
@@ -196,7 +201,7 @@ function View.Build(response, settings, ctx)
         local o = row.ownedBetter
         local name = o and o.link and o.link:match("%[(.-)%]")
         if name then
-            lines[#lines + 1] = { left = "You own better for " .. specName(row.spec) .. ": " .. name, lc = C.later }
+            lines[#lines + 1] = { left = L["You own better for %s: %s"]:format(specName(row.spec), name), lc = C.later }
         end
     end
     -- A spec compared with gear recorded too long ago says so (GG-108).
@@ -205,13 +210,14 @@ function View.Build(response, settings, ctx)
         if has(row.reasons, "BASELINE_STALE") then stale[#stale + 1] = specName(row.spec) end
     end
     if #stale > 0 then
-        lines[#lines + 1] = { left = "Gear recorded over 14 days ago: " .. table.concat(stale, ", "), lc = C.later }
+        lines[#lines + 1] = { left = L["Gear recorded over 14 days ago: %s"]:format(table.concat(stale, ", ")), lc = C.later }
     end
     if not ctx.currentSpec then
-        lines[#lines + 1] = { left = "Current spec not set: /gg options", lc = C.muted }
+        lines[#lines + 1] = { left = L["Current spec not set: /gg options"], lc = C.muted }
     end
-    local footer = "Weighted item score \194\183 estimates"
-    if offSpecVsCurrentGear then footer = footer .. " \194\183 other specs vs current gear" end
+    local footer = offSpecVsCurrentGear
+        and L["Weighted item score \194\183 estimates \194\183 other specs vs current gear"]
+        or L["Weighted item score \194\183 estimates"]
     lines[#lines + 1] = { left = footer, lc = C.muted }
     return lines
 end

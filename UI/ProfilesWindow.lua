@@ -13,6 +13,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Win = {}
 GG.ProfilesWindow = Win
 
@@ -141,7 +142,7 @@ function Win.Delete()
     local now = GetTime()
     if not (state.deleteArmed and state.deleteArmed.id == state.id and now - state.deleteArmed.at <= Win.DELETE_CONFIRM) then
         state.deleteArmed = { id = state.id, at = now }
-        message("Click Delete again to delete this profile", "warn")
+        message(L["Click Delete again to delete this profile"], "warn")
         Win.Refresh()
         return
     end
@@ -159,7 +160,7 @@ function Win.Export()
     W.input:SetText(text)
     W.input:SetFocus()
     W.input:HighlightText()
-    message("Exported: press Ctrl+C to copy", "ok")
+    message(L["Exported: press Ctrl+C to copy"], "ok")
 end
 
 function Win.ImportNew()
@@ -173,7 +174,7 @@ function Win.ImportNew()
     if entry then
         state.id = entry.id
         W.input:SetText("")
-        message("Imported \"" .. entry.data.name .. "\": now the active profile", "ok")
+        message(L["Imported \"%s\": now the active profile"]:format(entry.data.name), "ok")
         Win.Refresh()
     end
 end
@@ -182,7 +183,7 @@ function Win.ImportReplace()
     local text = W.input:GetText()
     if act(function() return GG.Profiles.ImportReplace(GG.store, state.id, state.version, text, time(), GG.player.class) end) then
         W.input:SetText("")
-        message("Weights replaced", "ok")
+        message(L["Weights replaced"], "ok")
         Win.Refresh()
     end
 end
@@ -215,7 +216,7 @@ end
 
 local function build()
     frame = UIW.New({ name = Win.NAME, key = "profiles", width = Win.W, height = Win.H,
-        title = "Glass Gear \194\183 Profiles", onShow = function() Win.Refresh() end })
+        title = L["Glass Gear \194\183 Profiles"], onShow = function() Win.Refresh() end })
     W.who = at(label(frame, "", "GameFontHighlightLarge"), 14, -32)
 
     -- Specs (left)
@@ -255,9 +256,9 @@ local function build()
     draftField(W.name, function(_, text, version)
         if state.id then Win.CommitName(text, version) end
     end)
-    W.active = at(label(frame, "Active", "GameFontNormal"), X + 216, -96)
+    W.active = at(label(frame, L["Active"], "GameFontNormal"), X + 216, -96)
     color(W.active, "ok")
-    W.makeActive = at(button(frame, "Make active", 110, function() Win.MakeActive() end), X + 216, -91)
+    W.makeActive = at(button(frame, L["Make active"], 110, function() Win.MakeActive() end), X + 216, -91)
     W.source = at(label(frame, "", "GameFontHighlightSmall"), X, -118)
     W.source:SetWidth(470)
 
@@ -277,15 +278,15 @@ local function build()
     scroll:SetScrollChild(W.weightsChild)
     W.rows = {}
 
-    W.showAll = at(checkButton(frame, "Show all stats", function(self)
+    W.showAll = at(checkButton(frame, L["Show all stats"], function(self)
         state.showAll = self:GetChecked() and true or false
         Win.Refresh()
     end), X, -300)
     W.notes = at(label(frame, "", "GameFontHighlightSmall"), X, -326)
     W.notes:SetWidth(470)
 
-    W.armorLabel = at(label(frame, "Armor types:", "GameFontHighlightSmall"), X, -354)
-    W.armorDefault = at(checkButton(frame, "Spec default", function(self)
+    W.armorLabel = at(label(frame, L["Armor types:"], "GameFontHighlightSmall"), X, -354)
+    W.armorDefault = at(checkButton(frame, L["Spec default"], function(self)
         Win.SetArmorDefault(self:GetChecked() and true or false)
     end), X + 76, -348)
     W.armor = {}
@@ -299,11 +300,11 @@ local function build()
         cb.subclass = a
         W.armor[#W.armor + 1] = cb
     end
-    W.export = at(button(frame, "Export Pawn", 110, function() Win.Export() end), X, -380)
-    W.delete = at(button(frame, "Delete", 90, function() Win.Delete() end), X + 118, -380)
+    W.export = at(button(frame, L["Export Pawn"], 110, function() Win.Export() end), X, -380)
+    W.delete = at(button(frame, L["Delete"], 90, function() Win.Delete() end), X + 118, -380)
 
     -- Import (bottom)
-    at(label(frame, "Import weights", "GameFontNormal"), 14, -414)
+    at(label(frame, L["Import weights"], "GameFontNormal"), 14, -414)
     local box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     box:SetSize(632, 64)
     at(box, 12, -432)
@@ -319,11 +320,11 @@ local function build()
     W.input:SetScript("OnTextChanged", function() Win.RefreshPreview() end)
     W.preview = at(label(frame, "", "GameFontHighlightSmall"), 14, -502)
     W.preview:SetWidth(632)
-    at(label(frame, "Character exports (SimulationCraft profiles, WoWSims JSON) are not weights: "
-        .. "they need a simulation first.", "GameFontDisableSmall"), 14, -536):SetWidth(632)
-    W.importNew = at(button(frame, "Add as new profile", 150, function() Win.ImportNew() end), 12, -554)
-    W.importReplace = at(button(frame, "Replace weights", 210, function() Win.ImportReplace() end), 170, -554)
-    W.clear = at(button(frame, "Clear", 70, function() W.input:SetText("") end), 388, -554)
+    at(label(frame, L["Character exports (SimulationCraft profiles, WoWSims JSON) are not weights: they need a simulation first."],
+        "GameFontDisableSmall"), 14, -536):SetWidth(632)
+    W.importNew = at(button(frame, L["Add as new profile"], 150, function() Win.ImportNew() end), 12, -554)
+    W.importReplace = at(button(frame, L["Replace weights"], 210, function() Win.ImportReplace() end), 170, -554)
+    W.clear = at(button(frame, L["Clear"], 70, function() W.input:SetText("") end), 388, -554)
     W.message = at(label(frame, "", "GameFontHighlightSmall"), 466, -558)
     W.message:SetWidth(180)
 
@@ -384,14 +385,16 @@ end
 function Win.Refresh()
     if not (frame and GG.player and GG.store) then return end
     local key = charKey()
-    W.who:SetText(GG.player.name .. " \194\183 " .. V().ClassLabel(GG.player.class)
-        .. (GG.readOnly and "   (read-only this session)" or ""))
+    local who = GG.player.name .. " \194\183 " .. V().ClassDisplay(GG.player.class)
+    if GG.readOnly then who = L["%s   (read-only this session)"]:format(who) end
+    W.who:SetText(who)
     local specs = GG.Data.Classes.Specs(GG.player.class)
     if not state.spec then state.spec = GG.currentSpec ~= "UNKNOWN" and GG.currentSpec or (specs[1] and specs[1].key) end
     for _, b in ipairs(W.specs) do
         local active = GG.Profiles.ActiveEntry(GG.store, key, b.specKey)
-        b.sub:SetText((active and active.data.name or "no weights")
-            .. (b.specKey == GG.currentSpec and "  \194\183 current" or ""))
+        local sub = active and active.data.name or L["no weights"]
+        if b.specKey == GG.currentSpec then sub = L["%s  \194\183 current"]:format(sub) end
+        b.sub:SetText(sub)
         color(b.sub, active and "info" or "warn")
         fill(b, b.specKey == state.spec and COLORS.selected or COLORS.plain)
     end
@@ -415,7 +418,7 @@ function Win.Refresh()
     local has = e ~= nil
     local specName = (GG.Data.Classes.Spec(state.spec) or {}).name or tostring(state.spec)
     W.empty:SetShown(not has)
-    W.empty:SetText(specName .. ": no profile yet. Paste weights below and choose Add as new profile.")
+    W.empty:SetText(L["%s: no profile yet. Paste weights below and choose Add as new profile."]:format(specName))
     for _, w in ipairs({ W.name, W.source, W.weightsScroll, W.showAll, W.showAll.label, W.notes, W.armorLabel,
         W.armorDefault, W.armorDefault.label, W.export, W.delete }) do w:SetShown(has) end
     for _, cb in ipairs(W.armor) do cb:SetShown(has); cb.label:SetShown(has) end
@@ -423,7 +426,7 @@ function Win.Refresh()
     W.makeActive:SetShown(has and not (active and e.id == active.id))
     dim(W.makeActive, off)
     refreshWeights(e, off)
-    W.importReplace:SetText(has and ("Replace weights of " .. e.data.name) or "Replace weights")
+    W.importReplace:SetText(has and L["Replace weights of %s"]:format(e.data.name) or L["Replace weights"])
     if has then
         local p = GG.Profiles.Shape(e)
         W.name.shown = e.data.name
@@ -437,17 +440,19 @@ function Win.Refresh()
         local kept = {}
         for k in pairs(p.ignoredTokens) do kept[#kept + 1] = k end
         table.sort(kept)
-        if #kept > 0 then notes[#notes + 1] = "Kept for export, not scored: " .. table.concat(kept, ", ") end
+        if #kept > 0 then notes[#notes + 1] = L["Kept for export, not scored: %s"]:format(table.concat(kept, ", ")) end
         if #p.missing > 0 then
             local names = {}
             for _, t in ipairs(p.missing) do names[#names + 1] = V().StatLabel(t) end
-            notes[#notes + 1] = "Missing (not zero): " .. table.concat(names, ", ")
+            notes[#notes + 1] = L["Missing (not zero): %s"]:format(table.concat(names, ", "))
         end
-        if not GG.Prefs.Get("specArmor") then notes[#notes + 1] = "Spec armor rules are off in the settings." end
+        if not GG.Prefs.Get("specArmor") then notes[#notes + 1] = L["Spec armor rules are off in the settings."] end
         W.notes:SetText(table.concat(notes, "\n"))
         local default = e.data.armor == nil
         W.armorDefault:SetChecked(default)
-        W.armorDefault.label:SetText("Spec default" .. (default and (" (" .. V().ArmorText(p, state.spec):gsub(" %(spec default%)", "") .. ")") or ""))
+        W.armorDefault.label:SetText(default
+            and L["Spec default (%s)"]:format(V().ArmorText(p, state.spec, true))
+            or L["Spec default"])
         dim(W.armorDefault, off)
         local allowed = {}
         for _, a in ipairs(e.data.armor or {}) do allowed[a] = true end
@@ -458,7 +463,7 @@ function Win.Refresh()
             dim(cb, off)
         end
         dim(W.delete, off)
-        W.delete:SetText(state.deleteArmed and state.deleteArmed.id == e.id and "Confirm delete" or "Delete")
+        W.delete:SetText(state.deleteArmed and state.deleteArmed.id == e.id and L["Confirm delete"] or L["Delete"])
     end
     Win.RefreshPreview()
 end
@@ -469,13 +474,13 @@ end
 
 -- Returns true | false, reason.
 function Win.Open(specKey)
-    if not (GG.player and GG.store) then return false, "not ready" end
+    if not (GG.player and GG.store) then return false, L["not ready"] end
     if not frame then
         local ok, err = pcall(build)
         if not ok then
             frame = nil
             geterrorhandler()("GlassGear profiles window: " .. tostring(err))
-            return false, "build failed"
+            return false, L["build failed"]
         end
     end
     if specKey then state.spec, state.id = specKey, nil end

@@ -27,6 +27,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Loot = {}
 GG.LootMarkers = Loot
 
@@ -206,11 +207,8 @@ function Loot.Initialize()
 end
 
 function Loot.Info()
-    if not lootFrame and #rollFrames == 0 then return false, "Blizzard's loot frames missing" end
-    local parts = {}
-    parts[#parts + 1] = lootFrame and "loot window" or "no loot window"
-    parts[#parts + 1] = #rollFrames .. " roll frames"
-    return true, table.concat(parts, ", ")
+    if not lootFrame and #rollFrames == 0 then return false, L["Blizzard's loot frames missing"] end
+    return true, (lootFrame and L["loot window, %d roll frames"] or L["no loot window, %d roll frames"]):format(#rollFrames)
 end
 
 -- Test seams.

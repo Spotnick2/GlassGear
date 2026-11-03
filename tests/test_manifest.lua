@@ -47,7 +47,7 @@ local pkg = H.readFile(".pkgmeta") or ""
 H.check(pkg:find("package%-as: GlassGear") ~= nil, ".pkgmeta packages as GlassGear")
 H.check(pkg:find("Libs/LibGlass%-1%.0:%s*\n%s*url: https://github.com/Spotnick2/LibGlass%s*\n%s*tag: r11") ~= nil,
     "LibGlass pinned to tag r11")
-for _, ignored in ipairs({ "docs", "tests", "Tools", "Libs/LibGlass-1.0/tests" }) do
+for _, ignored in ipairs({ "docs", "tests", "Tools", "Locales/enUS.lua", "Libs/LibGlass-1.0/tests" }) do
     H.check(pkg:find("\n  %- " .. ignored:gsub("%-", "%%-") .. "\n") ~= nil, ".pkgmeta ignores " .. ignored)
 end
 

@@ -5,6 +5,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Classes = {}
 GG.Data.Classes = Classes
 
@@ -12,58 +13,58 @@ GG.Data.Classes = Classes
 local CLOTH, LEATHER, MAIL, PLATE, SHIELD = 1, 2, 3, 4, 6
 local LIBRAM, IDOL, TOTEM, SIGIL, RELIC = 7, 8, 9, 10, 11
 Classes.ARMOR = { CLOTH = CLOTH, LEATHER = LEATHER, MAIL = MAIL, PLATE = PLATE, SHIELD = SHIELD }
-Classes.ARMOR_NAME = { [CLOTH] = "Cloth", [LEATHER] = "Leather", [MAIL] = "Mail", [PLATE] = "Plate", [SHIELD] = "Shield",
-    [LIBRAM] = "Libram", [IDOL] = "Idol", [TOTEM] = "Totem", [SIGIL] = "Sigil", [RELIC] = "Relic" }
+Classes.ARMOR_NAME = { [CLOTH] = L["Cloth"], [LEATHER] = L["Leather"], [MAIL] = L["Mail"], [PLATE] = L["Plate"], [SHIELD] = L["Shield"],
+    [LIBRAM] = L["Libram"], [IDOL] = L["Idol"], [TOTEM] = L["Totem"], [SIGIL] = L["Sigil"], [RELIC] = L["Relic"] }
 
 -- Specs in talent-tree order. `armor` = the spec's allowed body-armor types
 -- (editable per profile). `early` = types also allowed while the spec's best
 -- type can't be worn yet (a Protection Paladin wears mail until plate at 40).
 Classes.SPECS = {
     WARRIOR = {
-        { key = "WARRIOR.ARMS", name = "Arms", armor = { PLATE }, early = { MAIL } },
-        { key = "WARRIOR.FURY", name = "Fury", armor = { PLATE }, early = { MAIL } },
-        { key = "WARRIOR.PROTECTION", name = "Protection", armor = { PLATE }, early = { MAIL } },
+        { key = "WARRIOR.ARMS", name = L["Arms"], armor = { PLATE }, early = { MAIL } },
+        { key = "WARRIOR.FURY", name = L["Fury"], armor = { PLATE }, early = { MAIL } },
+        { key = "WARRIOR.PROTECTION", name = L["Protection"], armor = { PLATE }, early = { MAIL } },
     },
     PALADIN = {
-        { key = "PALADIN.HOLY", name = "Holy", armor = { CLOTH, LEATHER, MAIL, PLATE } },
-        { key = "PALADIN.PROTECTION", name = "Protection", armor = { PLATE }, early = { MAIL } },
-        { key = "PALADIN.RETRIBUTION", name = "Retribution", armor = { PLATE }, early = { MAIL } },
+        { key = "PALADIN.HOLY", name = L["Holy"], armor = { CLOTH, LEATHER, MAIL, PLATE } },
+        { key = "PALADIN.PROTECTION", name = L["Protection"], armor = { PLATE }, early = { MAIL } },
+        { key = "PALADIN.RETRIBUTION", name = L["Retribution"], armor = { PLATE }, early = { MAIL } },
     },
     HUNTER = {
-        { key = "HUNTER.BEAST_MASTERY", name = "Beast Mastery", armor = { LEATHER, MAIL } },
-        { key = "HUNTER.MARKSMANSHIP", name = "Marksmanship", armor = { LEATHER, MAIL } },
-        { key = "HUNTER.SURVIVAL", name = "Survival", armor = { LEATHER, MAIL } },
+        { key = "HUNTER.BEAST_MASTERY", name = L["Beast Mastery"], armor = { LEATHER, MAIL } },
+        { key = "HUNTER.MARKSMANSHIP", name = L["Marksmanship"], armor = { LEATHER, MAIL } },
+        { key = "HUNTER.SURVIVAL", name = L["Survival"], armor = { LEATHER, MAIL } },
     },
     ROGUE = {
-        { key = "ROGUE.ASSASSINATION", name = "Assassination", armor = { LEATHER } },
-        { key = "ROGUE.COMBAT", name = "Combat", armor = { LEATHER } },
-        { key = "ROGUE.SUBTLETY", name = "Subtlety", armor = { LEATHER } },
+        { key = "ROGUE.ASSASSINATION", name = L["Assassination"], armor = { LEATHER } },
+        { key = "ROGUE.COMBAT", name = L["Combat"], armor = { LEATHER } },
+        { key = "ROGUE.SUBTLETY", name = L["Subtlety"], armor = { LEATHER } },
     },
     PRIEST = {
-        { key = "PRIEST.DISCIPLINE", name = "Discipline", armor = { CLOTH } },
-        { key = "PRIEST.HOLY", name = "Holy", armor = { CLOTH } },
-        { key = "PRIEST.SHADOW", name = "Shadow", armor = { CLOTH } },
+        { key = "PRIEST.DISCIPLINE", name = L["Discipline"], armor = { CLOTH } },
+        { key = "PRIEST.HOLY", name = L["Holy"], armor = { CLOTH } },
+        { key = "PRIEST.SHADOW", name = L["Shadow"], armor = { CLOTH } },
     },
     SHAMAN = {
-        { key = "SHAMAN.ELEMENTAL", name = "Elemental", armor = { CLOTH, LEATHER, MAIL } },
-        { key = "SHAMAN.ENHANCEMENT", name = "Enhancement", armor = { LEATHER, MAIL } },
-        { key = "SHAMAN.RESTORATION", name = "Restoration", armor = { CLOTH, LEATHER, MAIL } },
+        { key = "SHAMAN.ELEMENTAL", name = L["Elemental"], armor = { CLOTH, LEATHER, MAIL } },
+        { key = "SHAMAN.ENHANCEMENT", name = L["Enhancement"], armor = { LEATHER, MAIL } },
+        { key = "SHAMAN.RESTORATION", name = L["Restoration"], armor = { CLOTH, LEATHER, MAIL } },
     },
     MAGE = {
-        { key = "MAGE.ARCANE", name = "Arcane", armor = { CLOTH } },
-        { key = "MAGE.FIRE", name = "Fire", armor = { CLOTH } },
-        { key = "MAGE.FROST", name = "Frost", armor = { CLOTH } },
+        { key = "MAGE.ARCANE", name = L["Arcane"], armor = { CLOTH } },
+        { key = "MAGE.FIRE", name = L["Fire"], armor = { CLOTH } },
+        { key = "MAGE.FROST", name = L["Frost"], armor = { CLOTH } },
     },
     WARLOCK = {
-        { key = "WARLOCK.AFFLICTION", name = "Affliction", armor = { CLOTH } },
-        { key = "WARLOCK.DEMONOLOGY", name = "Demonology", armor = { CLOTH } },
-        { key = "WARLOCK.DESTRUCTION", name = "Destruction", armor = { CLOTH } },
+        { key = "WARLOCK.AFFLICTION", name = L["Affliction"], armor = { CLOTH } },
+        { key = "WARLOCK.DEMONOLOGY", name = L["Demonology"], armor = { CLOTH } },
+        { key = "WARLOCK.DESTRUCTION", name = L["Destruction"], armor = { CLOTH } },
     },
     DRUID = {
-        { key = "DRUID.BALANCE", name = "Balance", armor = { CLOTH, LEATHER } },
-        { key = "DRUID.FERAL_TANK", name = "Feral (tank)", armor = { LEATHER } },
-        { key = "DRUID.FERAL_CAT", name = "Feral (cat)", armor = { LEATHER } },
-        { key = "DRUID.RESTORATION", name = "Restoration", armor = { CLOTH, LEATHER } },
+        { key = "DRUID.BALANCE", name = L["Balance"], armor = { CLOTH, LEATHER } },
+        { key = "DRUID.FERAL_TANK", name = L["Feral (tank)"], armor = { LEATHER } },
+        { key = "DRUID.FERAL_CAT", name = L["Feral (cat)"], armor = { LEATHER } },
+        { key = "DRUID.RESTORATION", name = L["Restoration"], armor = { CLOTH, LEATHER } },
     },
 }
 
