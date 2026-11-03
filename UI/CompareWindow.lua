@@ -191,8 +191,8 @@ function Win.Render()
         setWarnings = GG.db.settings.setBonusWarnings ~= false,
     })
     -- The gear line: short (the long hint is /gg's).
-    local status = GG.Capture.Status(spec, time())
-    if status:find("^none recorded") then status = L["none recorded (compared with your current gear)"] end
+    local status, kind = GG.Capture.Status(spec, time())
+    if kind == "none" then status = L["none recorded (compared with your current gear)"] end
     W.baseline:SetText(L["%s gear: %s"]:format(s and s.name or spec, status))
     W.equipped:SetText(view.equipped)
     W.candidate:SetText(view.candidate)

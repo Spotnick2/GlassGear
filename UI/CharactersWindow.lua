@@ -240,7 +240,7 @@ function Win.Refresh()
             if c.hidden then name = L["%s  (hidden in AltStable)"]:format(name) end
             row.name:SetText(name)
             color(row.name, c.hidden and "muted" or "warn")
-            local className = GG.ProfileView.ClassLabel(c.class or "?")
+            local className = GG.ProfileView.ClassDisplay(c.class or "?")
             local sub = L["Level %s %s"]:format(tostring(c.level or "?"), className)
             if c.provenance == "own-account" and c.provenanceVia then
                 sub = L["%s \194\183 seen by %s"]:format(sub, tostring(c.provenanceVia))

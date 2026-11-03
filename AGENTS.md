@@ -38,6 +38,11 @@ The single global is `GlassGear`, and `GlassGear.API` is the public v1 contract
   reference copy is `References\Addons\BagsInventory\Pawn`.
 - **No `## Dependencies`**, only `OptionalDeps`. No GameTooltip restyling, no writes to Blizzard
   globals (`SlashCmdList` fields only).
+- **Player text goes through `GG.L`** (GG-403, `Core/Locale.lua`): `L["English text"]`, a literal
+  key, one format string per sentence (`L["Not an upgrade for %s"]:format(spec)`). Never branch on
+  displayed text: return a kind or a flag beside it. Codes, keys, Pawn syntax, API data for other
+  addons and `geterrorhandler()` messages stay English. After adding keys, run
+  `python -I Tools/locale_catalogue.py` (tests/test_locale.lua checks `Locales/enUS.lua`).
 - **Tests.** Every new test is mutation-checked once: break the code and watch the test fail.
   Stubs (`tests/wow_stubs.lua`) model Forever, and every stubbed name must exist in the dump.
 

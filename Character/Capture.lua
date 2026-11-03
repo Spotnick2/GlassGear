@@ -8,7 +8,8 @@
 --                              fromLive (the baseline is the current gear)
 --   Capture.SetFor(spec)       the equipment set used for a spec, if any
 --   Capture.CheckSets()        after a bag change: invalidate if a set's pieces moved
---   Capture.Status(spec, now)  one line for /gg
+--   Capture.Status(spec, now)  one line for /gg, and its kind ("set" | "current" |
+--                              "recorded" | "none": callers branch on it, never on the text)
 --
 -- Observed baselines are entries in the entry store (adr/0001), id
 -- "<guid>:<specKey>:baseline", source "observed": the gear worn while that
@@ -205,35 +206,35 @@ function Capture.Status(spec, now)
     if setID then
         local client = origin == "client"
         if name then
-            return (client and L["equipment set '%s' (assigned in the client)"] or L["equipment set '%s'"]):format(name)
+            return (client and L["equipment set '%s' (assigned in the client)"] or L["equipment set '%s'"]):format(name), "set"
         end
-        return (client and L["equipment set #%s (assigned in the client)"] or L["equipment set #%s"]):format(tostring(setID))
+        return (client and L["equipment set #%s (assigned in the client)"] or L["equipment set #%s"]):format(tostring(setID)), "set"
     end
     -- Equipment sets turned off for this spec (/gg set <spec> none): each line says how to turn them back on.
     local m = GG.charDB and GG.charDB.equipSetMap and GG.charDB.equipSetMap[spec]
     local off = type(m) == "table" and m.none and true or false
     if spec == GG.currentSpec then
-        if off then return L["what you wear now (current spec) (equipment sets off: /gg set %s auto)"]:format(spec) end
-        return L["what you wear now (current spec)"]
+        if off then return L["what you wear now (current spec) (equipment sets off: /gg set %s auto)"]:format(spec), "current" end
+        return L["what you wear now (current spec)"], "current"
     end
     local e = GG.player and GG.store and GG.store:Get(Capture.ID(GG.player.key, spec))
     if e and not e.deleted and e.data and e.data.capturedAt then
         local stale = GG.Baselines.Freshness(e.data, now)
         local when = age(now - e.data.capturedAt)
         if stale and off then
-            return L["recorded %s (stale: play it again) (equipment sets off: /gg set %s auto)"]:format(when, spec)
+            return L["recorded %s (stale: play it again) (equipment sets off: /gg set %s auto)"]:format(when, spec), "recorded"
         elseif stale then
-            return L["recorded %s (stale: play it again)"]:format(when)
+            return L["recorded %s (stale: play it again)"]:format(when), "recorded"
         elseif off then
-            return L["recorded %s (equipment sets off: /gg set %s auto)"]:format(when, spec)
+            return L["recorded %s (equipment sets off: /gg set %s auto)"]:format(when, spec), "recorded"
         end
-        return L["recorded %s"]:format(when)
+        return L["recorded %s"]:format(when), "recorded"
     end
     if off then
         return L["none recorded: compared with your current gear (estimate). Play it once, or /gg set %s <set name> (equipment sets off: /gg set %s auto)"]
-            :format(spec, spec)
+            :format(spec, spec), "none"
     end
-    return L["none recorded: compared with your current gear (estimate). Play it once, or /gg set %s <set name>"]:format(spec)
+    return L["none recorded: compared with your current gear (estimate). Play it once, or /gg set %s <set name>"]:format(spec), "none"
 end
 
 -- Test seam.

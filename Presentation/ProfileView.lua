@@ -10,7 +10,8 @@
 --   ProfileView.StatLabel(token)       "Spell Damage"
 --   ProfileView.Preview(text, class)   the import box's verdict, live
 --   ProfileView.WeightText(p, token)   the editor's value for a stat
---   ProfileView.ClassLabel(token)      "Priest" (the Class= of an export)
+--   ProfileView.ClassLabel(token)      "Priest" (the Class= of an export; English)
+--   ProfileView.ClassDisplay(token)    the class's name in the client's language
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -162,13 +163,18 @@ function View.WeightText(p, token)
     return (string.format("%.3f", v):gsub("0+$", ""):gsub("%.$", ""))
 end
 
+function View.ClassDisplay(token)
+    return GG.Compat and GG.Compat.ClassName and GG.Compat.ClassName(token) or View.ClassLabel(token)
+end
+
 function View.ClassLabel(token)
     token = tostring(token or "")
     return token:sub(1, 1):upper() .. token:sub(2):lower()
 end
 
 -- The armor line of a profile: "Cloth (spec default)" / "Cloth, Leather".
-function View.ArmorText(p, specKey)
+-- `bare`: the armor names alone, never the "(spec default)" note.
+function View.ArmorText(p, specKey, bare)
     local C = GG.Data.Classes
     local list, default = p and p.armor, false
     if not list then
@@ -178,7 +184,7 @@ function View.ArmorText(p, specKey)
     local names = {}
     for _, a in ipairs(list) do names[#names + 1] = C.ARMOR_NAME[a] or tostring(a) end
     local text = table.concat(names, ", ")
-    if default then return L["%s (spec default)"]:format(text) end
+    if default and not bare then return L["%s (spec default)"]:format(text) end
     return text
 end
 

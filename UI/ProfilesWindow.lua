@@ -385,7 +385,7 @@ end
 function Win.Refresh()
     if not (frame and GG.player and GG.store) then return end
     local key = charKey()
-    local who = GG.player.name .. " \194\183 " .. V().ClassLabel(GG.player.class)
+    local who = GG.player.name .. " \194\183 " .. V().ClassDisplay(GG.player.class)
     if GG.readOnly then who = L["%s   (read-only this session)"]:format(who) end
     W.who:SetText(who)
     local specs = GG.Data.Classes.Specs(GG.player.class)
@@ -451,7 +451,7 @@ function Win.Refresh()
         local default = e.data.armor == nil
         W.armorDefault:SetChecked(default)
         W.armorDefault.label:SetText(default
-            and L["Spec default (%s)"]:format((V().ArmorText(p, state.spec):gsub(" %(spec default%)", "")))
+            and L["Spec default (%s)"]:format(V().ArmorText(p, state.spec, true))
             or L["Spec default"])
         dim(W.armorDefault, off)
         local allowed = {}

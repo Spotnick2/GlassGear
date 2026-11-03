@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Ready for translation (GG-403): every text you read goes through one table, keyed by the English
+  text, and class names come from your client's language. `Locales/enUS.lua` lists every text to
+  translate; a translation whose placeholders don't match is ignored rather than breaking a line.
+  No translations are included yet.
 - Baganator (GG-401): the upgrade arrows show in Baganator too, as an icon-corner widget ("Glass
   Gear upgrades", top left by default; move or remove it in Baganator's corner settings), with the
   same rules and the reveal key; never on another character's bags. `/gg` says where it is, or how
