@@ -36,6 +36,7 @@ needs to find out, and records the result here with the build once it is run.
 | P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
 | P15 | Profiles window | GG-105 | `gg profiles` | queued |
 | P16 | Comparison window | GG-113 | `gg compare` | queued |
+| P17 | Characters page and AltStable roster | GG-201, GG-204 | `gg characters` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -385,3 +386,17 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Why.** Layout and link passing are unmeasured; the stubs model the text only.
 - **Steps.** Hover a bag item, `/gg compare`; `/gg compare ` + Shift-click an item; switch spec tabs;
   for a spec with no recorded gear, click a saved set; View profile.
+
+## P17: Characters page and AltStable roster (GG-201, GG-204)
+
+- **Question.**
+  - With AltStable on both accounts: does `/gg` count this account's and the other account's
+    characters as AltStable's provenance says, and never a whitelisted friend's?
+  - Does the page show each alt's gear age from `GetCharacterGear(guid).capturedAt`, and does
+    playing an alt refresh it on the other account after a sync?
+  - Does "Open AltStable" open AltStable's sheet (`ToggleSheet`)?
+  - Do `CharactersChanged` / `ProvenanceChanged` arrive within a frame of a sync, and does the page
+    follow without reopening?
+- **Why.** The roster and page are built against a fake AltStable from its docs/PUBLIC-API.md.
+- **Steps.** `/gg`; `/gg characters`; tick a spec of an alt (then `AssessProtection` tracks it with
+  GG-203); log the other account, sync, back; Open AltStable.
