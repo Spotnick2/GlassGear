@@ -202,8 +202,10 @@ end
 -- waits for). A pending request is re-evaluated against the targets captured
 -- when it was made. `prior` (the job's last response, same generation) lends
 -- its finished, still fresh rows: they aren't computed again, so a job always
--- progresses, whatever the budget.
-local function evaluateOne(request, requestId, specs, prior)
+-- progresses, whatever the budget. A row put off by the budget keeps what it
+-- waited for before (`priorDeps`): the job keeps those item loads, with their
+-- attempts, until the row is computed again.
+local function evaluateOne(request, requestId, specs, prior, priorDeps)
     local response = { requestId = requestId, results = {} }
     local rowDeps = {}
     local link, instance = GG.Compat.ResolveItemRef(request.item)
@@ -233,6 +235,7 @@ local function evaluateOne(request, requestId, specs, prior)
             -- Over this frame's budget: a placeholder, computed on a later frame.
             state.stats.deferredRows = state.stats.deferredRows + 1
             r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
+            for id in pairs(priorDeps and priorDeps[i] or {}) do deps[id] = true end
         else
             spend()
             if not facts.ready then deps[facts.itemID] = true end
@@ -273,18 +276,15 @@ local function needs(response, rowDeps, gaveUp)
     local waits, seen, deferred, changed = {}, {}, false, false
     for i, r in ipairs(response.results) do
         if r.status == "pending" then
-            if r.reasons[1] == "FRAME_BUDGET" then
-                deferred = true
+            local deps = rowDeps[i] or {}
+            local dead = false
+            for id in pairs(deps) do if gaveUp and gaveUp[id] then dead = true end end
+            if dead then
+                r.status, r.reasons, changed = "unknown", { "ITEM_DATA_UNAVAILABLE" }, true
             else
-                local deps = rowDeps[i] or {}
-                local dead = false
-                for id in pairs(deps) do if gaveUp and gaveUp[id] then dead = true end end
-                if dead then
-                    r.status, r.reasons, changed = "unknown", { "ITEM_DATA_UNAVAILABLE" }, true
-                else
-                    for id in pairs(deps) do
-                        if not seen[id] then seen[id] = true; waits[#waits + 1] = id end
-                    end
+                if r.reasons[1] == "FRAME_BUDGET" then deferred = true end
+                for id in pairs(deps) do
+                    if not seen[id] then seen[id] = true; waits[#waits + 1] = id end
                 end
             end
         end
@@ -399,7 +399,19 @@ end
 local function settle(key, response, rowDeps)
     local job = state.jobs[key]
     if not job then return end
+    job.rowDeps = rowDeps
     local waitIDs, deferred = needs(response, rowDeps, job.gaveUp)
+    -- An item taken for loaded that a computed row still can't use: its
+    -- retries resume (never a load that waits forever).
+    for i, deps in pairs(rowDeps) do
+        local r = response.results[i]
+        if r.status == "pending" and r.reasons[1] ~= "FRAME_BUDGET" then
+            for id in pairs(deps) do
+                local w = state.waiting[id]
+                if w and w.ready then w.ready, w.since = nil, GetTime() end
+            end
+        end
+    end
     local released = {}
     for old in pairs(job.itemIDs) do released[old] = true end
     local deps, full = {}, false
@@ -427,9 +439,9 @@ end
 -- A job's last response, when its finished rows still hold (same generation).
 -- Otherwise everything is computed again, now for this generation.
 local function priorOf(job)
-    if job.generation == state.generation then return job.response end
+    if job.generation == state.generation then return job.response, job.rowDeps end
     job.generation = state.generation
-    return nil
+    return nil, job.rowDeps          -- rows recomputed; budget rows still keep their loads
 end
 
 -- Re-evaluate a job now (its finished, fresh rows kept) and settle it.
@@ -443,12 +455,12 @@ end
 -- Is anything in the job's last response from before now: an older
 -- generation, or a finished row whose baseline has since gone stale?
 local function outdated(job)
-    if job.generation ~= state.generation then return true end
+    if job.generation ~= state.generation then return "generation" end
     local now = time()
     for _, r in ipairs(job.response.results) do
-        if r.status ~= "pending" and not rowFresh(r, now) then return true end
+        if r.status ~= "pending" and not rowFresh(r, now) then return "freshness" end
     end
-    return false
+    return nil
 end
 
 -- A later frame: compute the jobs that were over the budget, oldest first.
@@ -506,7 +518,11 @@ function API.Evaluate(request)
     -- brought up to date first: a new subscriber never gets an answer from
     -- before an invalidation, or one whose baseline has gone stale.
     local job = state.jobs[key]
-    if job and outdated(job) then
+    local why = job and outdated(job)
+    if why then
+        -- A finished row's baseline went stale: as for a cache hit, the
+        -- freshness generation advances before this call returns.
+        if why == "freshness" then API._Invalidate("freshness", { GG.player.key }) end
         refresh(key)
         job = state.jobs[key]
         if not job then
@@ -542,7 +558,8 @@ function API.Evaluate(request)
     end
     state.jobSeq = state.jobSeq + 1
     state.jobs[key] = { request = request, specs = specs, itemIDs = ids, deferred = deferred, subs = { [id] = true },
-        rows = rows, response = response, seq = state.jobSeq, generation = state.generation, gaveUp = {} }
+        rows = rows, response = response, rowDeps = rowDeps, seq = state.jobSeq, generation = state.generation,
+        gaveUp = {} }
     state.jobRows = state.jobRows + rows
     state.requests[id] = key
     state.requestCount = state.requestCount + 1
@@ -575,18 +592,24 @@ function API._ItemDataArrived(itemID, success)
     if success == false or not state.waiting[itemID] then return end
     -- Pass 1: re-evaluate every job that waited on this item. The waiting
     -- record (and its attempt budget) goes only once the data is really usable.
-    local affected, stillMissing = {}, false
+    -- Whether the item is usable is read from the item itself, not from rows
+    -- that happened to fit this frame's budget.
+    local affected, computedMissing = {}, false
     for _, k in ipairs(jobsWaitingFor(itemID)) do
         local job = state.jobs[k.key]
         local response, rowDeps = evaluateOne(job.request, nil, job.specs, priorOf(job))
         affected[#affected + 1] = { key = k.key, response = response, rowDeps = rowDeps }
-        for _, deps in pairs(rowDeps) do if deps[itemID] then stillMissing = true end end
+        for i, deps in pairs(rowDeps) do
+            if deps[itemID] and response.results[i].reasons[1] ~= "FRAME_BUDGET" then computedMissing = true end
+        end
     end
-    if not stillMissing then
-        unwait(itemID)
+    local w = state.waiting[itemID]
+    if GG.Compat.ItemLoaded(itemID) and not computedMissing and not w.ready then
+        w.ready = true               -- no more retries; released once no row waits for it
         GG.Callbacks.Fire("ItemDataReady", { itemIDs = { itemID } })
     end
-    -- Pass 2: reconcile each job's dependencies.
+    -- Pass 2: reconcile each job's dependencies. An item no job needs any
+    -- more is released there; one still unusable keeps its attempt count.
     for _, a in ipairs(affected) do settle(a.key, a.response, a.rowDeps) end
 end
 
@@ -615,7 +638,7 @@ end
 function API._Tick(now)
     local gaveUp = {}
     for itemID, w in pairs(state.waiting) do
-        if now - w.since >= API.LIMITS.loadTimeout then
+        if not w.ready and now - w.since >= API.LIMITS.loadTimeout then
             if w.attempts < API.LIMITS.loadAttempts then
                 w.attempts, w.since = w.attempts + 1, now
                 GG.Compat.RequestItem(itemID)

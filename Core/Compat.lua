@@ -53,6 +53,11 @@ end
 -- It never requests a load itself: the API's queue owns load attempts.
 -- Stats are read from the enchant-stripped item string (adr/0003); whether the
 -- client's stats include enchants at all is probe P4.
+-- Is an item's data in the client's cache (GetItemInfo answers)?
+function Compat.ItemLoaded(itemID)
+    return C_Item.GetItemInfo(itemID) ~= nil
+end
+
 function Compat.ItemFacts(link)
     if type(link) ~= "string" then return nil, "no-link" end
     local itemID, _, _, equipLoc, _, classID, subclassID = C_Item.GetItemInfoInstant(link)

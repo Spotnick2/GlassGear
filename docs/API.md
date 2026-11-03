@@ -116,6 +116,9 @@ is over the per-frame budget.
   - After 3 attempts, the rows that waited for that item are `unknown`, with `ITEM_DATA_UNAVAILABLE`.
     Rows already finished stay, and a row waiting for the frame budget or another item still
     completes.
+  - Whether an item is usable is read from the item, never from which rows fit a frame's budget: a
+    load event while the budget is spent keeps the item's attempt count, and `ItemDataReady` fires
+    only for an item that really loaded.
   - Queue overflow gives `unknown`, with `ITEM_QUEUE_FULL`.
 - **Shared work.** Requests for the same item instance (or link), targets and context while one is
   pending share one computation (a *job*). Each request still gets its own `EvaluationReady`, with its

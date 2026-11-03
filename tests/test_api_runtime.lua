@@ -274,9 +274,14 @@ local hp = api.Evaluate({ item = WoW.link(52), scope = "targets", targets = targ
 H.eq(hp.results[1].baseline.stale, false, "Holy's row finished against fresh recorded gear")
 H.eq(hp.results[2].status, "pending", "...Shadow waits for the budget")
 WoW.epoch = hp.results[1].baseline.expiresAt + 1
+inval = {}                                    -- (no flush: the deferred runner would recompute first)
+local genJ = S.generation
 local hp2 = api.Evaluate({ item = WoW.link(52), scope = "targets", targets = targets })
 H.check(hp2.results[1].status == "pending" or hp2.results[1].baseline.stale == true,
     "past expiresAt, a new subscriber doesn't get the fresh-looking old row")
+H.check(S.generation > genJ, "...the freshness generation advanced before the call returned")
+WoW.flush(1)
+H.check(has(inval, "freshness"), "...and EvaluationInvalidated(freshness) followed")
 api.LIMITS.perFrame = savedBudget
 for _ = 1, 4 do WoW.time = WoW.time + 1; WoW.flush(1) end
 
@@ -312,6 +317,70 @@ H.eq(tr and tr.results[1].reasons[1], "ITEM_DATA_UNAVAILABLE", "...Holy's row is
 H.check(tr and tr.results[2].status ~= "unknown" and tr.results[2].status ~= "pending",
     "...Shadow's row, only waiting for the budget, still completes")
 WoW.cacheMiss[54] = nil
+
+-- A "loaded" event while the budget is spent: whether the item is usable is
+-- read from the item, and an unusable one keeps its attempt count.
+local idsReady = {}
+api.RegisterCallback("ItemDataReady", function(_, p) for _, i in ipairs(p.itemIDs) do idsReady[i] = true end end,
+    "test_api_runtime")
+WoW.items[75] = shoulder("Stubborn Mantle", { [INT] = 35 })
+WoW.cacheMiss[75] = true
+ready = {}
+WoW.time = WoW.time + 1
+local loads0 = #WoW.itemRequests
+local st = api.Evaluate({ item = WoW.link(75), scope = "own" })
+H.eq(S.waiting[75] and S.waiting[75].attempts, 1, "the item waits (attempt 1)")
+api.LIMITS.perFrame = 0
+WoW.fire("ITEM_DATA_LOAD_RESULT", 75, true)  -- "success", data still unusable, no budget left
+WoW.flush(1)                                  -- callbacks are delivered on the next frame
+H.eq(S.waiting[75] and S.waiting[75].attempts, 1, "a success event with no budget keeps the record and its attempts")
+H.eq(idsReady[75], nil, "...and doesn't announce ItemDataReady")
+api.LIMITS.perFrame = savedBudget
+for _ = 1, 25 do WoW.time = WoW.time + 1; WoW.flush(1) end
+local loads75 = 0
+for i = loads0 + 1, #WoW.itemRequests do if WoW.itemRequests[i] == 75 then loads75 = loads75 + 1 end end
+H.eq(loads75, 3, "...still three load attempts in all")
+local stDone
+for _, p in ipairs(ready) do if p.requestId == st.requestId then stDone = p.response end end
+H.eq(stDone and stDone.results[1].reasons[1], "ITEM_DATA_UNAVAILABLE", "...and then it gives up")
+WoW.cacheMiss[75] = nil
+
+-- A real arrival while the budget is spent: announced, the job finishes later.
+WoW.items[76] = shoulder("Late Mantle", { [INT] = 36 })
+WoW.cacheMiss[76] = true
+ready = {}
+WoW.time = WoW.time + 1
+local lt = api.Evaluate({ item = WoW.link(76), scope = "own" })
+api.LIMITS.perFrame = 0
+WoW.cacheMiss[76] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 76, true)
+WoW.flush(1)
+H.eq(idsReady[76], true, "data usable, budget spent: ItemDataReady still fires")
+for _ = 1, 4 do WoW.time = WoW.time + 6; api._Tick(WoW.time) end   -- 24 s without budget
+H.check(S.waiting[76] ~= nil, "...a loaded item isn't retried or given up while its rows wait for the budget")
+api.LIMITS.perFrame = savedBudget
+for _ = 1, 3 do WoW.time = WoW.time + 1; WoW.flush(1) end
+local ltDone
+for _, p in ipairs(ready) do if p.requestId == lt.requestId then ltDone = p.response end end
+H.eq(ltDone and ltDone.results[1].status, "upgrade", "...and the job completes on a later frame")
+H.eq(S.waiting[76], nil, "...its load record released")
+
+-- Its name loads but not its stats: taken for loaded, then a computed row
+-- still can't use it, so the retries resume and it still ends.
+WoW.items[77] = shoulder("Half Mantle", { [INT] = 37 })
+WoW.statsMiss[77] = true
+ready = {}
+WoW.time = WoW.time + 1
+local hm = api.Evaluate({ item = WoW.link(77), scope = "own" })
+api.LIMITS.perFrame = 0
+WoW.fire("ITEM_DATA_LOAD_RESULT", 77, true)
+api.LIMITS.perFrame = savedBudget
+for _ = 1, 25 do WoW.time = WoW.time + 1; WoW.flush(1) end
+local hmDone
+for _, p in ipairs(ready) do if p.requestId == hm.requestId then hmDone = p.response end end
+H.eq(hmDone and hmDone.results[1].reasons[1], "ITEM_DATA_UNAVAILABLE",
+    "an item whose stats never load still ends (its retries resumed)")
+WoW.statsMiss[77] = nil
 
 ------------------------------------------------------------
 -- Tooltip redraws: no recomputation, no roster scan.
