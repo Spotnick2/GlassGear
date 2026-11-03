@@ -84,7 +84,7 @@ end
 -- TOC order. Engine tests use this instead of the stubs.
 function H.loadPure()
     GlassGear = nil
-    for _, f in ipairs({ "Core/Init.lua", "Data/Stats.lua", "Data/Slots.lua", "Data/Classes.lua",
+    for _, f in ipairs({ "Core/Init.lua", "Core/Locale.lua", "Data/Stats.lua", "Data/Slots.lua", "Data/Classes.lua",
         "Data/ItemSets.lua", "Engine/Score.lua", "Engine/SlotCompare.lua", "Engine/SetBonus.lua",
         "Engine/Evaluate.lua", "Engine/Policy.lua", "Engine/EntrySync.lua", "Engine/Codec.lua",
         "Profiles/PawnString.lua", "Profiles/Profiles.lua", "Item/ItemContext.lua",
