@@ -25,6 +25,7 @@ local gear = {
     ["Player-1-FRIEND"] = { capturedAt = NOW },                          -- never read
 }
 local callbacks, toggled = {}, 0
+local opened = 0
 local AS = {
     PUBLIC_API_VERSION = 1,
     PUBLIC_API_FEATURES = { provenance = true, gear = true },
@@ -37,6 +38,7 @@ local AS = {
     GetCharacterGear = function(guid) return gear[guid] end,
     RegisterCallback = function(event, fn) callbacks[event] = callbacks[event] or {}; table.insert(callbacks[event], fn) end,
     ToggleSheet = function() toggled = toggled + 1 end,
+    OpenSheet = function() opened = opened + 1 end,
 }
 local function fire(event, ...) for _, fn in ipairs(callbacks[event] or {}) do fn(event, ...) end end
 rawset(_G, "AltStable", AS)
@@ -93,9 +95,45 @@ me.checks[1]:Click()
 H.eq(GG.Prefs.IsTracked(ME, "PRIEST.DISCIPLINE"), false, "unticking one of your own specs")
 H.eq(GG.Prefs.IsTracked(ME, "PRIEST.SHADOW"), true, "...keeps the others tracked")
 
--- Open AltStable.
+-- Open AltStable: OpenSheet (only opens), never ToggleSheet (would close an open sheet).
 Wd.openAltStable:Click()
-H.eq(toggled, 1, "Open AltStable opens AltStable's sheet")
+H.eq(opened, 1, "Open AltStable opens AltStable's sheet")
+H.eq(toggled, 0, "...with OpenSheet, never ToggleSheet")
+
+-- Changes made elsewhere show: a tracked spec set from the settings page.
+GG.Prefs.SetTracked("Player-1-ALT1", "PALADIN.HOLY", true, { "PALADIN.HOLY", "PALADIN.PROTECTION", "PALADIN.RETRIBUTION" })
+WoW.flush()
+H.eq(row("Elegia").checks[1]:GetChecked(), true, "a spec tracked elsewhere shows ticked without reopening")
+-- An alt's gear refreshed by a sync.
+gear["Player-1-ALT1"] = { capturedAt = NOW - 3600 }
+fire("GearChanged", { "Player-1-ALT1" })
+WoW.flush()
+H.check(row("Elegia").status:GetText():find("Gear 1 h ago", 1, true) ~= nil, "an alt's new gear shows without reopening")
+
+-- Groups: the label never proves an account.
+local g2 = Win.Groups({
+    { name = "A", current = true, provenance = "self", account = "" },
+    { name = "B", provenance = "self", account = "1" },
+    { name = "C", provenance = "own-account", account = "1" },
+    { name = "D", provenance = "own-account", account = "" },
+    { name = "E", provenance = "own-account", account = "3" },
+})
+H.eq(g2[1].title, "This account (Account 1)", "this account, with its label")
+H.eq(g2[2].title, "Your other accounts", "an own account labelled like this one: not shown as this one")
+H.eq(#g2[2].chars, 2, "...it shares the honest heading with the unlabelled one")
+H.eq(g2[3].title, "Account 3", "a distinct label names its group")
+
+-- A row limit: no empty headings, and the rest counted.
+local saved = Win.MAX_ROWS
+Win.MAX_ROWS = 2
+Win.Refresh()
+H.eq(Wd.count, 2, "two rows at a limit of two")
+H.check(Wd.hidden > 0 and Wd.more:GetText():find("more character", 1, true) ~= nil, "...the rest counted and said")
+local shownHeads = 0
+for _, head in ipairs(Wd.heads) do if head.shown ~= false then shownHeads = shownHeads + 1 end end
+H.eq(shownHeads, 1, "...and no heading without rows")
+Win.MAX_ROWS = saved
+Win.Refresh()
 
 -- The page follows the roster.
 chars[4].provenance = "own-account"
@@ -118,7 +156,16 @@ H.eq(Wd.status:GetText(), "AltStable unavailable", "AltStable without AS-003: un
 H.check(Wd.unavailable:GetText():find("Current-character comparisons still work", 1, true) ~= nil, "...current-character comparisons still work")
 H.check(Wd.unavailable:GetText():find("AS-003", 1, true) ~= nil, "...naming what is missing")
 H.eq(Wd.count, 1, "...only you")
-H.eq(Wd.openAltStable:IsEnabled(), false, "...Open AltStable disabled")
+H.eq(Wd.openAltStable:IsEnabled(), true, "...Open AltStable stays available (its sheet is where to fix it)")
+
+-- Usable but failing: never "connected".
+AS.PUBLIC_API_FEATURES = { provenance = true, gear = true }
+AS.GetCharacters = function() error("down") end
+GG.Integrations.RosterProvider._Reset()
+GG.Integrations.RosterProvider.Refresh()
+Win.Refresh()
+H.check(Wd.status:GetText():find("GetCharacters failed", 1, true) ~= nil, "GetCharacters failing: the status says so, not 'connected'")
+WoW.errors = {}
 
 H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
 H.done("test_characters")

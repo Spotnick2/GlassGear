@@ -462,7 +462,8 @@ local function build()
     end
     charsBtn:SetText("All characters...")
     place(right, charsBtn, 26, 8)
-    charsBtn:SetScript("OnClick", function() GG.CharactersWindow.Open() end)
+    -- Through the slash command: a refusal is said, never swallowed.
+    charsBtn:SetScript("OnClick", function() GG.Diagnostics.Slash("characters") end)
     Options.charactersButton = charsBtn
     for _, s in ipairs(specs()) do
         local keys = {}

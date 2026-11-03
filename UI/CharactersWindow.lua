@@ -49,17 +49,22 @@ function Win.Groups(chars)
         end
         return byKey[key]
     end
+    local selfLabel
+    for _, c in ipairs(chars) do
+        if (c.current or c.provenance == "self") and c.account and c.account ~= "" then selfLabel = c.account end
+    end
     for _, c in ipairs(chars) do
         if c.current or c.provenance == "self" then
-            local g = group("self", "This account")
+            local g = group("self", "This account" .. (selfLabel and (" (Account " .. selfLabel .. ")") or ""))
             g.chars[#g.chars + 1] = c
-            -- The label of any of its characters (the current one has none of its own).
-            if c.account and c.account ~= "" and g.title == "This account" then
-                g.title = "This account (Account " .. c.account .. ")"
-            end
         else
-            local k = (c.account and c.account ~= "") and ("acct:" .. c.account) or "other"
-            local g = group(k, (c.account and c.account ~= "") and ("Account " .. c.account) or "Your other account")
+            -- The label is the player's free text: it names a group, it never
+            -- proves one. Unlabelled, or labelled like this account, they share
+            -- one honest heading.
+            local label = c.account
+            local named = label and label ~= "" and label ~= selfLabel
+            local g = group(named and ("acct:" .. label) or "other",
+                named and ("Account " .. label) or "Your other accounts")
             g.chars[#g.chars + 1] = c
         end
     end
@@ -68,12 +73,12 @@ function Win.Groups(chars)
 end
 
 -- The status line of a character: its gear's freshness, and its weights.
-function Win.StatusOf(c, now)
+function Win.StatusOf(c, now, usable)
     local level, text
     if c.current then
         level, text = "ok", "Gear: what you wear now"
     else
-        local gear = GG.Integrations.RosterProvider.Gear(c.guid)
+        local gear = GG.Integrations.RosterProvider.Gear(c.guid, usable)
         local at = gear and gear.capturedAt
         if not at then
             level, text = "muted", "No gear recorded: play this character once"
@@ -140,6 +145,7 @@ local function build()
         end)
     end
     W.scroll = scroll
+    W.more = at(label(frame, "", "GameFontDisableSmall"), 14, -(Win.H - 106))
     W.child = CreateFrame("Frame", nil, scroll)
     W.child:SetSize(Win.W - 50, 100)
     scroll:SetScrollChild(W.child)
@@ -149,29 +155,51 @@ local function build()
     W.note:SetWidth(Win.W - 28)
     W.footer = at(label(frame, "Sync managed by AltStable", "GameFontHighlightSmall"), 14, -(Win.H - 58))
     W.openAltStable = at(button(frame, "Open AltStable", 140, function()
-        GG.Integrations.RosterProvider.OpenAltStable()
+        local ok, why = GG.Integrations.RosterProvider.OpenAltStable()
+        if not ok then W.footer:SetText(why); color(W.footer, "warn") end
     end), Win.W - 154, -(Win.H - 62))
-    GG.Callbacks.Register("RosterChanged", function() if frame:IsShown() then Win.Refresh() end end, "GlassGear.CharactersWindow")
-    GG.Callbacks.Register("ProfilesChanged", function() if frame:IsShown() then Win.Refresh() end end, "GlassGear.CharactersWindow")
+    -- Follow whatever changes what the page shows: the roster, weights,
+    -- tracked specs set elsewhere (settings, Defaults), an alt's gear.
+    local function follow() if frame:IsShown() then Win.Refresh() end end
+    for _, event in ipairs({ "RosterChanged", "ProfilesChanged", "EvaluationInvalidated", "EquipmentChanged" }) do
+        GG.Callbacks.Register(event, follow, "GlassGear.CharactersWindow")
+    end
 end
 
 function Win.Refresh()
     if not (frame and GG.player) then return end
-    local st = GG.Integrations.RosterProvider.Status()
+    local RP = GG.Integrations.RosterProvider
+    local st = RP.Status()
     local usable = st.present and st.usable
-    W.status:SetText(usable and "AltStable connected" or "AltStable unavailable")
-    color(W.status, usable and "ok" or "muted")
+    if usable and st.reason then
+        -- Usable, but a call failed (GetCharacters, the callbacks): never "connected".
+        W.status:SetText("AltStable: " .. tostring(st.reason))
+        color(W.status, "warn")
+    else
+        W.status:SetText(usable and "AltStable connected" or "AltStable unavailable")
+        color(W.status, usable and "ok" or "muted")
+    end
     W.unavailable:SetShown(not usable)
     W.unavailable:SetText(usable and "" or ("Current-character comparisons still work. Alt suggestions need AltStable"
         .. (st.present and (" (" .. tostring(st.reason) .. ")") or "") .. "."))
+    -- Between the header and the note, whatever the header's height.
+    W.scroll:ClearAllPoints()
     W.scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", 12, usable and -60 or -100)
-    UIW.Dim(W.openAltStable, not usable)
+    W.scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -32, 112)
+    -- AltStable present, even too old: its sheet is where to fix it.
+    UIW.Dim(W.openAltStable, not RP.CanOpenAltStable())
+    W.footer:SetText("Sync managed by AltStable")
+    color(W.footer, "info")
 
     local now = time()
     local chars = GG.Integrations.RosterProvider.Characters(GG.player)
     local y, n, h = 0, 0, 0
     for _, head in ipairs(W.heads) do head:Hide() end
+    local hidden = 0
     for _, g in ipairs(Win.Groups(chars)) do
+        if n >= Win.MAX_ROWS then
+            hidden = hidden + #g.chars                 -- no empty headings past the limit
+        else
         h = h + 1
         local head = W.heads[h]
         if not head then
@@ -183,7 +211,7 @@ function Win.Refresh()
         head:Show()
         y = y + 20
         for _, c in ipairs(g.chars) do
-            if n >= Win.MAX_ROWS then break end
+            if n >= Win.MAX_ROWS then hidden = hidden + 1 else
             n = n + 1
             local row = W.rows[n] or buildRow(n)
             row:SetPoint("TOPLEFT", W.child, "TOPLEFT", 0, -y)
@@ -194,7 +222,7 @@ function Win.Refresh()
             local className = GG.ProfileView.ClassLabel(c.class or "?")
             row.sub:SetText("Level " .. tostring(c.level or "?") .. " " .. className
                 .. (c.provenance == "own-account" and c.provenanceVia and (" \194\183 seen by " .. c.provenanceVia) or ""))
-            local text, level = Win.StatusOf(c, now)
+            local text, level = Win.StatusOf(c, now, usable)
             row.status:SetText(text)
             color(row.status, level)
             for j, cb in ipairs(row.checks) do
@@ -209,9 +237,13 @@ function Win.Refresh()
             end
             row:Show()
             y = y + Win.ROW_H
+            end
+        end
         end
     end
     for i = n + 1, #W.rows do W.rows[i]:Hide() end
+    W.more:SetText(hidden > 0 and (hidden .. " more character" .. (hidden == 1 and "" or "s") .. " not shown") or "")
+    W.hidden = hidden
     W.child:SetHeight(math.max(100, y))
     W.count = n
 end
