@@ -30,9 +30,19 @@ function Diagnostics.Lines()
             add("    gear: " .. GG.Capture.Status(s.key, time()))
         end
     end
-    local alt = GG.Integrations.RosterProvider.DetectAltStable()
-    add("AltStable: " .. (alt.present and ("present, " .. (alt.usable and "usable" or alt.reason)) or "absent")
-        .. " - alt upgrades unavailable")
+    -- The roster (GG-201): what AltStable gives, or exactly what is missing.
+    local alt = GG.Integrations.RosterProvider.Status()
+    if not alt.present then
+        add("AltStable: absent - only this character is known")
+    elseif not alt.usable then
+        add("AltStable: present, " .. tostring(alt.reason) .. " - only this character is known")
+    else
+        add(string.format("AltStable: %d of your other characters (%d on this account, %d on your other accounts)%s",
+            alt.own, alt.self, alt.ownAccount,
+            alt.thirdParty > 0 and (", " .. alt.thirdParty .. " not yours (never used)") or "")
+            .. (alt.reason and (" - " .. alt.reason) or ""))
+    end
+    add("alt upgrades: GG-203 (needs the entry-sync library and the transfer-rule probe)")
     add("profile sync: unavailable (entry-sync library ES-001, GG-202)")
     add("theme: " .. tostring(GG.themeName) .. (GG.themeInfo and GG.themeInfo.reason and (" (" .. GG.themeInfo.reason .. ")") or ""))
     add("tooltip rows: " .. (GG.tooltipHooked and "on" or ("unavailable (" .. tostring(GG.tooltipReason) .. ")")))
