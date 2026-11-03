@@ -20,6 +20,7 @@ WoW.items[50] = shoulder("Frostweave Shoulders", { [INT] = 8, [STA] = 12, [SP] =
 WoW.items[51] = shoulder("Moonwoven Mantle", { [INT] = 12, [STA] = 8, [SP] = 18 })
 WoW.items[52] = shoulder("Set Mantle", { [INT] = 9 }, { setID = 999999 })
 WoW.items[53] = shoulder("Saved Mantle", { [INT] = 30 })
+WoW.items[55] = shoulder("Plate Pauldrons", { [INT] = 40 }, { subclassID = 4 })   -- priests can't wear plate
 WoW.items[10] = { name = "Staff", equipLoc = "INVTYPE_2HWEAPON", classID = 2, subclassID = 10, stats = { [INT] = 20 } }
 WoW.items[11] = { name = "Mace", equipLoc = "INVTYPE_WEAPONMAINHAND", classID = 2, subclassID = 4, stats = { [INT] = 15 } }
 WoW.items[12] = { name = "Orb", equipLoc = "INVTYPE_HOLDABLE", classID = 4, subclassID = 0, stats = { [INT] = 10 } }
@@ -156,6 +157,34 @@ local cv = CV.Build({ status = "upgrade", score = { candidate = 25, baseline = 2
       companion = { name = "Orb", tokens = { Intellect = 10 } }, replaced = { { name = "Staff", tokens = { Intellect = 20 } } } })
 H.eq(cv.candidate, "Mace + Orb", "a companion is named with the candidate")
 H.eq(cv.rows[1].candidate, "25", "...and its stats count on the candidate side")
+
+-- No configuration compared (no weights, ineligible...): never an empty
+-- slot, never deltas against zeros; the candidate's own stats only.
+local nv = CV.Build({ status = "unknown", reasons = { "NO_WEIGHTS" }, limitations = {} },
+    { specName = "Discipline", candidate = { name = "Moonwoven Mantle", tokens = facts.tokens }, replaced = nil })
+H.eq(nv.compared, false, "a result without a configuration: not compared")
+H.eq(nv.equipped, "not compared", "...the equipped side says so (not an empty slot)")
+local nb = {}
+for _, row in ipairs(nv.rows) do nb[row.label] = row end
+H.eq(nb["Intellect (not weighted)"] and nb["Intellect (not weighted)"].candidate, "12", "...the candidate's stats shown")
+H.eq(nb["Intellect (not weighted)"].equipped, "", "...no equipped value")
+H.eq(nb["Intellect (not weighted)"].change, "", "...no change against zero")
+H.eq(nv.score, nil, "...and no item score")
+SlashCmdList.GLASSGEAR("compare " .. WoW.link(51))
+Wd.specs[1]:Click()
+H.eq(Win._state.spec, "PRIEST.DISCIPLINE", "the Discipline tab (no weights)")
+H.check(Wd.status:GetText():find("Discipline", 1, true) ~= nil, "...its verdict: " .. Wd.status:GetText())
+H.eq(Wd.equipped:GetText(), "not compared", "...the worn shoulders aren't shown as an empty slot")
+for _, row in ipairs(Wd.rows) do
+    H.eq(row[2]:GetText(), "", "...no equipped stat (" .. tostring(row[1]:GetText()) .. ")")
+    H.eq(row[4]:GetText(), "", "...no change")
+end
+SlashCmdList.GLASSGEAR("compare " .. WoW.link(55))
+Wd.specs[3]:Click()
+H.eq(Win._state.spec, "PRIEST.SHADOW", "a plate item on Shadow")
+H.eq(GG.API.Evaluate({ item = WoW.link(55), scope = "current" }).results[1].status, "ineligible", "(ineligible for Shadow: plate)")
+H.eq(Wd.equipped:GetText(), "not compared", "an ineligible item: not compared, not an empty slot")
+H.eq(Wd.score[2]:GetText(), "", "...no item score against zero")
 
 -- The hovered item.
 local tip = WoW.newTooltip("GameTooltip")

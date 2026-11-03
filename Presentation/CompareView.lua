@@ -5,8 +5,13 @@
 --
 --   CompareView.Build(result, data) -> view
 --     data = { specKey, specName, current, candidate = { name, tokens },
---              companion = { name, tokens } | nil, replaced = { { name, tokens }, ... },
+--              companion = { name, tokens } | nil,
+--              replaced = { { name, tokens }, ... } | nil,
 --              profile = profile shape | nil, setWarnings = bool }
+--     `replaced`: what the result's configuration replaces ({} = an empty
+--     slot). nil = no configuration was compared (no weights, ineligible,
+--     a slot not known...): nothing is shown as equipped and the stats are
+--     the candidate's alone, never deltas against zeros (view.compared)
 --     an item whose data is still loading has tokens = nil: the view says
 --     "loading", never zeros (view.loading)
 --     view = { equipped, candidate, rows = { { label, equipped, candidate, change, level } },
@@ -63,8 +68,11 @@ end
 
 -- The stat table: the weighted stats first, then the others (muted, "not
 -- weighted"), in the token order. Rows past MAX_ROWS are counted, never
--- silently dropped (view.moreRows).
+-- silently dropped (view.moreRows). `repl` nil: the candidate's stats
+-- alone (no equipped column, no change).
 local function statRows(cand, repl, profile)
+    local compared = repl ~= nil
+    repl = repl or {}
     local weighted, others = {}, {}
     for _, token in ipairs(GG.Data.Stats.ORDER) do
         local a, b = repl[token], cand[token]
@@ -92,12 +100,12 @@ local function statRows(cand, repl, profile)
                 label = label .. " (ignored)"
             elseif type(w) == "number" and w ~= 0 then
                 local effect = delta * w
-                level = effect > 0 and "ok" or effect < 0 and "error" or "muted"
+                if compared then level = effect > 0 and "ok" or effect < 0 and "error" or "muted" end
             else
                 label = label .. " (not weighted)"
             end
-            rows[#rows + 1] = { label = label, equipped = num(a or 0), candidate = num(b or 0),
-                change = signed(delta), level = level }
+            rows[#rows + 1] = { label = label, equipped = compared and num(a or 0) or "",
+                candidate = num(b or 0), change = compared and signed(delta) or "", level = level }
         end
     end
     return rows, more
@@ -115,7 +123,12 @@ function View.Build(result, data)
     local candItems = { data.candidate }
     if data.companion then candItems[#candItems + 1] = data.companion end
     view.candidate = names(candItems)
-    view.equipped = #(data.replaced or {}) > 0 and names(data.replaced) or "nothing (an empty slot)"
+    view.compared = data.replaced ~= nil
+    if not view.compared then
+        view.equipped = "not compared"
+    else
+        view.equipped = #data.replaced > 0 and names(data.replaced) or "nothing (an empty slot)"
+    end
 
     if result.status == "pending" then
         view.status = { text = "Checking...", level = "muted" }
@@ -125,7 +138,8 @@ function View.Build(result, data)
     for _, it in ipairs(candItems) do if it.tokens == nil then view.loading = true end end
     for _, it in ipairs(data.replaced or {}) do if it.tokens == nil then view.loading = true end end
     if not view.loading then
-        view.rows, view.moreRows = statRows(sum(candItems, {}), sum(data.replaced or {}, {}), data.profile)
+        view.rows, view.moreRows = statRows(sum(candItems, {}),
+            view.compared and sum(data.replaced, {}) or nil, data.profile)
     end
 
     local s = result.score
