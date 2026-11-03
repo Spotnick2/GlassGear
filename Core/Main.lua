@@ -16,6 +16,7 @@ end
 
 function GG.ResolveSpec()
     local group = GG.Compat.ActiveSpecGroup()
+    GG.specGroup = group
     GG.currentSpec, GG.specReason = GG.Spec.Resolve(GG.player.class, GG.charDB.specMap, group, nil)
 end
 
@@ -55,12 +56,14 @@ function handlers.PLAYER_LOGIN()
     GG.lootMarkersOn, GG.lootMarkersInfo = GG.LootMarkers.Initialize()
     GG.optionsOn, GG.optionsInfo = GG.Options.Register()
     GG.API._SetReady()
+    GG.Capture.Request()          -- this spec's gear (GG-108)
 end
 
 function handlers.ACTIVE_TALENT_GROUP_CHANGED()
     if GG.player then
         GG.ResolveSpec()
         GG.API._Invalidate("spec", { GG.player.key })
+        GG.Capture.Request()      -- after the gear swap that may follow
     end
 end
 
@@ -79,7 +82,13 @@ function handlers.PLAYER_EQUIPMENT_CHANGED()
     if GG.player then
         GG.Callbacks.Fire("EquipmentChanged", { charKeys = { GG.player.key } })
         GG.API._Invalidate("equipment", { GG.player.key })
+        GG.Capture.Request()
     end
+end
+
+-- A saved set changed: specs that use it compare against its new content.
+function handlers.EQUIPMENT_SETS_CHANGED()
+    if GG.player then GG.API._Invalidate("baselines", { GG.player.key }) end
 end
 
 -- Started by the API when an item begins waiting for its data.

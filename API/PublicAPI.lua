@@ -133,7 +133,8 @@ local function evaluateOne(request, requestId, fixedSpecs)
     end
     local waitIDs = {}
     if not facts.ready then waitIDs[#waitIDs + 1] = facts.itemID end
-    local equipped, missing = GG.Compat.EquippedBaseline(time())
+    local now = time()
+    local equipped, missing = GG.Compat.EquippedBaseline(now)
     for _, id in ipairs(missing) do waitIDs[#waitIDs + 1] = id end
     if #missing > 0 then
         -- Baseline items still loading: pending, not an "unknown slot" verdict.
@@ -141,16 +142,26 @@ local function evaluateOne(request, requestId, fixedSpecs)
         response.status = "pending"
         return response, waitIDs, specs
     end
-    local baseline = GG.Baselines.Choose({ current = equipped })
+    -- What is worn now pairs with a candidate that needs a companion (a 1H
+    -- against a spec's 2H): the off-hand or main hand from the current gear.
+    local companion = { [16] = equipped.slots[16], [17] = equipped.slots[17] }
     for _, spec in ipairs(specs) do
-        local r = GG.Engine.Evaluate.One({
-            item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
-            profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
-            baseline = baseline, settings = settingsFor(), instance = instance,
-            transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
-        })
-        if spec == "UNKNOWN" then r.status = "unknown"; r.reasons = { "UNKNOWN_SPEC" } end
-        response.results[#response.results + 1] = r
+        -- Each spec's own gear (GG-108): a set, what it wore, or the current gear.
+        local baseline, specMissing = GG.Capture.BaselineFor(spec, equipped, now)
+        if not baseline then
+            for _, id in ipairs(specMissing) do waitIDs[#waitIDs + 1] = id end
+            local row = rowsFor({ spec }, "pending", "BASELINE_ITEM_DATA_PENDING")[1]
+            response.results[#response.results + 1] = row
+        else
+            local r = GG.Engine.Evaluate.One({
+                item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
+                profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
+                baseline = baseline, settings = settingsFor(), instance = instance, companion = companion,
+                transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
+            })
+            if spec == "UNKNOWN" then r.status = "unknown"; r.reasons = { "UNKNOWN_SPEC" } end
+            response.results[#response.results + 1] = r
+        end
     end
     response.status = GG.Engine.Evaluate.Aggregate(response.results)
     return response, waitIDs, specs

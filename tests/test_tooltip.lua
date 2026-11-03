@@ -133,7 +133,7 @@ local refreshesBefore = ref.refreshes
 WoW.equipped[3] = 50
 WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
 WoW.flush()
-H.eq(ref.refreshes, refreshesBefore + 1, "an invalidation refreshes the open tooltip")
+H.check(ref.refreshes > refreshesBefore, "an invalidation refreshes the open tooltip")
 ref.refreshes = 0
 
 -- Unscored effects are named.

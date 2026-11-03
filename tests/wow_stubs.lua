@@ -37,7 +37,8 @@ function WoW.reset()
     WoW.items = {}        -- [itemID] = { name, equipLoc, classID, subclassID, minLevel, bindType, setID, stats, spell, unique = {cat,max} }
     WoW.cacheMiss = {}    -- [itemID] = true -> GetItemInfo / GetItemStats return nothing
     WoW.equipped = {}     -- [slot] = itemID
-    WoW.bags = {}         -- [bag] = { [slot] = { itemID, isBound, guid } }
+    WoW.bags = {}         -- [bag] = { [slot] = { itemID, isBound, guid, enchant } }
+    WoW.sets = {}         -- [setID] = { name, items = { [slot] = itemID | 0 | -1 }, ignored = { [slot] = true }, specGroup }
     WoW.settingsCategories = {}
     WoW.postCalls = {}    -- [tooltip data type] = { fn, ... } (TooltipDataProcessor)
     WoW.keys = {}         -- { CTRL = true, ALT = true } held modifiers
@@ -308,6 +309,42 @@ C_Texture = {                                                                   
 }
 
 C_Container = {}
+function C_Container.GetContainerNumSlots(bag)                                                         -- 1177
+    local n = 0
+    for slot in pairs(WoW.bags[bag] or {}) do if slot > n then n = slot end end
+    return n
+end
+
+-- Equipment sets (dump 1560-1579; EquipmentManagerDocumentation.lua).
+C_EquipmentSet = {
+    GetEquipmentSetIDs = function()                                                                     -- 1569
+        local ids = {}
+        for id in pairs(WoW.sets) do ids[#ids + 1] = id end
+        table.sort(ids)
+        return ids
+    end,
+    GetEquipmentSetInfo = function(id)                                                                  -- 1570
+        local set = WoW.sets[id]
+        if set then return set.name, 0, id, false, 0, 0, 0, 0, 0 end
+    end,
+    GetItemIDs = function(id)                                                                           -- 1572
+        local set = WoW.sets[id]
+        if not set then return nil end
+        local out = {}
+        for k, v in pairs(set.items or {}) do out[k] = v end
+        return out
+    end,
+    GetIgnoredSlots = function(id)                                                                      -- 1571
+        local set = WoW.sets[id]
+        local out = {}
+        for k, v in pairs(set and set.ignored or {}) do out[k] = v end
+        return out
+    end,
+    GetEquipmentSetForSpec = function(group)                                                            -- 1567
+        for id, set in pairs(WoW.sets) do if set.specGroup == group then return id end end
+        return nil
+    end,
+}
 function C_Container.GetContainerItemID(bag, slot)                                                     -- 1169
     local b = WoW.bags[bag]
     return b and b[slot] and b[slot].itemID or nil
@@ -316,7 +353,7 @@ function C_Container.GetContainerItemInfo(bag, slot)                            
     local b = WoW.bags[bag]
     local s = b and b[slot]
     if not s then return nil end
-    return { hyperlink = WoW.link(s.itemID), isBound = s.isBound == true, itemID = s.itemID, stackCount = 1 }
+    return { hyperlink = WoW.link(s.itemID, s.enchant), isBound = s.isBound == true, itemID = s.itemID, stackCount = 1 }
 end
 
 -- Blizzard Lua (Blizzard_ObjectAPI/Mainline/ItemLocation.lua): fields bagID,

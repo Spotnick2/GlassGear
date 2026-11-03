@@ -200,23 +200,109 @@ end
 
 -- The current equipment as a baseline-shaped table (adr/0003 source 3), plus
 -- the itemIDs whose data isn't loaded yet (their slots are "unknown").
+-- One slot from a full item link (the measured path: suffix kept, link-level
+-- fields present). Appends to `missing` when the item's data isn't loaded.
+local function slotFromLink(link, missing)
+    local f = Compat.ItemFacts(link)
+    if f and f.ready then
+        return { state = "occupied", itemID = f.itemID, equipLoc = f.equipLoc,
+            classID = f.classID, subclassID = f.subclassID,
+            itemString = f.itemString, item = Compat.GearItemString(link), tokens = f.tokens,
+            unique = f.unique, setID = f.setID, hasSpell = f.hasSpell, unsupported = f.unsupported,
+            reqLevel = f.reqLevel }
+    end
+    if f then missing[#missing + 1] = f.itemID end
+    return { state = "unknown" }
+end
+
 function Compat.EquippedBaseline(now)
     local slots, missing = {}, {}
     for _, slot in ipairs(GG.Data.Slots.GEAR) do
         local link = GetInventoryItemLink("player", slot)
-        if not link then
+        slots[slot] = link and slotFromLink(link, missing) or { state = "empty" }
+    end
+    return { slots = slots, capturedAt = now }, missing
+end
+
+------------------------------------------------------------
+-- Equipment sets (GG-108, adr/0003 source 1). C_EquipmentSet is in the 70532
+-- dump and Forever's character sheet uses it (Camelot PaperDollFrame.lua:1550);
+-- what GetItemIDs returns for an empty or ignored slot is probe P14.
+------------------------------------------------------------
+Compat.BAGS = { 0, 1, 2, 3, 4 }
+
+local function setAPI()
+    local E = rawget(_G, "C_EquipmentSet")
+    if type(E) ~= "table" or type(E.GetEquipmentSetIDs) ~= "function" then return nil end
+    return E
+end
+
+-- { { id, name }, ... } in the client's order, or nil without the API.
+function Compat.EquipmentSets()
+    local E = setAPI()
+    if not E then return nil end
+    local ok, ids = pcall(E.GetEquipmentSetIDs)
+    if not ok or type(ids) ~= "table" then return nil end
+    local out = {}
+    for _, id in ipairs(ids) do
+        local okI, name = pcall(E.GetEquipmentSetInfo, id)
+        if okI and name then out[#out + 1] = { id = id, name = name } end
+    end
+    return out
+end
+
+-- The set the client itself assigned to a spec group, if any.
+function Compat.EquipmentSetForGroup(group)
+    local E = setAPI()
+    if not (E and group and type(E.GetEquipmentSetForSpec) == "function") then return nil end
+    local ok, id = pcall(E.GetEquipmentSetForSpec, group)
+    if ok and type(id) == "number" and id >= 0 then return id end
+end
+
+-- The links of every instance of itemID worn or in the bags, distinct.
+local function instancesOf(itemID)
+    local links, seen = {}, {}
+    local function add(link)
+        if link and not seen[link] then seen[link] = true; links[#links + 1] = link end
+    end
+    for _, slot in ipairs(GG.Data.Slots.GEAR) do
+        local link = GetInventoryItemLink("player", slot)
+        if link and C_Item.GetItemInfoInstant(link) == itemID then add(link) end
+    end
+    for _, bag in ipairs(Compat.BAGS) do
+        for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+            if C_Container.GetContainerItemID(bag, slot) == itemID then
+                local info = C_Container.GetContainerItemInfo(bag, slot)
+                add(info and info.hyperlink)
+            end
+        end
+    end
+    return links
+end
+
+-- A set as a baseline-shaped table, plus missing itemIDs; nil, reason when
+-- the set can't be read. A set slot names an item ID only: the instance (with
+-- its suffix) is the one worn or in the bags. Two different instances, or none
+-- (bank, sold), make the slot unknown: never a guess. An ignored slot keeps
+-- what is worn, as equipping the set would.
+function Compat.EquipmentSetBaseline(setID, now)
+    local E = setAPI()
+    if not E then return nil, "no-api" end
+    local okI, ids = pcall(E.GetItemIDs, setID)
+    if not okI or type(ids) ~= "table" then return nil, "unknown-set" end
+    local okG, ignored = pcall(E.GetIgnoredSlots, setID)
+    if not okG or type(ignored) ~= "table" then ignored = {} end
+    local slots, missing = {}, {}
+    for _, slot in ipairs(GG.Data.Slots.GEAR) do
+        local id = ids[slot]
+        if ignored[slot] or id == -1 then
+            local link = GetInventoryItemLink("player", slot)
+            slots[slot] = link and slotFromLink(link, missing) or { state = "empty" }
+        elseif not id or id == 0 then
             slots[slot] = { state = "empty" }
         else
-            local f = Compat.ItemFacts(link)
-            if f and f.ready then
-                slots[slot] = { state = "occupied", itemID = f.itemID, equipLoc = f.equipLoc,
-                    classID = f.classID, subclassID = f.subclassID,
-                    itemString = f.itemString, item = Compat.GearItemString(link), tokens = f.tokens,
-                    unique = f.unique, setID = f.setID, hasSpell = f.hasSpell, unsupported = f.unsupported }
-            else
-                slots[slot] = { state = "unknown" }
-                if f then missing[#missing + 1] = f.itemID end
-            end
+            local links = instancesOf(id)
+            slots[slot] = #links == 1 and slotFromLink(links[1], missing) or { state = "unknown" }
         end
     end
     return { slots = slots, capturedAt = now }, missing

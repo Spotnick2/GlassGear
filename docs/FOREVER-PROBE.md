@@ -33,6 +33,7 @@ needs to find out, and records the result here with the build once it is run.
 | P11 | Required level and level window inputs | GG-117 | part of `gg armor` | narrowed |
 | P12 | Bag and loot marker hooks and look | GG-109, GG-110, GG-111 | `gg marks` | narrowed |
 | P13 | Settings page | GG-112 | `gg options` | narrowed |
+| P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -330,3 +331,20 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   unmeasured.
 - **Steps.** Open from the AddOns list (first visit), screenshot; change each section once and
   screenshot the bags and a tooltip; Defaults; `/gg options`.
+
+## P14: Equipment sets and per-spec capture (GG-108)
+
+- **Question.**
+  - `C_EquipmentSet.GetItemIDs(setID)`: what does it return for an empty slot (0? nil?) and for an
+    ignored one (-1?), and does `GetIgnoredSlots` agree? Glass Gear reads 0/nil as empty and
+    -1/ignored as "keep what is worn".
+  - Does `GetEquipmentSetForSpec(group)` return the set assigned to a spec group on Forever (the
+    equipment manager's spec checkbox), and nil otherwise?
+  - Does `EQUIPMENT_SETS_CHANGED` fire on saving, renaming and deleting a set?
+  - After a dual-spec switch that swaps gear, are the swap's `PLAYER_EQUIPMENT_CHANGED` events done
+    within 2 s of `ACTIVE_TALENT_GROUP_CHANGED` (Capture.DELAY), so the new spec records its own gear?
+  - Do `GetItemInfo` / `GetItemStats` read the stored trimmed string like the full link (also P4)?
+- **Why.** Stored baselines and set baselines are modelled, not measured.
+- **Steps.** Make two sets, one per spec, one with an ignored slot and one with an empty slot; log
+  `GetItemIDs`, `GetIgnoredSlots`, `GetEquipmentSetForSpec(1|2)`; switch spec with a set assigned and
+  log event times; `/gg` (each spec's "gear:" line).

@@ -39,6 +39,7 @@ see [docs/BACKLOG.md](docs/BACKLOG.md).
 | `/gg spec <1\|2> <SPEC.KEY>` | Map a spec group to a spec, e.g. `/gg spec 1 PRIEST.SHADOW` |
 | `/gg import <SPEC.KEY> ( Pawn: v1: ... )` | Import a Pawn scale string for a spec |
 | `/gg options` | Open the settings page (Esc > Options > AddOns > Glass Gear) |
+| `/gg set <SPEC.KEY> <set name\|none>` | Compare a spec with a saved equipment set instead of the gear it last wore |
 
 ## Requirements
 

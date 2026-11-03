@@ -75,7 +75,10 @@ end
       profile     = { id, source = "imported-pawn", version, updatedAt } | nil,
       candidate   = { itemString, instance = { bag, slot, guid, bound } | nil },
       baseline    = { source = "equipment-set" | "observed" | "fallback-current",
-                      capturedAt, complete = true, stale = false, maybeBehind = false },
+                      capturedAt, complete = true, stale = false, maybeBehind = false,
+                      expiresAt },   -- per spec (GG-108): the spec's own gear
+                      -- A spec whose recorded gear is still loading is its own
+                      -- pending row (BASELINE_ITEM_DATA_PENDING); the others aren't held up.
       replaces    = { slots = { 3 }, items = { "itemString" } },
       score       = { candidate = 108.6, baseline = 100.0, delta = 8.6, pct = 0.086 },
       method      = "weights-linear",

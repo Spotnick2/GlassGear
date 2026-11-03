@@ -28,6 +28,7 @@ Profiles\Profiles.lua
 Item\ItemContext.lua
 Character\Spec.lua
 Character\Baselines.lua
+Character\Capture.lua
 Core\Callbacks.lua
 Core\DB.lua
 Core\Compat.lua

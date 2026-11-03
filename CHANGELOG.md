@@ -38,3 +38,8 @@
   (minimum upgrade, level window and look-ahead, spec armor); disenchant protection (tracked specs,
   specs without weights); appearance (Glass UI's decision) with a live preview; Defaults. Every
   change applies at once.
+- Per-spec gear (GG-108): each spec compares with its own gear. Glass Gear records what you wear
+  in each spec (on login, after a gear change, after a spec switch); `/gg set <spec> <set>` uses a
+  saved equipment set instead, and a set the client assigned to that spec is used on its own. A
+  spec with nothing recorded still compares with your current gear, labelled. Gear recorded more
+  than 14 days ago is flagged in the tooltip and `/gg`.
