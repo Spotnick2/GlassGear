@@ -374,12 +374,15 @@ WoW.time = WoW.time + 1
 local hm = api.Evaluate({ item = WoW.link(77), scope = "own" })
 api.LIMITS.perFrame = 0
 WoW.fire("ITEM_DATA_LOAD_RESULT", 77, true)
+WoW.flush(1)
+H.eq(idsReady[77], nil, "name known, stats not: no ItemDataReady")
 api.LIMITS.perFrame = savedBudget
 for _ = 1, 25 do WoW.time = WoW.time + 1; WoW.flush(1) end
 local hmDone
 for _, p in ipairs(ready) do if p.requestId == hm.requestId then hmDone = p.response end end
 H.eq(hmDone and hmDone.results[1].reasons[1], "ITEM_DATA_UNAVAILABLE",
     "an item whose stats never load still ends (its retries resumed)")
+H.eq(idsReady[77], nil, "...and was never announced as ready")
 WoW.statsMiss[77] = nil
 
 ------------------------------------------------------------
