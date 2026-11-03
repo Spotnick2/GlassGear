@@ -42,7 +42,25 @@ H.eq(unscored[1], "Speed", "weighted but never scored tokens are listed for weap
 H.eq(#Stats.UnscoredTokens({ weights = { Speed = 1 } }, { classID = 4 }), 0, "weapon-only token is irrelevant to armor")
 H.eq(Stats.UnscoredTokens({ weights = {}, ignored = { Speed = true } }, { classID = 2 })[1], "Speed",
     "an X on an unsupported token is also unscored (unresolvable)")
+H.eq(#Stats.UnscoredTokens({ weights = { ShadowSpellDamage = 1 } }, { classID = 4 }), 0,
+    "measured school damage (Shadow) is read from its own key: not listed as unscored")
 H.eq(Stats.UnscoredTokens({ weights = { FireSpellDamage = 1 } }, { classID = 4 })[1], "FireSpellDamage",
-    "school damage can be on any item: always listed")
+    "an unsampled school (Fire) keeps its not-scored warning (Codex, PR #45)")
+local _, fireUns = Stats.FromItemStats({ ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = 6 })
+H.eq(fireUns[1], "ITEM_MOD_FIRE_DAMAGE_DONE_SHORT", "...and a guessed Fire key on an item stays unrecognised")
+
+-- Forever's keys as measured on 70425 (docs/FOREVER-PROBE.md P4).
+local t, uns = Stats.FromItemStats({ ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 29, ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT = 6,
+    ITEM_MOD_SPIRIT_SHORT = 3 })
+H.eq(t.ShadowSpellDamage, 6, "Shadow damage key -> ShadowSpellDamage")
+H.eq(#uns, 0, "...nothing left unrecognised")
+t, uns = Stats.FromItemStats({ ITEM_MOD_FIRE_RESISTANCE_SHORT = 3, RESISTANCE2_NAME = 3 })
+H.eq(t.FireResist, 3, "resistance reported under both names counts once")
+H.eq(#uns, 0, "...and neither name is unrecognised")
+t = Stats.FromItemStats({ ITEM_MOD_FROST_RESISTANCE_SHORT = 4 })
+H.eq(t.FrostResist, 4, "the ITEM_MOD_ form alone still counts")
+t = Stats.FromItemStats({ ITEM_MOD_SPELL_POWER_SHORT = 2 })
+H.eq(t.SpellDamage, 2, "spell power -> SpellDamage")
+H.eq(t.Healing, 2, "...and Healing")
 
 H.done("test_score")

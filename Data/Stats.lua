@@ -4,9 +4,11 @@
 --
 -- Tokens are Pawn's scale-string names, so a Pawn string imports unchanged.
 -- Item stats come from C_Item.GetItemStats, whose keys are locale-independent
--- global-string names (ITEM_MOD_*, RESISTANCE*_NAME). Keys marked "expected"
--- are measured by probe GG-103. An unmapped key is reported as
--- UNSUPPORTED_STAT, never scored as zero (adr/0003).
+-- global-string names (ITEM_MOD_*, RESISTANCE*_NAME). Measured on 70425
+-- (Wanderful's probe log, docs/FOREVER-PROBE.md P4): spell power, school
+-- damage, resistance, spirit, DPS. Keys marked "expected" are not sampled yet
+-- (GG-103). An unmapped key is reported as UNSUPPORTED_STAT, never scored as
+-- zero (adr/0003).
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -57,8 +59,16 @@ Stats.ITEM_MOD = {
     ITEM_MOD_FERAL_ATTACK_POWER_SHORT = { "FeralAp" },
     ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = { "SpellDamage" },   -- expected, GG-103
     ITEM_MOD_SPELL_HEALING_DONE_SHORT = { "Healing" },      -- expected, GG-103
-    -- If Forever reports "damage and healing" as one spell-power key, it feeds both.
+    -- "Increases damage and healing done by magical spells": one spell-power key,
+    -- feeding both (measured 70425: items 11287, 11288).
     ITEM_MOD_SPELL_POWER_SHORT = { "SpellDamage", "Healing" },
+    -- School damage has its own key (measured 70425: Shadow on 7001, Arcane on
+    -- 12984). Fire, Frost, Nature and Holy are NOT mapped until a probe sees
+    -- their keys (GG-103): until then their tokens stay reported-unsupported
+    -- (TOKEN_NOT_SCORED when weighted) and their item keys stay
+    -- UNSUPPORTED_STAT, so protection never clears on a guessed key.
+    ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT = { "ShadowSpellDamage" },
+    ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT = { "ArcaneSpellDamage" },
     ITEM_MOD_DEFENSE_SKILL_RATING_SHORT = { "DefenseRating" },
     ITEM_MOD_DODGE_RATING_SHORT = { "DodgeRating" },
     ITEM_MOD_PARRY_RATING_SHORT = { "ParryRating" },
@@ -73,6 +83,17 @@ Stats.ITEM_MOD = {
     RESISTANCE5_NAME = { "ShadowResist" },
     RESISTANCE6_NAME = { "ArcaneResist" },
     ITEM_MOD_DAMAGE_PER_SECOND_SHORT = { "Dps" },
+}
+
+-- Resistance comes back twice, under both names (measured 70425, item
+-- 279896: ITEM_MOD_FIRE_RESISTANCE_SHORT=3 and RESISTANCE2_NAME=3). The
+-- ITEM_MOD_ form counts only when its RESISTANCEn_NAME twin is absent.
+Stats.SAME_AS = {
+    ITEM_MOD_FIRE_RESISTANCE_SHORT = "RESISTANCE2_NAME",
+    ITEM_MOD_NATURE_RESISTANCE_SHORT = "RESISTANCE3_NAME",
+    ITEM_MOD_FROST_RESISTANCE_SHORT = "RESISTANCE4_NAME",
+    ITEM_MOD_SHADOW_RESISTANCE_SHORT = "RESISTANCE5_NAME",
+    ITEM_MOD_ARCANE_RESISTANCE_SHORT = "RESISTANCE6_NAME",
 }
 
 -- Armor subclass (Enum.ItemArmorSubclass) -> type token; 7-11 are the class relics.
@@ -102,6 +123,8 @@ function Stats.FromItemStats(raw, facts)
     local out, unsupported = {}, {}
     for key, value in pairs(raw or {}) do
         local tokens = Stats.ITEM_MOD[key]
+        local twin = Stats.SAME_AS[key]
+        if twin then tokens = raw[twin] == nil and Stats.ITEM_MOD[twin] or {} end
         if tokens then
             for _, t in ipairs(tokens) do out[t] = (out[t] or 0) + value end
         elseif type(value) == "number" and value ~= 0 then

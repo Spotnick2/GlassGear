@@ -129,8 +129,15 @@ function Compat.InCombat()
     return InCombatLockdown() == true
 end
 
+-- C_Texture.GetAtlasExists first: the porting guide's measured guard
+-- (GlassUnitFrames, 70009); GetAtlasInfo when it's missing.
 function Compat.AtlasKnown(name)
-    if not name or not (C_Texture and C_Texture.GetAtlasInfo) then return false end
+    if not name or type(C_Texture) ~= "table" then return false end
+    if type(C_Texture.GetAtlasExists) == "function" then
+        local ok, exists = pcall(C_Texture.GetAtlasExists, name)
+        return ok and exists == true
+    end
+    if type(C_Texture.GetAtlasInfo) ~= "function" then return false end
     local ok, info = pcall(C_Texture.GetAtlasInfo, name)
     return ok and type(info) == "table"
 end

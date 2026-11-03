@@ -1,7 +1,9 @@
 # Forever probes: queued in-game checks
 
-The game is offline until **2026-11-04**. Nothing on this page has been measured yet. Each check
-says what it needs to find out, and records the result here with the build once it is run.
+The game is offline until **2026-11-04**. Glass Gear itself has measured nothing yet, but other
+addons' probes already answer part of these checks on earlier builds:
+[see the sweep](#already-measured-by-other-addons-sweep-of-2026-11-02). Each check says what it
+needs to find out, and records the result here with the build once it is run.
 
 - **How:** one ForeverProbe module, `Tools/GlassGearProbe` (`/fp gg`), with one `Probe:Steps`
   procedure per check. This follows `References/Docs/PROBES.md` and
@@ -18,19 +20,61 @@ says what it needs to find out, and records the result here with the build once 
 
 | # | Check | Backlog | Procedure | Status |
 |---|---|---|---|---|
-| P1 | Load and `/gg diag` | GG-001, GG-004 | `/fp steps gg load` | queued |
-| P2 | Spec group and talent-tree points | GG-101 | `gg spec` | queued |
-| P3 | Loot window and group roll frames | GG-102 | `gg loot` | queued |
-| P4 | `GetItemStats` on suffix/enchanted links; item-data timing | GG-103 | `gg stats` | queued |
-| P5 | Transfer rules | GG-116 | `gg transfer` | queued |
-| P6 | Tooltip post-call on bag, loot and link tooltips | GG-107, GG-111 | `gg tips` | queued |
-| P7 | Modifier state and keyboard focus | GG-110 | `gg reveal` | queued |
-| P8 | `C_Item.IsBound` / `GetItemGUID` on bag `ItemLocation`s | GG-109, GG-301, SH-002 | `gg bind` | queued |
-| P9 | Armor proficiency known at runtime | GG-118 | `gg armor` | queued |
+| P1 | Load and `/gg diag` | GG-001, GG-004 | `/fp steps gg load` | narrowed |
+| P2 | Spec group and talent-tree points | GG-101 | `gg spec` | narrowed |
+| P3 | Loot window and group roll frames | GG-102 | `gg loot` | narrowed |
+| P4 | `GetItemStats` on suffix/enchanted links; item-data timing | GG-103 | `gg stats` | narrowed |
+| P5 | Transfer rules | GG-116 | `gg transfer` | narrowed |
+| P6 | Tooltip post-call on bag, loot and link tooltips | GG-107, GG-111 | `gg tips` | narrowed |
+| P7 | Modifier state and keyboard focus | GG-110 | `gg reveal` | narrowed |
+| P8 | `C_Item.IsBound` / `GetItemGUID` on bag `ItemLocation`s | GG-109, GG-301, SH-002 | `gg bind` | narrowed |
+| P9 | Armor proficiency known at runtime | GG-118 | `gg armor` | narrowed |
 | P10 | `setID` from `C_Item.GetItemInfo`; item-set data source | GG-119 | `gg sets` | queued |
-| P11 | Required level and level window inputs | GG-117 | part of `gg armor` | queued |
-| P12 | Bag and loot marker hooks and look | GG-109, GG-110, GG-111 | `gg marks` | queued |
-| P13 | Settings page | GG-112 | `gg options` | queued |
+| P11 | Required level and level window inputs | GG-117 | part of `gg armor` | narrowed |
+| P12 | Bag and loot marker hooks and look | GG-109, GG-110, GG-111 | `gg marks` | narrowed |
+| P13 | Settings page | GG-112 | `gg options` | narrowed |
+
+Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
+a re-confirm on 70532 plus the open questions.
+
+## Already measured by other addons (sweep of 2026-11-02)
+
+Other repos' probes, the porting guide and the beta probe logs
+(`_classic_beta_\WTF\Account\50284074#1|#12\SavedVariables\*Probe.lua`, called SV1 / SV12
+below) already answer part of the checks. A fact holds for the build it names: **none of them is
+on 70532**, so each check keeps a short re-confirm on the launch build, without the full procedure.
+ForeverProbe's cached `facts` table holds nothing on these topics. Shatter and GlassPearls measured
+none of them (their rows read "not measured").
+
+| Check | Already measured | Build | Source |
+|---|---|---|---|
+| P1 | A brand-new addon folder needs only `/reload` (owner); scriptErrors is off by default and error delivery stops after 100 per session; SavedVariables load after a full exit since 70009 (never test persistence with `/reload`) | 70009 / owner 2026-10-09 | `PORTING-TBC-TO-FOREVER.md:430-434`, `:142-180`, `:2276-2286` |
+| P2 | `GetNumSpecGroups()` = 1, `GetActiveSpecGroup()` = 1 without dual spec | 70245, 70450 | `AltStableSync/docs/forever-api-notes.md:46`, `:173` |
+| P2 | **One trait tree per class, no subtrees**; the three Vanilla trees are posX clusters (1020-2820 / 5020-6820 / 9080-10880). Priest: config 88388, tree 1114, currency 3820, 54 nodes. All at 0 points, so a per-tree split by currency is unproven | 70009 | `GlassRaidFrames/docs/FOREVER-PROBE.md:269-295`, `GlassRaidFrames/Role.lua:13-21` |
+| P2 | `ACTIVE_TALENT_GROUP_CHANGED` (1, 0) at login; (1, 1) mid-session with `PLAYER_TALENT_UPDATE` and `PLAYER_SPECIALIZATION_CHANGED`; `TRAIT_CONFIG_UPDATED` | **70532** (raw log) | SV1 `RaidProbe.lua:1307`, `:1519`, `:1622-1624` |
+| P3 | Loot rows are children of `LootFrame.ScrollBox.ScrollTarget`, reached with `hooksecurefunc(ScrollBox, "Update")`; loot in combat (first of the session, after a fresh `/reload`) styled every row, 0 blocked | 70450 | `GlassUI/docs/FOREVER-PROBE.md:62`, `:99-105` |
+| P4 | Stat keys (see FORMATS.md): `ITEM_MOD_SPELL_POWER_SHORT`, `ITEM_MOD_SHADOW/ARCANE_DAMAGE_DONE_SHORT`, resistance under two names, no speed key | 70425 | SV1 `WanderfulProbe.lua:27`, `:46`, `:77`, `:94`, `:156` |
+| P4 | Cache miss: `GetItemInfo` / `GetItemStats` return nothing. Cold IDs load with `ITEM_DATA_LOAD_RESULT success=true` in the same 0.1 s tick; an invalid ID fails 0.4 s later | 70374, 70425 | `AltStable/docs/forever-api-notes.md:1057-1075`; SV1 `WanderfulProbe.lua:37-39` |
+| P4 | A random suffix is a bonus ID (205 links); `GetItemStats` on such a link not measured | beta, 2026-10 | `AltStable/Scanner.lua:96-101` |
+| P5 | Mail to the other faction fails ("Target is unfriendly."); soulbound items can't be mailed; mail to the other WoW account's character works like an alt (item not recorded); bind types 0/1/2 seen; a "Binds to Account" item exists | 70374, 70450, 70425, 70291 | `GlassMail/docs/FOREVER-PROBE.md:52`, `:54`; SV1 `MailProbe.lua:3009`; SV1 `WanderfulProbe.lua:25`; SV12 `ApothecaProbe.lua:22402` |
+| P6 | `HookScript("OnTooltipSetItem")` throws; the Item post-call fired for `SetHyperlink`; `C_TooltipInfo` data carries `guid`, `id`, `lines` | 69913, 70291 | `AltStable/docs/forever-api-notes.md:1194-1216` |
+| P7 | An Alt-held overlay (event plus OnUpdate) appeared and cleared | 70450 | `NodeRadar/docs/FOREVER-PROBE.md:568-579` |
+| P8 | `GetContainerItemInfo().isBound`: true for soulbound items, false for cloth | 70374 | SV1 `AltStableProbe.lua:32-36` |
+| P9 | Armor skills are skill lines (Cloth 415, Leather 414, header 8) via `C_SkillInfo`; a passive "Armor Proficiency" spell 1293712 | ~70334 | SV12 `ApothecaProbe.lua:31118`, `:31173-31174` |
+| P11 | `GetItemInfo` 5th return = the tooltip's "Requires Level" (6 items); 0 or 1 when the tooltip has none | 70425 | SV1 `WanderfulProbe.lua:25`, `:60`, `:92` |
+| P12 | GlassUI hooks `UpdateItems` on `ContainerFrame1..7` and `ContainerFrameCombinedBags`: 4 windows, 34 slots, child frames per button; bags used in combat with the taint log on, nothing blocked | 70450 | `GlassUI/docs/FOREVER-PROBE.md:209-213`, `GlassUI/docs/BAGS.md:127` |
+| P13 | A canvas page created shown is blank on its first visit (hide at creation, build on first show); all 14 templates present, a missing one returns a bare frame; scroll frames work | 70205, 70009 | `PORTING-TBC-TO-FOREVER.md:1953-1960`; `Priestly/docs/FOREVER-PROBE.md:234-250`, `:315-319` |
+
+**What this changed in Glass Gear** (same PR): resistance's twin key is counted once and Shadow
+and Arcane damage are scored; the four unsampled schools keep their "not scored" warning (FORMATS.md); bag hooks cover the `ContainerFrame1..N` globals too; the atlas
+check prefers `C_Texture.GetAtlasExists` (porting guide :1609); no restart for a new folder.
+
+**Still to measure on 70532:** P2 after buying dual spec, and whether points per tree can be read;
+P3 the slot and roll APIs; P4 healing-only, mp5, hit/crit, suffix and enchanted links, trimmed
+strings; P5 other realm, account-bound items between accounts; P6 every surface but
+`SetHyperlink`, the TooltipData fields, `RefreshData`, the owner; P7 left/right Ctrl, focus while
+typing; P8 `IsBound`, `GetItemGUID`, `DoesItemExist`; P9 mail/plate at 40 and `IsSpellKnown`; P10
+everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and this page.
 
 ---
 
@@ -41,7 +85,7 @@ says what it needs to find out, and records the result here with the build once 
   MINOR) and the capabilities reported as unavailable?
 - **Why.** M0 claims a loadable scaffold. Only the client proves it.
 - **Steps**
-  1. `/console scriptErrors 1`, then `/reload` (a brand-new folder needs one full client restart first).
+  1. `/console scriptErrors 1`, then `/reload` (a new addon folder needs no restart: porting guide :2276-2286).
   2. `run`: call the diag function and log its lines.
   3. `ask`: "Any Lua error on load?"
   4. `screenshot` of `/gg diag`.

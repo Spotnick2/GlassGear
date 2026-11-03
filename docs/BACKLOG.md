@@ -83,6 +83,11 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 - **Acceptance.**
   - Measured on at least 2 classes with a full talent build and with no points spent.
   - Dual-spec switch fires `ACTIVE_TALENT_GROUP_CHANGED`.
+- **Already measured** (FOREVER-PROBE.md sweep): **one trait tree per class, no subtrees** (70009,
+  GlassRaidFrames); the three Vanilla trees are posX clusters of its nodes, so "points per tree"
+  means summing the spent ranks of each cluster, not a per-tree currency (unproven: measured at 0
+  points). `GetNumSpecGroups()` = 1 without dual spec; `ACTIVE_TALENT_GROUP_CHANGED` fires at
+  login and mid-session (70532 raw log).
 - **Refs.** adr/0002.
 - **Validation:** game (P2); auto for the resolver (`test_load` mapping).
 
@@ -102,10 +107,11 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Probe P4.
   - Turn "expected" keys into measured ones in `Data/Stats.lua` and FORMATS.md (`test_formats_doc`
     keeps them in step).
-  - School-specific spell damage ("+20 Shadow Spell Damage"): find whether `GetItemStats` returns
-    it at all. If it doesn't, decide how Glass Gear detects it (for example `C_TooltipInfo`), so such
-    an item is never scored as if the bonus didn't exist without a warning
-    (research/default-weights.md).
+  - School-specific spell damage: **answered on 70425** (Wanderful's probe log). `GetItemStats`
+    returns it as `ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT` / `ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT`, now
+    mapped and scored (the four unsampled schools stay unscored, with their warning, until seen); damage-and-healing is `ITEM_MOD_SPELL_POWER_SHORT`; resistance comes under two
+    names (counted once). What remains: Fire/Frost/Nature/Holy confirmed, healing-only, damage-only,
+    mp5, hit and crit units, suffix and enchanted links, trimmed strings (FORMATS.md).
 - **Validation:** game, then auto.
 
 ### GG-104: Spec mapping UI (P1, MVP)
