@@ -35,12 +35,28 @@ local kept, dropped = Locale.Register("deDE", {
     ["%d of %d specs with weights"] = "%d von %s Spezialisierungen",   -- %d -> %s: dropped
     ["Gear %s ago"] = "Ausr\195\188stung vor",                            -- a specifier lost: dropped
     ["Empty"] = "",                                                        -- empty: dropped
+    ["Upgrade for %s"] = "100% (%s)",                                      -- a stray %: dropped
+    ["Weight %s"] = "Gewicht %s %",                                        -- a trailing %: dropped
+    ["Done: %d%%"] = "Fertig: %d%%",                                       -- %% kept
 })
-H.eq(kept, 2, "the client's locale registers")
-H.eq(table.concat(dropped, "|"), "%d of %d specs with weights|Empty|Gear %s ago", "...a changed specifier or an empty text is dropped")
+H.eq(kept, 3, "the client's locale registers")
+H.eq(table.concat(dropped, "|"), "%d of %d specs with weights|Empty|Gear %s ago|Upgrade for %s|Weight %s",
+    "...a changed specifier, a stray % or an empty text is dropped")
 H.eq(L["Not an upgrade for %s"]:format("Schatten"), "Kein Upgrade f\195\188r Schatten", "a translated format string")
 H.eq(L["Gear %s ago"]:format("2 h"), "Gear 2 h ago", "a dropped translation formats as English, never errors")
+H.eq(L["Upgrade for %s"]:format("Holy"), "Upgrade for Holy", "...a stray % in a translation never reaches format")
+H.eq(L["Done: %d%%"]:format(5), "Fertig: 5%", "a literal %% in a translation formats")
 H.eq(Locale.Specifiers("%s: %+.1f%% (%d)"), "sfd", "specifiers, %% excluded")
+-- Exactly what Lua 5.1's string.format accepts: nil wherever it would raise.
+for _, case in ipairs({
+    { "100% (%s)", nil }, { "%", nil }, { "50%", nil }, { "%5.2", nil }, { "%y", nil }, { "%123d", nil },
+    { "%.123f", nil }, { "%------d", nil }, { "%%", "" }, { "%-5.2f %02d %x %c %q", "fdxcq" }, { "", "" },
+}) do
+    local s, want = case[1], case[2]
+    H.eq(Locale.Specifiers(s), want, "Specifiers(" .. s .. ")")
+    local args = { 1.5, 2, 3, 65, "q" }
+    H.eq(pcall(string.format, s, unpack(args)), want ~= nil, "...agrees with string.format: " .. s)
+end
 Locale._Reset("enUS")
 
 ------------------------------------------------------------
@@ -104,6 +120,9 @@ for _, k in ipairs(catalogue) do
     inCatalogue[k] = true
 end
 H.eq(dup, 0, "the catalogue lists each key once")
+local badKey
+for _, k in ipairs(catalogue) do if not badKey and Locale.Specifiers(k) == nil then badKey = k end end
+H.eq(badKey, nil, "every key is a valid format string (a literal % is %%)")
 local missing, extra = {}, {}
 for k in pairs(used) do if not inCatalogue[k] then missing[#missing + 1] = k .. " (" .. usedIn[k] .. ")" end end
 for k in pairs(inCatalogue) do if not used[k] then extra[#extra + 1] = k end end
@@ -131,7 +150,8 @@ for i, file in ipairs(toc) do
         Locale.Register = realRegister
         for k, text in pairs(captured or {}) do
             H.check(inCatalogue[k] == true, file .. ": a catalogue key: " .. tostring(k))
-            H.eq(Locale.Specifiers(text), Locale.Specifiers(k), file .. ": same specifiers: " .. tostring(k))
+            H.check(Locale.Specifiers(text) ~= nil and Locale.Specifiers(text) == Locale.Specifiers(k),
+                file .. ": a valid format string with the key's specifiers: " .. tostring(k))
         end
     end
 end

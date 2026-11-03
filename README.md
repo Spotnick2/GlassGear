@@ -83,7 +83,8 @@ GlassGear.Locale.Register("deDE", {
 ```
 
 and list the file in `GlassGear.toc` right after `Core\Locale.lua`. Keep each placeholder (`%s`,
-`%d`, ...) in the same order; a translation that changes them is ignored.
+`%d`, ...) in the same order; a translation that changes them is ignored, and so is one
+with a lone `%` (write `%%` for a percent sign).
 
 ## License
 
