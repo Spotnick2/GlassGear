@@ -505,6 +505,13 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   - The token changes when a baseline goes stale without any other event.
 - **Refs.** API.md; mockups 07, G4.
 - **Validation:** auto, game with Shatter (P8).
+- **Done (auto).** `API.AssessProtection`: the tracked specs of the current character, computed fresh
+  on every call (never the result cache, never deferred by the frame budget), with the protection
+  threshold; `Policy.Protection` for the verdict; pending item data loads and then invalidates
+  (`itemData`); the token hashes instance GUID, bind state, `noWeights`, tracked specs and the
+  generation; a baseline passing `expiresAt` advances the freshness generation before the call
+  returns. Errors answer `unknown` (`INTERNAL_ERROR`). `test_protection.lua` (43 checks). Shatter's
+  side is SH-001.
 
 ## M4: Compatibility, performance, localisation, release
 
