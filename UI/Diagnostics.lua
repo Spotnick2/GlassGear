@@ -102,6 +102,9 @@ function Diagnostics.Slash(msg)
         end
         local _, msg = GG.Capture.MapSet(spec, name)
         out(msg)
+    elseif cmd == "characters" or cmd == "chars" then
+        local ok, why = GG.CharactersWindow.Open()
+        if not ok then out("characters page unavailable: " .. tostring(why)) end
     elseif cmd == "compare" then
         -- /gg compare [item link]: a pasted link (Shift-click), else the item
         -- last shown in a tooltip.

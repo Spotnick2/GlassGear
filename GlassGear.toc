@@ -52,4 +52,5 @@ UI\Options.lua
 UI\Window.lua
 UI\ProfilesWindow.lua
 UI\CompareWindow.lua
+UI\CharactersWindow.lua
 Core\Main.lua
