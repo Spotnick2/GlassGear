@@ -82,12 +82,11 @@ H.check(WoW.chat():find("the most time spent comparing in one frame: ", 1, true)
 
 -- The deferred runner starts a new frame window for the time too.
 local Sx = GG.API._state
-Sx.frameMs = 999
 GG.API.LIMITS.perFrame = 1
 WoW.time = WoW.time + 1
-local before = Sx.stats.maxFrameMs
 GG.API._cache.clear()
 GG.API.Evaluate({ item = WoW.link(1033), scope = "own" })   -- 1 row now, 2 put off
+Sx.frameMs = 999                                             -- this frame was already busy
 WoW.flush(1)                                                 -- the deferred runner, a later frame
 H.check((Sx.frameMs or 0) < 999, "a deferred frame's time starts from zero, not the frame before's")
 GG.API.LIMITS.perFrame = 200
