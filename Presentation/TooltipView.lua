@@ -182,6 +182,14 @@ function View.Build(response, settings, ctx)
     for _, n in ipairs(notes(rows, (settings or {}).setBonusWarnings ~= false)) do
         lines[#lines + 1] = { left = n, lc = C.later }
     end
+    -- A spec compared with gear recorded too long ago says so (GG-108).
+    local stale = {}
+    for _, row in ipairs(rows) do
+        if has(row.reasons, "BASELINE_STALE") then stale[#stale + 1] = specName(row.spec) end
+    end
+    if #stale > 0 then
+        lines[#lines + 1] = { left = "Gear recorded over 14 days ago: " .. table.concat(stale, ", "), lc = C.later }
+    end
     if not ctx.currentSpec then
         lines[#lines + 1] = { left = "Current spec not set: /gg spec", lc = C.muted }
     end

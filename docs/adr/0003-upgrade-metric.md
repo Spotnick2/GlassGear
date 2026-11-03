@@ -119,10 +119,22 @@ The comparison **enumerates the legal resulting configurations** instead of pick
 
 Baselines are kept per character × spec, with sources in this precedence:
 
-1. the **equipment set** the owner mapped to the spec (`C_EquipmentSet`);
+1. the **equipment set** the owner mapped to the spec (`C_EquipmentSet`, `/gg set`), else the set the
+   client itself assigned to that spec's group (`GetEquipmentSetForSpec`); `/gg set <spec> none`
+   turns both off. A set slot names an item ID only: the instance (and its suffix) is the one worn or
+   in the bags; two different instances, or none, make the slot `unknown`. An ignored slot keeps what
+   is worn. Since the instance found can change without any set or worn-gear event, a bag change
+   (`BAG_UPDATE_DELAYED`) that changes which instances the sets in use resolve to invalidates
+   answers already given;
 2. the **gear observed while that spec was active** (captured by Glass Gear, with links, so the suffix
-   is kept);
+   is kept). For the **current** spec this is what is worn now, read live. For another spec it is the
+   stored entry `<guid>:<specKey>:baseline` (GG-108): written on login, after an equipment change and
+   after a spec change, coalesced over 2 s so a set swap is read once settled; unchanged gear
+   re-confirms its capture time at most once a day;
 3. the **current equipment** scored with that spec's profile, labelled `fallback-current`.
+
+A candidate that needs a companion (a one-hander against a spec whose gear has a two-hander) pairs
+with the main hand or off-hand worn now; companions from the bags are GG-122.
 
 Each slot records:
 

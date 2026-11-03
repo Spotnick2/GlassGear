@@ -165,7 +165,7 @@ function Evaluate.One(input)
     res.baseline = {
         source = baseline.source, capturedAt = baseline.capturedAt,
         complete = baseline.complete ~= false, stale = baseline.stale == true,
-        maybeBehind = baseline.maybeBehind == true,
+        maybeBehind = baseline.maybeBehind == true, expiresAt = baseline.expiresAt,
     }
 
     -- Score every baseline item with this profile (enchants already stripped).

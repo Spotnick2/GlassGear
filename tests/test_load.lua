@@ -37,7 +37,11 @@ SlashCmdList.GLASSGEAR("")
 H.check(WoW.chat():find("AltStable: absent", 1, true) ~= nil, "/gg reports AltStable absent")
 H.check(WoW.chat():find("PRIEST.DISCIPLINE: no weights", 1, true) ~= nil, "/gg shows specs without weights as 'no weights'")
 local invalidated = 0
-GG.API.RegisterCallback("EvaluationInvalidated", function() invalidated = invalidated + 1 end, "consumer")
+-- Count the spec mapping only: the capture that follows writes a baseline (GG-108) and
+-- fires its own "baselines" invalidation.
+GG.API.RegisterCallback("EvaluationInvalidated", function(_, p)
+    if not (p and p.reason == "baselines") then invalidated = invalidated + 1 end
+end, "consumer")
 SlashCmdList.GLASSGEAR("spec 1 PRIEST.SHADOW")
 WoW.flush()
 H.eq(invalidated, 1, "changing the spec mapping invalidates consumers")
