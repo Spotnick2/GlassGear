@@ -42,8 +42,9 @@
   your other WoW accounts (AltStable's provenance: never a friend's, never by an account label),
   and `/gg` counts them. Alt upgrades themselves come with GG-203.
 - Characters page (GG-204, `/gg characters` or the settings page's button): your characters by
-  account, each spec a box for disenchant protection (your other characters are opted in; the one
-  you play is tracked by default), how old each one's recorded gear is (and how to refresh it),
+  account, each spec a box for disenchant protection (the one you play is tracked by default; your
+  other characters' boxes stay inactive, and the page says so, until protection can assess alts),
+  how old each one's recorded gear is (and how to refresh it),
   which specs have no weights, and Open AltStable. Without AltStable it says what still works.
 - Spec mapping on the settings page (GG-104): a SPECS section maps each spec group to a spec, or
   Not set, without a slash command; the active group is marked. `/gg spec <group> none` clears one.

@@ -497,10 +497,11 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 - **Refs.** mockup 06.
 - **Validation:** game.
 - **Done (auto), game P17.** `UI/CharactersWindow.lua` (`/gg characters`, a settings button): grouped
-  by account (this one first); per spec a protection box (`Prefs.SetTracked`; alts opted in); gear
+  by account (this one first); per spec a protection box (`Prefs.SetTracked`; an alt's boxes inactive, and said, until
+  the API has alt rows, GG-203; then alts are opted in); gear
   freshness from `RosterProvider.Gear` (AltStable `GetCharacterGear.capturedAt`: fresh, stale with
   the fix, none); weights counted; hidden alts dimmed; "seen by" for own-account characters; Open
-  AltStable (`ToggleSheet`); the unavailable state with what is missing; follows `RosterChanged` and
+  AltStable (`OpenSheet`, else `ToggleSheet`); the unavailable state with what is missing; follows `RosterChanged` and
   `ProfilesChanged`. `maybeBehind` needs sync manifests (GG-202). `test_characters.lua`.
 
 ## M3: Shatter protection

@@ -86,10 +86,30 @@ local bank = row("Banky")
 H.check(bank.name:GetText():find("hidden in AltStable", 1, true) ~= nil, "a hidden alt: shown, dimmed")
 H.check(bank.status:GetText():find("No gear recorded", 1, true) ~= nil, "...no gear recorded")
 
--- Ticking a spec tracks it for protection.
+-- Protection can't assess alts yet (GG-203): their boxes are inactive, and
+-- the page says protection covers this character only.
+H.eq(GG.API.GetCapabilities().features.alts, false, "(no alt rows yet)")
+H.eq(Win.AltProtectionActive(), false, "alt protection: not active")
+H.eq(dr.checks[1]:IsEnabled(), false, "an alt's spec box can't be ticked")
+H.check(dr.checks[1].alpha < 1, "...and is shown dimmed")
+H.eq(me.checks[1]:IsEnabled(), true, "the current character's boxes work")
+H.check(Wd.note:GetText():find("this character's ticked specs; alts can't be protected yet", 1, true) ~= nil,
+    "the page says protection covers this character only")
+Win.SetTracked(dr, 1, true)
+H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), false, "...and an alt tick is refused, never stored")
+
+-- Once alts can be assessed, ticking an alt's spec tracks it.
+local realActive = Win.AltProtectionActive
+Win.AltProtectionActive = function() return true end
+Win.Refresh()
+dr = row("Drakuza")
+H.eq(dr.checks[1]:IsEnabled(), true, "alt protection active: the alt's boxes work")
+H.check(Wd.note:GetText():find("keeps upgrades for the ticked specs", 1, true) ~= nil, "...and the note covers every ticked spec")
 dr.checks[1]:Click()
 H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), true, "ticking Arcane tracks it")
 H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), false, "...and only it")
+Win.AltProtectionActive = realActive
+Win.Refresh()
 me = row("Karuzo")
 me.checks[1]:Click()
 H.eq(GG.Prefs.IsTracked(ME, "PRIEST.DISCIPLINE"), false, "unticking one of your own specs")

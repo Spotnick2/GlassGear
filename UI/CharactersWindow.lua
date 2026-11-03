@@ -6,8 +6,11 @@
 --
 -- /gg characters, or the settings page's button. The tracked specs are
 -- Prefs' (the protection scope, adr/0006); alts are opted in, the current
--- character's specs are tracked by default. Pairing and sync stay
--- AltStable's: "Open AltStable", never a second pairing UI.
+-- character's specs are tracked by default. Until protection can assess an
+-- alt (GG-203: alt rows), an alt's boxes are shown dimmed and can't be
+-- ticked, and the page says so: a tick must never promise protection that
+-- doesn't happen. Pairing and sync stay AltStable's: "Open AltStable",
+-- never a second pairing UI.
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -29,6 +32,19 @@ local function at(region, x, y, parent)
     region:SetPoint("TOPLEFT", parent or frame, "TOPLEFT", x, y)
     return region
 end
+
+-- Can disenchant protection keep an alt's upgrades? Only once evaluations
+-- have alt rows (GG-203: the API's `alts` feature); until then it assesses
+-- the current character's tracked specs alone.
+function Win.AltProtectionActive()
+    local ok, caps = pcall(GG.API.GetCapabilities)
+    return ok and type(caps) == "table" and caps.features and caps.features.alts == true or false
+end
+
+Win.NOTE_ACTIVE = "Disenchant protection keeps upgrades for the ticked specs. "
+    .. "Synced data does not guarantee an item can be transferred."
+Win.NOTE_ALTS_INACTIVE = "Disenchant protection keeps upgrades for this character's ticked specs; "
+    .. "alts can't be protected yet. Synced data does not guarantee an item can be transferred."
 
 local function age(seconds)
     local d = math.floor(seconds / 86400)
@@ -121,6 +137,7 @@ function Win.SetTracked(row, j, on)
     local c = row.char
     local s = c and row.specs[j]
     if not s then return end
+    if not c.current and not Win.AltProtectionActive() then Win.Refresh(); return end
     local keys = {}
     for _, x in ipairs(row.specs) do keys[#keys + 1] = x.key end
     GG.Prefs.SetTracked(c.key, s.key, on, keys)
@@ -150,8 +167,7 @@ local function build()
     W.child:SetSize(Win.W - 50, 100)
     scroll:SetScrollChild(W.child)
     W.rows, W.heads = {}, {}
-    W.note = at(label(frame, "Disenchant protection keeps upgrades for the ticked specs. "
-        .. "Synced data does not guarantee an item can be transferred.", "GameFontDisableSmall"), 14, -(Win.H - 92))
+    W.note = at(label(frame, Win.NOTE_ALTS_INACTIVE, "GameFontDisableSmall"), 14, -(Win.H - 92))
     W.note:SetWidth(Win.W - 28)
     W.footer = at(label(frame, "Sync managed by AltStable", "GameFontHighlightSmall"), 14, -(Win.H - 58))
     W.openAltStable = at(button(frame, "Open AltStable", 140, function()
@@ -190,6 +206,8 @@ function Win.Refresh()
     UIW.Dim(W.openAltStable, not RP.CanOpenAltStable())
     W.footer:SetText("Sync managed by AltStable")
     color(W.footer, "info")
+    local altProtection = Win.AltProtectionActive()
+    W.note:SetText(altProtection and Win.NOTE_ACTIVE or Win.NOTE_ALTS_INACTIVE)
 
     local now = time()
     local chars = GG.Integrations.RosterProvider.Characters(GG.player)
@@ -232,7 +250,7 @@ function Win.Refresh()
                 if s then
                     cb.label:SetText(s.name)
                     cb:SetChecked(GG.Prefs.IsTracked(c.key, s.key))
-                    UIW.Dim(cb, GG.readOnly)
+                    UIW.Dim(cb, GG.readOnly or (not c.current and not altProtection))
                 end
             end
             row:Show()

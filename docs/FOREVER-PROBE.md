@@ -394,9 +394,10 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
     characters as AltStable's provenance says, and never a whitelisted friend's?
   - Does the page show each alt's gear age from `GetCharacterGear(guid).capturedAt`, and does
     playing an alt refresh it on the other account after a sync?
-  - Does "Open AltStable" open AltStable's sheet (`ToggleSheet`)?
+  - Does "Open AltStable" open AltStable's sheet (`OpenSheet`)?
+  - Are an alt's spec boxes dimmed and locked, with the note that alts can't be protected yet?
   - Do `CharactersChanged` / `ProvenanceChanged` arrive within a frame of a sync, and does the page
     follow without reopening?
 - **Why.** The roster and page are built against a fake AltStable from its docs/PUBLIC-API.md.
-- **Steps.** `/gg`; `/gg characters`; tick a spec of an alt (then `AssessProtection` tracks it with
-  GG-203); log the other account, sync, back; Open AltStable.
+- **Steps.** `/gg`; `/gg characters`; try to tick a spec of an alt (inactive until GG-203); log the
+  other account, sync, back; Open AltStable.
