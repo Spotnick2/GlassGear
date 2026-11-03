@@ -4,6 +4,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Policy = {}
 GG.Engine.Policy = Policy
 
@@ -86,13 +87,13 @@ local function row(kind, r)
         ownedBetter = r.ownedBetter,
     }
     for _, reason in ipairs(r.reasons or {}) do
-        if reason == "NO_WEIGHTS" then x.noWeights = true; x.label = "no weights" end
-        if reason == "EMPTY_SLOT" then x.label = "empty slot" end
+        if reason == "NO_WEIGHTS" then x.noWeights = true; x.label = L["no weights"] end
+        if reason == "EMPTY_SLOT" then x.label = L["empty slot"] end
     end
     if r.eligibility and r.eligibility.equipNow == false and r.eligibility.atLevel then
         x.laterLevel = { atLevel = r.eligibility.atLevel, levelsAway = r.eligibility.levelsAway }
     end
-    if r.status == "pending" then x.label = "checking..." end
+    if r.status == "pending" then x.label = L["checking..."] end
     return x
 end
 
