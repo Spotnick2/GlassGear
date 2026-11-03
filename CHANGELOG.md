@@ -50,6 +50,10 @@
   the best off-hand in your bags, not only the one you wear; and an item is no longer shown as an
   upgrade when your bags already hold a better one for that spec (the tooltip says "you own better"
   and names it; rings and trinkets need two better ones).
+- Disenchant protection for Shatter (GG-301): `GlassGear.API.AssessProtection` says whether a bag
+  item is an upgrade for one of your tracked specs (keep it), safe to disenchant, or not certain yet
+  (keep it). Recorded gear that is stale, or a spec compared with your current gear, is never called
+  safe; specs without weights are listed as unchecked. Shatter's side is SH-001.
 - API runtime (GG-114): answers are cached until something they depend on changes, so redrawing a
   tooltip or a bag costs a lookup; at most 200 comparisons run per frame (the rest finish on the
   next frames); requests for the same item share one computation; bounded queues answer OVERLOADED
