@@ -8,7 +8,8 @@
 --
 -- The marker scope is its own setting (adr/0006): "current" marks only the
 -- current spec green and leaves off-specs to the reveal and to transferable
--- items; "own" also marks every own off-spec upgrade amber, always.
+-- items; "selected" also marks the chosen own specs' upgrades amber, always;
+-- "own" does that for every own spec.
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -32,9 +33,12 @@ end
 function View.Settings(markers, specKeys)
     markers = markers or {}
     local ownSpecs
-    if markers.scope == "own" then
+    if markers.scope == "own" or markers.scope == "selected" then
         ownSpecs = {}
-        for _, key in ipairs(specKeys or {}) do ownSpecs[key] = true end
+        local chosen = type(markers.selected) == "table" and markers.selected or {}
+        for _, key in ipairs(specKeys or {}) do
+            if markers.scope == "own" or chosen[key] then ownSpecs[key] = true end
+        end
     end
     return { markTransferable = markers.markTransferable ~= false, ownSpecs = ownSpecs }
 end

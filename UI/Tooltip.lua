@@ -60,6 +60,13 @@ function Tooltip.Render(tooltip, lines)
     end
 end
 
+-- The tooltip scope plus the set-bonus warning switch (PRD section 5).
+function Tooltip.ViewSettings()
+    local s = GG.db.settings
+    return { specs = s.tooltip.specs, selected = s.tooltip.selected, alts = s.tooltip.alts,
+        setBonusWarnings = s.setBonusWarnings }
+end
+
 local function onItemTooltip(tooltip, data)
     if not tooltip or type(data) ~= "table" or not GG.API.IsReady() then return end
     if tooltip.IsForbidden and tooltip:IsForbidden() then return end
@@ -70,7 +77,7 @@ local function onItemTooltip(tooltip, data)
     if not GG.Data.Slots.IsEquippable(GG.Compat.EquipLoc(itemID)) then return end
     local ref, key = Tooltip.ItemRef(tooltip, data)
     if not ref then return end
-    local lines = GG.TooltipView.Build(GG.Results.Get(ref, key), GG.db.settings.tooltip,
+    local lines = GG.TooltipView.Build(GG.Results.Get(ref, key), Tooltip.ViewSettings(),
         { currentSpec = GG.currentSpec })
     if not lines then return end
     shown[tooltip] = { key = key, itemID = itemID }

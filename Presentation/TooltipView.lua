@@ -117,15 +117,15 @@ end
 -- Notes shared by the rows, deduplicated, in a fixed order. Anything the
 -- score leaves out - on the item or on the gear it replaces - is named, since
 -- it can reverse the comparison.
-local function notes(rows)
+local function notes(rows, setWarnings)
     local gained, lost, setUnscored, effect, baseEffect = {}, {}, false, false, false
     local gaps, baseGaps = {}, {}
     for _, row in ipairs(rows) do
         for _, l in ipairs(row.limitations) do
             local g = l:match("^SET_BONUS_GAINED:[^:]+:(%d+)$")
             local x = l:match("^SET_BONUS_LOST:[^:]+:(%d+)$")
-            if g then gained[g] = true end
-            if x then lost[x] = true end
+            if g and setWarnings then gained[g] = true end
+            if x and setWarnings then lost[x] = true end
             if l == "SET_BONUS_NOT_SCORED" then setUnscored = true end
             if l == "EFFECT_NOT_SCORED" then effect = true end
             if l == "BASELINE_EFFECT_NOT_SCORED" then baseEffect = true end
@@ -179,7 +179,9 @@ function View.Build(response, settings, ctx)
             offSpecVsCurrentGear = true
         end
     end
-    for _, n in ipairs(notes(rows)) do lines[#lines + 1] = { left = n, lc = C.later } end
+    for _, n in ipairs(notes(rows, (settings or {}).setBonusWarnings ~= false)) do
+        lines[#lines + 1] = { left = n, lc = C.later }
+    end
     if not ctx.currentSpec then
         lines[#lines + 1] = { left = "Current spec not set: /gg spec", lc = C.muted }
     end

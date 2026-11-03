@@ -7,14 +7,21 @@ The layout is internal. Consumers use [API.md](API.md), never these tables.
 ```lua
 GlassGearDB = {
   schema   = 1,
-  settings = {                     -- per account; never synced
-    tooltip    = { specs = "all", alts = true },
-    markers    = { scope = "current", markTransferable = true, threshold = 0.005 },
-    reveal     = { modifier = "CTRL" },          -- "CTRL" | "ALT" | "NONE"
-    protection = { scope = "tracked", threshold = 0.005 },
+  settings = {                     -- per account; never synced; written only through Core/Prefs
+    tooltip    = { specs = "all", selected = {}, alts = true },   -- "all" | "current" | "selected"
+    markers    = { scope = "current", selected = {}, markTransferable = true, threshold = 0.005 },
+                                                 -- scope "current" | "selected" | "own"
+    reveal     = { modifier = "CTRL" },          -- "CTRL" | "ALT" | "NONE" (never "SHIFT")
+    protection = { scope = "tracked", threshold = 0.005, noWeights = "ignore" },  -- "ignore" | "keep"
+    levelWindow = { enabled = true, lookAhead = 0 },              -- look-ahead 0-10 levels
+    specArmor  = true,
+    setBonusWarnings = true,
     appearance = { theme = "forever" },          -- kept unchanged while Glass UI decides the look
   },
-  tracked  = { ["<charKey>"] = { ["PRIEST.HOLY"] = true } },  -- selected own/alt specs
+  -- `selected` lists are { [specKey] = true }. The minimum upgrade is one setting: markers.threshold
+  -- and protection.threshold always hold the same value (0-5 %).
+  tracked  = { ["<charKey>"] = { ["PRIEST.HOLY"] = true } },  -- protection's tracked specs; a
+                                   -- character with no entry tracks all of its own specs
   entries  = {                     -- the entry store (adr/0001), local and remote side by side
     ["<entryId>"] = {
       id = "<guid>:PRIEST.SHADOW:<uuid>", kind = "profile" | "baseline",

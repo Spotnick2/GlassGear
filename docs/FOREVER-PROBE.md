@@ -30,6 +30,7 @@ says what it needs to find out, and records the result here with the build once 
 | P10 | `setID` from `C_Item.GetItemInfo`; item-set data source | GG-119 | `gg sets` | queued |
 | P11 | Required level and level window inputs | GG-117 | part of `gg armor` | queued |
 | P12 | Bag and loot marker hooks and look | GG-109, GG-110, GG-111 | `gg marks` | queued |
+| P13 | Settings page | GG-112 | `gg options` | queued |
 
 ---
 
@@ -268,3 +269,20 @@ says what it needs to find out, and records the result here with the build once 
 - **Why.** The hooks and the visuals are modelled, not measured.
 - **Steps.** Screenshots of an open bag with a current-spec upgrade, a BoE off-spec upgrade and a
   soulbound off-spec upgrade: normal, then holding Ctrl. Then the same in combat.
+
+## P13: Settings page (GG-112)
+
+- **Question.**
+  - Does Esc > Options > AddOns > Glass Gear show the page **on the first visit** (built on first
+    show, hidden at creation: the porting guide's recipe)? Does `/gg options` open it?
+  - Do the check and radio buttons (`UICheckButtonTemplate`, `UIRadioButtonTemplate`), the hand-built
+    sliders and the scroll frame render and respond? Is Shift visibly disabled, with its tooltip?
+  - Does the page fit two columns in the Settings canvas, and does it scroll to Defaults?
+  - Do changes apply at once: a minimum-upgrade change or the marker scope redraws open bags, a
+    tooltip-scope change shows on the next tooltip?
+  - Does the preview's arrow and rows follow the settings?
+  - Defaults: everything back, no error. Any `ADDON_ACTION_FORBIDDEN` while the page is open?
+- **Why.** The page is built from the porting guide and GlassUnitFrames, but this page is
+  unmeasured.
+- **Steps.** Open from the AddOns list (first visit), screenshot; change each section once and
+  screenshot the bags and a tooltip; Defaults; `/gg options`.

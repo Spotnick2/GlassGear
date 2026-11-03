@@ -48,12 +48,12 @@ function handlers.PLAYER_LOGIN()
     GG.player = GG.Compat.Player()
     GG.store = GG.Engine.EntrySync.New(GG.db.entries, newWriter())
     GG.ResolveSpec()
-    GG.Diagnostics.RegisterSettings()
     GG.Results.Initialize()
     GG.tooltipHooked, GG.tooltipReason = GG.Tooltip.Initialize()
     GG.Reveal.Initialize()
     GG.bagMarkersOn, GG.bagMarkersInfo = GG.BagMarkers.Initialize()
     GG.lootMarkersOn, GG.lootMarkersInfo = GG.LootMarkers.Initialize()
+    GG.optionsOn, GG.optionsInfo = GG.Options.Register()
     GG.API._SetReady()
 end
 
