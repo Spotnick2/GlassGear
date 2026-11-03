@@ -170,6 +170,39 @@ function RosterProvider.Characters(player)
     return out
 end
 
+-- An own character's recorded gear from AltStable (AS-003): { capturedAt,
+-- gearAt, slots } or nil. Never a third-party character's.
+function RosterProvider.Gear(guid, usable)
+    local c = RosterProvider.Find(guid)
+    if not c or c == GG.player then return nil end
+    local A = as()
+    -- `usable`: the caller already checked once for many characters.
+    if usable == nil then usable = RosterProvider.DetectAltStable().usable end
+    if not (A and usable) then return nil end
+    local ok, gear = pcall(A.GetCharacterGear, guid)
+    if ok and type(gear) == "table" then return gear end
+end
+
+-- AltStable's own window (pairing and sync stay there, GG-204). OpenSheet
+-- only ever opens; ToggleSheet would close a sheet already open.
+-- Returns true | false, reason.
+function RosterProvider.OpenAltStable()
+    local A = as()
+    local fn = A and (rawget(A, "OpenSheet") or rawget(A, "ToggleSheet"))
+    if type(fn) ~= "function" then return false, "AltStable has no sheet to open" end
+    local ok, err = pcall(fn)
+    if not ok then
+        geterrorhandler()("GlassGear: opening AltStable: " .. tostring(err))
+        return false, "AltStable failed to open"
+    end
+    return true
+end
+
+function RosterProvider.CanOpenAltStable()
+    local A = as()
+    return A ~= nil and type(rawget(A, "OpenSheet") or rawget(A, "ToggleSheet")) == "function"
+end
+
 function RosterProvider.Find(guid)
     if GG.player and guid == GG.player.key then return GG.player end
     for _, c in ipairs(alts) do if c.guid == guid then return c end end
