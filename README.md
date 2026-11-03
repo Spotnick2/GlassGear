@@ -39,6 +39,7 @@ see [docs/BACKLOG.md](docs/BACKLOG.md).
 | `/gg spec <1\|2> <SPEC.KEY\|none>` | Map a spec group to a spec, e.g. `/gg spec 1 PRIEST.SHADOW` (also on the settings page, SPECS) |
 | `/gg import <SPEC.KEY> ( Pawn: v1: ... )` | Import a Pawn scale string for a spec |
 | `/gg options` | Open the settings page (Esc > Options > AddOns > Glass Gear) |
+| `/gg stats` | What the comparison runtime did this session: evaluations, cache hits, rows put off, queues, the busiest frame's time |
 | `/gg profiles [SPEC.KEY]` | Open the weight profiles window: up to 4 profiles per spec, import (Pawn, WoWSims Pawn EP), edit, export |
 | `/gg set <SPEC.KEY> <set name\|none\|auto>` | Compare a spec with a saved equipment set instead of the gear it last wore. `none`: never a set, not even one assigned in the client; `auto` (default): the set assigned in the client, if any |
 

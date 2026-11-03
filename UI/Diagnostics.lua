@@ -50,6 +50,24 @@ function Diagnostics.Lines()
     return lines
 end
 
+-- The runtime's counters (GG-402): evaluations, cache, deferrals, queues.
+function Diagnostics.StatsLines()
+    local S = GG.API._state
+    local st = S.stats
+    local lookups = st.hits + st.misses
+    local jobs = 0
+    for _ in pairs(S.jobs) do jobs = jobs + 1 end
+    return {
+        string.format("stats: %d evaluations, %d answers from the cache of %d lookups (%d%%), %d rows put off to a later frame",
+            st.evaluations, st.hits, lookups, lookups > 0 and math.floor(st.hits * 100 / lookups) or 0, st.deferredRows),
+        string.format("  cache %d/%d answers, generation %d; %d pending jobs (%d rows), %d requests, %d item loads",
+            GG.API._cache.size, GG.API.LIMITS.cache, S.generation, jobs, S.jobRows, S.requestCount, S.waitingCount),
+        string.format("  the most time spent comparing in one frame: %.1f ms", st.maxFrameMs or 0),
+        string.format("  limits: %d rows per frame, %d jobs, %d requests, %d item loads",
+            GG.API.LIMITS.perFrame, GG.API.LIMITS.jobs, GG.API.LIMITS.requests, GG.API.LIMITS.itemQueue),
+    }
+end
+
 local function ownSpec(key)
     for _, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
         if s.key == key then return true end
@@ -112,6 +130,9 @@ function Diagnostics.Slash(msg)
         end
         GG.Capture.CheckSets()
         GG.API._Invalidate("baselines", { GG.player.key })
+    elseif cmd == "stats" then
+        -- GG-402: what the runtime did this session, to measure in game.
+        for _, line in ipairs(Diagnostics.StatsLines()) do out(line) end
     elseif cmd == "options" or cmd == "config" then
         if not GG.Options.Open() then out("settings: Esc > Options > AddOns > Glass Gear") end
     elseif cmd == "profiles" or cmd == "weights" then

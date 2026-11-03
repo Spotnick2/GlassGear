@@ -190,6 +190,14 @@ function Compat.Player()
         canDualWield = CanDualWield(), current = true }
 end
 
+-- Milliseconds, for measuring (debugprofilestop, dump :6605; os.clock where
+-- the client's timer is missing, as in the tests).
+function Compat.Clock()
+    local f = rawget(_G, "debugprofilestop")
+    if type(f) == "function" then return f() end
+    return os.clock() * 1000
+end
+
 function Compat.ActiveSpecGroup()
     if not (C_SpecializationInfo and C_SpecializationInfo.GetActiveSpecGroup) then return nil, "unavailable" end
     return C_SpecializationInfo.GetActiveSpecGroup()

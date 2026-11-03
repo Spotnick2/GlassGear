@@ -35,6 +35,7 @@ needs to find out, and records the result here with the build once it is run.
 | P13 | Settings page | GG-112 | `gg options` | narrowed |
 | P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
 | P15 | Profiles window | GG-105 | `gg profiles` | queued |
+| P19 | Runtime cost in the client | GG-402 | `gg stats` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -373,3 +374,16 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** `/gg profiles`; paste the sample Pawn string from mockup 05; Add; edit a weight, rename,
   toggle armor; Export and paste the copy into chat; drag, `/reload`, reopen; Escape with and
   without focus.
+
+## P19: Runtime cost in the client (GG-402)
+
+- **Question.**
+  - Opening full bags (and the bank) with gear: what does `/gg stats` report as the most time spent
+    comparing in one frame? The test interpreter measures ~4.5-5 ms for a full 200-row frame; is the
+    client faster, and is there a visible hitch?
+  - After a session of normal play: the cache hit rate, rows put off, and whether any queue stays
+    non-empty when nothing is loading.
+- **Why.** `LIMITS.perFrame` (200) was set from the plan, not measured in the client. If a hitch shows,
+  lower it (100 halves the worst frame).
+- **Steps.** `/reload`; open all bags with many gear items; `/gg stats`; hover around for a while;
+  `/gg stats` again.

@@ -183,8 +183,17 @@ end
 -- always starts a new window (it runs on a later frame).
 local function budgetLeft()
     local now = GetTime()
-    if state.frameTime ~= now then state.frameTime, state.frameUsed = now, 0 end
+    if state.frameTime ~= now then state.frameTime, state.frameUsed, state.frameMs = now, 0, 0 end
     return API.LIMITS.perFrame - state.frameUsed
+end
+
+-- GG-402: the time evaluations take in one frame, the worst one kept
+-- (/gg stats), so the budget can be judged in the real client.
+local function noteTime(ms)
+    local now = GetTime()
+    if state.frameTime ~= now then state.frameTime, state.frameUsed, state.frameMs = now, 0, 0 end
+    state.frameMs = (state.frameMs or 0) + ms
+    if state.frameMs > (state.stats.maxFrameMs or 0) then state.stats.maxFrameMs = state.frameMs end
 end
 
 local function spend()
@@ -205,7 +214,15 @@ end
 -- progresses, whatever the budget. A row put off by the budget keeps what it
 -- waited for before (`priorDeps`): the job keeps those item loads, with their
 -- attempts, until the row is computed again.
-local function evaluateOne(request, requestId, specs, prior, priorDeps)
+local evaluateOneTimed
+local function evaluateOne(...)
+    local t0 = GG.Compat.Clock()
+    local response, rowDeps = evaluateOneTimed(...)
+    noteTime(GG.Compat.Clock() - t0)
+    return response, rowDeps
+end
+
+evaluateOneTimed = function(request, requestId, specs, prior, priorDeps)
     local response = { requestId = requestId, results = {} }
     local rowDeps = {}
     local link, instance = GG.Compat.ResolveItemRef(request.item)

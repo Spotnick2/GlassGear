@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Performance, measured (GG-402): a full bag stays within the per-frame budget and finishes over
+  the next frames; tooltip redraws recompute nothing. `/gg stats` shows what the runtime did,
+  including the most time spent comparing in one frame.
 - Foundation (M0):
   - **Addon scaffold:** TOC for Forever 16001, optional AltStable and Glass UI, LibGlass r11
     pinned.
