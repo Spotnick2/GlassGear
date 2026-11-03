@@ -173,7 +173,10 @@ function Win.Render()
     end
     local r = resultFor(spec) or { status = "unknown", reasons = { "NO_RESULT" }, limitations = {} }
     local link = GG.Compat.ResolveItemRef(state.ref)
-    local replaced = {}
+    -- What it replaces only when a configuration was compared: a result
+    -- without one (no weights, ineligible, a slot not known) never shows an
+    -- empty slot or deltas against zeros (CompareView: replaced = nil).
+    local replaced = r.replaces and {} or nil
     for _, s in ipairs(r.replaces and r.replaces.items or {}) do replaced[#replaced + 1] = itemData(s) end
     local s = GG.Data.Classes.Spec(spec)
     local cand = itemData(link)
