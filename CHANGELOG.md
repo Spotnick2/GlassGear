@@ -38,6 +38,10 @@
   (minimum upgrade, level window and look-ahead, spec armor); disenchant protection (tracked specs,
   specs without weights); appearance (Glass UI's decision) with a live preview; Defaults. Every
   change applies at once.
+- API runtime (GG-114): answers are cached until something they depend on changes, so redrawing a
+  tooltip or a bag costs a lookup; at most 200 comparisons run per frame (the rest finish on the
+  next frames); requests for the same item share one computation; bounded queues answer OVERLOADED
+  instead of growing.
 - Per-spec gear (GG-108): each spec compares with its own gear. Glass Gear records what you wear
   in each spec (on login, after a gear change, after a spec switch); `/gg set <spec> <set>` uses a
   saved equipment set instead, and a set the client assigned to that spec is used on its own

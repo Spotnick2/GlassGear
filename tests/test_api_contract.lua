@@ -165,10 +165,7 @@ for _ = 1, 20 do WoW.time = WoW.time + 1; WoW.flush(1) end
 H.eq(got and got.response.results[1].spec, first, "a timed-out request keeps its original targets too")
 
 -- A new baseline dependency that can't be queued ends the request (no strand).
-for id in pairs(GG.API._state.waiting) do GG.API._state.waiting[id] = nil end
-GG.API._state.waitingCount = 0
-for id in pairs(GG.API._state.requests) do GG.API._state.requests[id] = nil end
-GG.API._state.requestCount = 0
+GG.API._ResetQueues()
 local qsaved = GG.API.LIMITS.itemQueue
 GG.API.LIMITS.itemQueue = 1
 WoW.items[78] = { name = "Queued Belt", equipLoc = "INVTYPE_WAIST", classID = 4, subclassID = 1, stats = { ITEM_MOD_INTELLECT_SHORT = 2 } }
@@ -188,8 +185,7 @@ H.eq(GG.API._state.waitingCount, 0, "and no orphaned item loads")
 WoW.equipped[1], WoW.equipped[10] = nil, nil
 WoW.cacheMiss[79], WoW.cacheMiss[80] = nil, nil
 GG.API.LIMITS.itemQueue = qsaved
-for id in pairs(GG.API._state.waiting) do GG.API._state.waiting[id] = nil end
-GG.API._state.waitingCount = 0
+GG.API._ResetQueues()
 
 -- Overload keeps the rows too.
 local saved = GG.API.LIMITS.requests

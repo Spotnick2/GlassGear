@@ -38,7 +38,7 @@ end
 
 | Method | Returns | M0 |
 |---|---|---|
-| `GetCapabilities()` | `{apiVersion, build, features = {evaluate, evaluateBatch, assessProtection, alts, sync, ...}, unavailable = {[feature] = reason}}` | yes |
+| `GetCapabilities()` | `{apiVersion, build, features = {evaluate, evaluateBatch, assessProtection, alts, sync, frameBudget, resultCache, ...}, limits = {perFrame, jobs, requests, cache, ...}, unavailable = {[feature] = reason}}` | yes |
 | `IsReady()` | boolean | yes |
 | `GetCharacters()` | list of `{key, guid, name, realm, class, level, provenance, current}`. Current character only without AS-001 | yes (local) |
 | `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order | yes |
@@ -115,11 +115,16 @@ is over the per-frame budget.
   each load attempt times out after 5 s.
   - After 3 attempts the result is `unknown`, with `ITEM_DATA_UNAVAILABLE`.
   - Queue overflow gives `unknown`, with `ITEM_QUEUE_FULL`.
-- **Overload.** At most 512 outstanding computation jobs (deduplicated across requests) and at most 64
-  outstanding requests. Beyond that, the call returns immediately with `unknown`, `OVERLOADED`, which is
-  terminal for that call: no callback follows.
-- **Budget.** At most 200 evaluations per frame (**GG-114**: M0 evaluates synchronously, and
-  `features.frameBudget` is `false` until GG-114). `CancelRequest` drops a subscription.
+- **Shared work.** Requests for the same item instance (or link), targets and context while one is
+  pending share one computation (a *job*). Each request still gets its own `EvaluationReady`, with its
+  own `requestId`. `CancelRequest` drops a subscription; the job and its item loads go when nobody is
+  subscribed any more.
+- **Overload.** At most 512 outstanding pending rows across jobs (deduplicated across requests) and at
+  most 64 outstanding requests. Beyond that, the call returns immediately with `unknown`, `OVERLOADED`,
+  which is terminal for that call: no callback follows, and nothing is cached.
+- **Budget.** At most 200 evaluations (one per (character, spec) row) per frame
+  (`features.frameBudget`). A row over the budget is a placeholder, `pending` with `FRAME_BUDGET`,
+  computed on a later frame; rows already computed are kept, so a request always progresses.
 
 ### Protection
 
@@ -173,11 +178,13 @@ local p = api.AssessProtection({ bag = 0, slot = 3 }, { scope = "tracked" })
 
 ## Caching and invalidation (consumer-visible guarantees)
 
-The cache is **GG-114**: `features.resultCache` stays `false` until then, and M0 recomputes on every
-call. The invalidation events already fire on spec, profile, equipment, level and skill changes.
+`features.resultCache` (GG-114): complete answers are kept in an LRU cache of 2 000 entries.
 
 - Repeated tooltip redraws don't recompute. Results are cached by (item instance or link, character,
-  spec, context) together with generation counters for:
+  spec, context). An instance's key includes its GUID, bag and slot and its bind state, so a BoE that
+  becomes soulbound, or an item moved to another slot, gets its own answer.
+- Every `EvaluationInvalidated` advances a generation **at once** (the event itself follows on the next
+  frame), and an answer from an older generation is never served. The reasons cover:
   - profiles;
   - baselines;
   - spec mapping;
@@ -186,7 +193,12 @@ call. The invalidation events already fire on spec, profile, equipment, level an
   - item data;
   - bind state;
   - freshness.
-- **Nothing scans the roster on a tooltip redraw.**
+- **Freshness:** an answer that compared with a stored baseline is dropped once that baseline's
+  `expiresAt` passes: the call that notices advances the generation before it returns, computes again
+  (`stale = true`), and `EvaluationInvalidated` (`freshness`) follows.
+- Answers that may change on their own are never cached: anything `pending`, `OVERLOADED`,
+  `ITEM_QUEUE_FULL`, `ITEM_DATA_UNAVAILABLE`, `NOT_READY` or `NO_ITEM`.
+- **Nothing scans the roster on a tooltip redraw** (measured: `test_api_runtime`).
 - Protection always re-reads the instance's bind state, GUID and expiry.
 
 ## Example: Shatter (SH-001)
