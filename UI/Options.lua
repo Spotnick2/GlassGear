@@ -206,22 +206,32 @@ local function specs()
     return GG.player and GG.Data.Classes.Specs(GG.player.class) or {}
 end
 
-local function specLabel(s)
-    return s.name .. (s.key == GG.currentSpec and " (current)" or "")
+-- Read on every refresh: /gg spec can change the current spec while the page is open.
+local function specLabel(s, always)
+    if s.key ~= GG.currentSpec then return s.name end
+    return s.name .. (always and " (current, always shown)" or " (current)")
 end
 
 -- A scope's "selected" spec list, dimmed unless that scope is "selected".
+-- The current spec is always included in both scopes (its tooltip row and its
+-- green arrow come first, PRD section 3), so its box is checked and disabled.
 local function specChecks(col, list, scopePath)
     local boxes = {}
     for _, s in ipairs(specs()) do
-        local cb = checkbox(col, specLabel(s),
+        local cb = checkbox(col, specLabel(s, true),
             function() return GG.Prefs.SpecSelected(list, s.key) end,
             function(on) GG.Prefs.SetSpec(list, s.key, on) end, 28)
+        cb.spec = s
         boxes[#boxes + 1] = cb
     end
     controls[#controls + 1] = function()
         local off = GG.Prefs.Get(scopePath) ~= "selected"
-        for _, cb in ipairs(boxes) do dim(cb, off) end
+        for _, cb in ipairs(boxes) do
+            local current = cb.spec.key == GG.currentSpec
+            cb.label:SetText(specLabel(cb.spec, true))
+            if current then cb:SetChecked(true) end
+            dim(cb, off or current)
+        end
     end
     return boxes
 end
@@ -378,9 +388,11 @@ local function build()
     for _, s in ipairs(specs()) do
         local keys = {}
         for _, x in ipairs(specs()) do keys[#keys + 1] = x.key end
-        checkbox(right, (GG.player and GG.player.name or "") .. " \194\183 " .. specLabel(s),
+        local function text() return (GG.player and GG.player.name or "") .. " \194\183 " .. specLabel(s) end
+        local cb = checkbox(right, text(),
             function() return GG.player and GG.Prefs.IsTracked(GG.player.key, s.key) end,
             function(on) if GG.player then GG.Prefs.SetTracked(GG.player.key, s.key, on, keys) end end, 8)
+        controls[#controls + 1] = function() cb.label:SetText(text()) end
     end
     note(right, "Specs without weights:", 4, "GameFontHighlight")
     radios(right, { { "ignore", "Ignore" }, { "keep", "Keep" } }, get("protection.noWeights"),

@@ -237,7 +237,35 @@ H.eq(markerHoly:IsEnabled(), true, "...spec list enabled")
 markerHoly:Click()
 H.eq(P.SpecSelected("markers", "PRIEST.HOLY"), true, "Holy chosen for the arrows")
 H.eq(P.SpecSelected("tooltip", "PRIEST.HOLY"), true, "the tooltip list is separate (set earlier)")
+
+-- The current spec is always included (Codex, PR #44): its box is checked and
+-- disabled in both lists, whatever the scope, so it never looks like a choice.
+local curMarker = widget("Shadow (current, always shown)", 2)
+H.eq(curMarker:GetChecked(), true, "current spec shown checked in the arrow list")
+H.eq(curMarker:IsEnabled(), false, "...and disabled, even with the scope on selected")
+curMarker.enabled = true
+curMarker:Click()
+GG.Options.Refresh()
+H.eq(P.SpecSelected("markers", "PRIEST.SHADOW"), false, "...a forced click is undone by the refresh")
+H.eq(curMarker:GetChecked(), true, "...and it reads checked again")
+local tooltipRows = GG.Engine.Policy.TooltipRows({ current = { spec = "PRIEST.SHADOW", status = "upgrade" }, own = {} },
+    { specs = "selected", selected = {} }, false)
+H.eq(#tooltipRows, 1, "tooltip 'Selected specs' still shows the current spec, as the box says")
 widget("Current spec"):Click()
+
+-- "(current)" follows /gg spec while the page is open, in all three lists.
+SlashCmdList.GLASSGEAR("spec 1 PRIEST.HOLY")
+WoW.flush()
+H.eq(#widgets("Holy (current, always shown)"), 2, "both selected lists relabel Holy as current")
+H.eq(#widgets("Shadow (current, always shown)"), 0, "...and Shadow no longer")
+H.check(widget("Karuzo \194\183 Holy (current)") ~= nil, "protection list relabels Holy")
+H.check(widget("Karuzo \194\183 Shadow") ~= nil, "...and Shadow plain")
+widget("Current + selected specs:"):Click()
+H.eq(widget("Shadow", 2):IsEnabled(), true, "the former current spec is a choice again")
+widget("Current spec"):Click()
+SlashCmdList.GLASSGEAR("spec 1 PRIEST.SHADOW")
+WoW.flush()
+H.eq(#widgets("Shadow (current, always shown)"), 2, "...and back")
 
 -- Sliders.
 local function sliderWith(labelText)
