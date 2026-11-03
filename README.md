@@ -6,8 +6,8 @@ It replaces a Pawn workflow.
 > **Tooltips show all of your character's specs. Ordinary bag arrows stay on your current spec.**
 
 **Status:** foundation (M0). The scoring engine, policies, sync model and API contract are built and
-tested. Tooltip rows, bag and loot arrows, the reveal key and the settings page (`/gg options`)
-are built and wait for the in-game pass; alts and Shatter protection are the next milestones:
+tested. Tooltip rows, bag and loot arrows, the reveal key, the settings page (`/gg options`) and
+the weight profiles window (`/gg profiles`) are built and wait for the in-game pass; alts and Shatter protection are the next milestones:
 see [docs/BACKLOG.md](docs/BACKLOG.md).
 
 ## What it will do
@@ -39,6 +39,7 @@ see [docs/BACKLOG.md](docs/BACKLOG.md).
 | `/gg spec <1\|2> <SPEC.KEY>` | Map a spec group to a spec, e.g. `/gg spec 1 PRIEST.SHADOW` |
 | `/gg import <SPEC.KEY> ( Pawn: v1: ... )` | Import a Pawn scale string for a spec |
 | `/gg options` | Open the settings page (Esc > Options > AddOns > Glass Gear) |
+| `/gg profiles [SPEC.KEY]` | Open the weight profiles window: up to 4 profiles per spec, import (Pawn, WoWSims Pawn EP), edit, export |
 | `/gg set <SPEC.KEY> <set name\|none\|auto>` | Compare a spec with a saved equipment set instead of the gear it last wore. `none`: never a set, not even one assigned in the client; `auto` (default): the set assigned in the client, if any |
 
 ## Requirements

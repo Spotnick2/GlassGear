@@ -145,6 +145,15 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - A spec without a profile shows "no weights".
 - **Refs.** mockups 05, G3; adr/0005; FORMATS.md.
 - **Validation:** auto (parser, store), game (UI).
+- **Done (auto), game P15.** `UI/ProfilesWindow.lua` (own window, WoW Forever look; the owner chose a
+  window over a settings sub-page, 2026-11-02), `Presentation/ProfileView.lua` (texts),
+  `Profiles/Profiles.lua` (several profiles, `activeAt`), `test_profiles.lua`. Differences from the
+  scope above:
+  - The import type is **detected**, not chosen: the parser recognises Pawn, WoWSims Pawn EP and
+    character exports, and the window names what it read. No dropdown (porting guide: radio
+    groups or nothing).
+  - Conflict copies (`<id>~<version>`) are not shown: they arrive with sync (GG-202).
+  - The Glass look is GG-115.
 
 ### GG-106: Research, default weights (P2, SPIKE)
 

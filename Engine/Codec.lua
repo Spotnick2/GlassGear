@@ -41,6 +41,7 @@ function Codec.ValidData(kind, d)
             if d[field] ~= nil and type(d[field]) ~= "table" then return false, field end
         end
         if not finite(d.updatedAt) then return false, "updatedAt" end
+        if d.activeAt ~= nil and not finite(d.activeAt) then return false, "activeAt" end
         local n = 0
         if type(d.weights) ~= "table" then return false, "weights" end
         for k, v in pairs(d.weights) do
@@ -141,7 +142,8 @@ end
 ------------------------------------------------------------
 -- Payloads
 ------------------------------------------------------------
--- profile: specKey;name;origin;source;updatedAt;weights;ignored;ignoredTokens;missing;armor
+-- profile: specKey;name;origin;source;updatedAt;weights;ignored;ignoredTokens;missing;armor[;activeAt]
+-- (activeAt, GG-105: "t" .. base36, present only when the profile was ever chosen)
 local function encodeProfile(d)
     local w, ig, ex = {}, {}, {}
     for _, k in ipairs(sortedKeys(d.weights)) do w[#w + 1] = k .. "=" .. weight(d.weights[k]) end
@@ -152,11 +154,12 @@ local function encodeProfile(d)
     return table.concat({ esc(d.specKey), esc(d.name), esc(d.origin or ""), esc(d.source), b36(d.updatedAt),
         table.concat(w, ","), table.concat(ig, ","), table.concat(ex, ","), table.concat(d.missing or {}, ","),
         d.armor and ("a" .. table.concat(armor, ",")) or "" }, ";")
+        .. (d.activeAt and (";t" .. b36(d.activeAt)) or "")
 end
 
 local function decodeProfile(p)
     local f = split(p, ";")
-    if #f ~= 10 then return nil end
+    if #f ~= 10 and #f ~= 11 then return nil end
     local d = { specKey = unesc(f[1]), name = unesc(f[2]), source = unesc(f[4]), updatedAt = fromB36(f[5]),
         weights = {}, ignored = {}, ignoredTokens = {}, missing = {} }
     if f[3] ~= "" then d.origin = unesc(f[3]) end
@@ -181,6 +184,11 @@ local function decodeProfile(p)
             if not n or not a:match("^%d+$") then return nil end
             d.armor[#d.armor + 1] = n
         end
+    end
+    if f[11] then
+        if not f[11]:match("^t[%w]+$") then return nil end
+        d.activeAt = fromB36(f[11]:sub(2))
+        if not d.activeAt then return nil end
     end
     return d
 end

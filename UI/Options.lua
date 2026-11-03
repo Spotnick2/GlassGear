@@ -341,6 +341,19 @@ local function build()
         who:SetText(GG.player and (GG.player.name .. " \194\183 " .. tostring(GG.player.class)) or "")
     end
 
+    -- Weights live in their own window (GG-105).
+    local profiles, ptemplated = safeFrame("Button", content, "UIPanelButtonTemplate", "Text")
+    profiles:SetSize(150, 22)
+    if not ptemplated then
+        local bg = profiles:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints(profiles)
+        bg:SetColorTexture(0.2, 0.2, 0.25, 0.9)
+    end
+    profiles:SetText("Weight profiles...")
+    profiles:SetPoint("TOPLEFT", content, "TOPLEFT", W * 2 - 116, -8)
+    profiles:SetScript("OnClick", function() GG.ProfilesWindow.Open() end)
+    Options.profilesButton = profiles
+
     -- Tooltips
     header(left, "TOOLTIPS")
     radios(left, { { "all", "All my specs" }, { "current", "Current spec only" }, { "selected", "Selected specs:" } },

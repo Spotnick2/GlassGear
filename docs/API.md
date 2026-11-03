@@ -42,7 +42,7 @@ end
 | `IsReady()` | boolean | yes |
 | `GetCharacters()` | list of `{key, guid, name, realm, class, level, provenance, current}`. Current character only without AS-001 | yes (local) |
 | `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order | yes |
-| `GetProfile(charKey, specKey)` | `{id, specKey, name, source, origin, version, updatedAt, weights = {[token] = n}}` or `nil, reason` | yes (local) |
+| `GetProfile(charKey, specKey)` | The spec's **active** profile (of up to 4; SCHEMA, latest `activeAt`): `{id, specKey, name, source, origin, version, updatedAt, weights = {[token] = n}}` or `nil, reason` | yes (local) |
 | `Evaluate(request)` | response (below) | yes (current character, local baselines) |
 | `EvaluateBatch(requests)` | list of responses (at most 64 items) | yes |
 | `CancelRequest(requestId)` | `true` / `false` | yes |

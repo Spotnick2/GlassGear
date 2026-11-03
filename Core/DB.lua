@@ -19,6 +19,7 @@ DB.DEFAULTS = {
         setBonusWarnings = true,
         appearance = { theme = "forever" },
     },
+    ui = { windows = {} },      -- window positions (GG-105); never synced
 }
 
 -- MIGRATIONS[n] upgrades schema n-1 to n. None yet: schema 1 is the first.

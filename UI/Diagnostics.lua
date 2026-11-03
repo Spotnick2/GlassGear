@@ -1,6 +1,7 @@
 ------------------------------------------------------------
 -- UI/Diagnostics.lua - /glassgear (/gg): diagnostics, spec mapping, imports,
--- and /gg options (the settings page is UI/Options.lua).
+-- /gg options (the settings page is UI/Options.lua) and /gg profiles
+-- (UI/ProfilesWindow.lua).
 -- This is the shipped addon's own output (chat), not a probe.
 ------------------------------------------------------------
 
@@ -42,6 +43,8 @@ function Diagnostics.Lines()
     add("reveal: " .. (mod == "NONE" and "off" or ("hold " .. mod .. " to show off-spec upgrades")))
     add("settings: " .. (GG.optionsOn and "Esc > Options > AddOns > Glass Gear (/gg options)"
         or ("unavailable (" .. tostring(GG.optionsInfo) .. ")")))
+    add("weights: /gg profiles (import, edit, export; up to "
+        .. GG.Profiles.MAX_PER_SPEC .. " profiles per spec)")
     add("unavailable in this build: protection (GG-301), bag addons (GG-401)")
     return lines
 end
@@ -108,6 +111,14 @@ function Diagnostics.Slash(msg)
         GG.API._Invalidate("baselines", { GG.player.key })
     elseif cmd == "options" or cmd == "config" then
         if not GG.Options.Open() then out("settings: Esc > Options > AddOns > Glass Gear") end
+    elseif cmd == "profiles" or cmd == "weights" then
+        local spec = rest ~= "" and rest or nil
+        if spec and not ownSpec(spec) then
+            out(string.format("usage: /gg profiles [SPEC.KEY] (a %s spec)", tostring(GG.player.class)))
+            return
+        end
+        local ok, why = GG.ProfilesWindow.Open(spec)
+        if not ok then out("profiles window unavailable: " .. tostring(why)) end
     elseif cmd == "import" then
         local spec, text = rest:match("^(%S+)%s+(.+)$")
         if not spec or not ownSpec(spec) then
@@ -121,8 +132,7 @@ function Diagnostics.Slash(msg)
         out(string.format("%s %s for %s (%s)", replaced and "replaced weights with" or "imported",
             parsed.name, spec, parsed.source))
         for _, w in ipairs(parsed.warnings) do out("  warning: " .. w) end
-        GG.Callbacks.Fire("ProfilesChanged", { charKeys = { GG.player.key } })
-        GG.API._Invalidate("profiles", { GG.player.key })
+        GG.Profiles.Changed(GG.player.key)
     else
         for _, line in ipairs(Diagnostics.Lines()) do out(line) end
     end

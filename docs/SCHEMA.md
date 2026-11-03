@@ -18,6 +18,8 @@ GlassGearDB = {
     setBonusWarnings = true,
     appearance = { theme = "forever" },          -- kept unchanged while Glass UI decides the look
   },
+  ui = { windows = { profiles = { point, relPoint, x, y } } },   -- window positions (GG-105);
+                                   -- per account, never synced
   -- `selected` lists are { [specKey] = true }. The minimum upgrade is one setting: markers.threshold
   -- and protection.threshold always hold the same value (0-5 %).
   tracked  = { ["<charKey>"] = { ["PRIEST.HOLY"] = true } },  -- protection's tracked specs; a
@@ -63,8 +65,16 @@ GlassGearChar = {
   ignored = { Spirit = true },          -- Pawn "X"
   ignoredTokens = { Mana = "7" },       -- unknown Pawn pairs, kept so they round-trip on export
   missing = { "HitRating", ... },       -- WoWSims-dropped stats: missing, not zero (WEIGHT_MISSING)
-  armor = { 1, 4 } | nil }              -- the profile's own allowed armor types (nil = spec default)
+  armor = { 1, 4 } | nil,               -- the profile's own allowed armor types (nil = spec default)
+  activeAt = 1793500100 | nil }         -- when it was last chosen as the spec's profile (GG-105)
 ```
+
+Up to 4 live profiles per spec. The spec's **active** profile is the live, non-conflict one with
+the latest `activeAt`; a profile never chosen counts as 0, and a tie goes to the first by id.
+Choosing a profile edits that entry alone (its `activeAt` becomes later than every other profile of
+the spec has), so two installations choosing at once converge without a field merge. A new import
+is chosen as it is created; replacing a profile's weights keeps its `activeAt` and `armor`. Any edit
+in the profile editor makes `source = "manual"` and keeps `origin`.
 
 **Baseline** (`kind = "baseline"`):
 
@@ -108,8 +118,11 @@ No raw newline is ever emitted.
 **Profile payload:**
 
 ```
-<specKey>;<name>;<origin>;<source>;<updatedAt base36>;<token>=<weight>,...;<X tokens>;<unknown>=<value>,...;<missing tokens>;a<armor ids>
+<specKey>;<name>;<origin>;<source>;<updatedAt base36>;<token>=<weight>,...;<X tokens>;<unknown>=<value>,...;<missing tokens>;a<armor ids>[;t<activeAt base36>]
 ```
+
+- The eleventh field (`t` + `activeAt`) is present only for a profile that was ever chosen; a line
+  without it still decodes.
 
 - A weight is written with up to 3 decimals.
 - A weight outside [-999.999, 999.999], or a malformed number, is `bad-entry`. It is never clamped.

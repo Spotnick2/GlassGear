@@ -34,6 +34,7 @@ needs to find out, and records the result here with the build once it is run.
 | P12 | Bag and loot marker hooks and look | GG-109, GG-110, GG-111 | `gg marks` | narrowed |
 | P13 | Settings page | GG-112 | `gg options` | narrowed |
 | P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
+| P15 | Profiles window | GG-105 | `gg profiles` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -350,3 +351,19 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** Make two sets, one per spec, one with an ignored slot and one with an empty slot; log
   `GetItemIDs`, `GetIgnoredSlots`, `GetEquipmentSetForSpec(1|2)`; switch spec with a set assigned and
   log event times; `/gg` (each spec's "gear:" line).
+
+## P15: Profiles window (GG-105)
+
+- **Question.**
+  - Do `InputBoxTemplate` (weights, name), `UIPanelCloseButton`, `UICheckButtonTemplate` and the
+    tooltip backdrop render as expected in a Glass Gear window?
+  - Does a ~1 000-character Pawn string paste whole into the multi-line box (Ctrl+V, `SetMaxLetters(4000)`),
+    and does Export's highlighted text copy with Ctrl+C?
+  - Does Escape close the window when no box has focus, and only clear the focus when one has?
+  - Does the window keep its dragged position across `/reload` (`GlassGearDB.ui.windows.profiles`)?
+  - In combat: does opening, editing and closing work without an error, and does Escape still close
+    other windows after the fight?
+- **Why.** The window is built from stubs; the templates and edit boxes are unmeasured here.
+- **Steps.** `/gg profiles`; paste the sample Pawn string from mockup 05; Add; edit a weight, rename,
+  toggle armor; Export and paste the copy into chat; drag, `/reload`, reopen; Escape with and
+  without focus.
