@@ -89,10 +89,10 @@ API._cache = cache   -- test seam
 
 local function features()
     return {
+        roster = GG.Integrations.RosterProvider.DetectAltStable().usable,   -- GG-201
         evaluate = true, evaluateBatch = true, cancelRequest = true,
         scopes = { current = true, own = true, tracked = false, targets = true },
-        alts = false, roster = GG.Integrations.RosterProvider.DetectAltStable().usable, sync = false,
-        assessProtection = false, frameBudget = true, resultCache = true,
+        alts = false, sync = false, assessProtection = false, frameBudget = true, resultCache = true,
     }
 end
 
@@ -105,7 +105,7 @@ function API.GetCapabilities()
             alts = alt.reason or "alt rows are GG-203 (the entry-sync library ES-001 and the transfer-rule probe GG-116)",
             sync = "needs the entry-sync library (ES-001, GG-202)",
             assessProtection = "GG-301 not implemented",
-            ["scope:tracked"] = "needs alt rows (GG-203)",
+            ["scope:tracked"] = "needs alts (GG-201)",
         },
     })
 end
