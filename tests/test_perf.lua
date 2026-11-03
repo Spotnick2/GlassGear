@@ -53,7 +53,11 @@ while next(S.jobs) and frames < 10 do
     frames = frames + 1
 end
 H.eq(next(S.jobs), nil, "...and every row completes within a few frames (" .. frames .. ")")
-H.eq(S.stats.evaluations - e0, 240, "...240 rows computed once each")
+local computed = S.stats.evaluations - e0
+-- Each row once; a row put off for its owned checks (GG-122) is computed
+-- again on the next frame: at most one a frame.
+H.check(computed >= 240 and computed <= 240 + frames + 1,
+    "...240 rows computed once each, at most one a frame redone (" .. computed .. ")")
 H.check(refreshes <= frames + 1, "...one marker redraw per frame at most (" .. refreshes .. " for " .. frames .. " frames)")
 
 -- Reopening the bags and redrawing tooltips: no recomputation.

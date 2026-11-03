@@ -22,7 +22,7 @@ local found = rawget(rawget(_G, "GlassGear"), "API")
 H.eq(found.API_VERSION, 1, "major version 1")
 local caps = api.GetCapabilities()
 H.eq(caps.features.evaluate, true, "evaluate supported")
-H.eq(caps.features.assessProtection, false, "protection not yet (GG-301)")
+H.eq(caps.features.assessProtection, true, "protection assessments (GG-301)")
 H.eq(caps.features.alts, false, "alts unavailable without AltStable extensions")
 H.check(caps.unavailable.alts:find("AltStable", 1, true) ~= nil, "reason names AltStable")
 caps.features.evaluate = false
@@ -69,7 +69,7 @@ r = api.Evaluate({ item = WoW.link(60), scope = "tracked" })
 H.eq(r.results[1].status, "unsupported", "tracked scope needs alts")
 r = api.Evaluate({ item = WoW.link(60), scope = "targets", targets = { { char = "Player-2-OTHER", spec = "MAGE.FROST" } } })
 H.eq(r.results[1].status, "unsupported", "alt targets unsupported in M0")
-H.eq(api.AssessProtection({ bag = 0, slot = 1 }).verdict, "unsupported", "protection unsupported -> consumers fail closed")
+H.eq(api.AssessProtection({ bag = 0, slot = 1 }).verdict, "protect", "protection: the better mantle is kept (test_protection has the rest)")
 
 -- Pending item data, then EvaluationReady with the full response.
 WoW.items[70] = { name = "Sage's Gloves", equipLoc = "INVTYPE_HAND", classID = 4, subclassID = 1,

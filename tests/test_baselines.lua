@@ -51,7 +51,7 @@ local function bagsChanged() WoW.fire("BAG_UPDATE_DELAYED") end
 local function setsChanged() WoW.fire("EQUIPMENT_SETS_CHANGED") end
 -- Item data that isn't loaded yet exists only in a new session: no answer
 -- from before is cached then.
-local function newSession() GG.API._cache.clear() end
+local function newSession() GG.API._cache.clear(); GG.API._state.equippedMemo = nil end
 local function switch(group)
     WoW.specGroup = group
     WoW.fire("ACTIVE_TALENT_GROUP_CHANGED", group, 3 - group)

@@ -453,6 +453,18 @@ local function build()
     -- Protection
     header(right, "DISENCHANT PROTECTION")
     note(right, "Specs Shatter keeps upgrades for (Shatter's integration: GG-301, SH-001).")
+    local charsBtn, ctemplated = safeFrame("Button", content, "UIPanelButtonTemplate", "Text")
+    charsBtn:SetSize(150, 22)
+    if not ctemplated then
+        local bg = charsBtn:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints(charsBtn)
+        bg:SetColorTexture(0.2, 0.2, 0.25, 0.9)
+    end
+    charsBtn:SetText("All characters...")
+    place(right, charsBtn, 26, 8)
+    -- Through the slash command: a refusal is said, never swallowed.
+    charsBtn:SetScript("OnClick", function() GG.Diagnostics.Slash("characters") end)
+    Options.charactersButton = charsBtn
     for _, s in ipairs(specs()) do
         local keys = {}
         for _, x in ipairs(specs()) do keys[#keys + 1] = x.key end

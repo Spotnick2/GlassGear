@@ -41,6 +41,14 @@
   (minimum upgrade, level window and look-ahead, spec armor); disenchant protection (tracked specs,
   specs without weights); appearance (Glass UI's decision) with a live preview; Defaults. Every
   change applies at once.
+- Your other characters (GG-201): with AltStable, Glass Gear knows your own characters on this and
+  your other WoW accounts (AltStable's provenance: never a friend's, never by an account label),
+  and `/gg` counts them. Alt upgrades themselves come with GG-203.
+- Characters page (GG-204, `/gg characters` or the settings page's button): your characters by
+  account, each spec a box for disenchant protection (the one you play is tracked by default; your
+  other characters' boxes stay inactive, and the page says so, until protection can assess alts),
+  how old each one's recorded gear is (and how to refresh it),
+  which specs have no weights, and Open AltStable. Without AltStable it says what still works.
 - Spec mapping on the settings page (GG-104): a SPECS section maps each spec group to a spec, or
   Not set, without a slash command; the active group is marked. `/gg spec <group> none` clears one.
 - Per-spec gear (GG-108): each spec compares with its own gear. Glass Gear records what you wear
@@ -49,10 +57,22 @@
   (`/gg set <spec> none` turns sets off for that spec, `auto` back on). A
   spec with nothing recorded still compares with your current gear, labelled. Gear recorded more
   than 14 days ago is flagged in the tooltip and `/gg`.
+- What you carry counts (GG-122): a one-hander compared with a spec that uses a two-hander pairs with
+  the best off-hand in your bags, not only the one you wear; and an item is no longer shown as an
+  upgrade when your bags already hold a better one for that spec (the tooltip says "you own better"
+  and names it; rings and trinkets need two better ones).
+- Disenchant protection for Shatter (GG-301): `GlassGear.API.AssessProtection` says whether a bag
+  item is an upgrade for one of your tracked specs (keep it), safe to disenchant, or not certain yet
+  (keep it). Recorded gear that is stale, or a spec compared with your current gear, is never called
+  safe; specs without weights are listed as unchecked. Shatter's side is SH-001.
 - API runtime (GG-114): answers are cached until something they depend on changes, so redrawing a
   tooltip or a bag costs a lookup; at most 200 comparisons run per frame (the rest finish on the
   next frames); requests for the same item share one computation; bounded queues answer OVERLOADED
   instead of growing.
+- Bagnon (GG-401): the upgrade arrows also show on Bagnon's bag buttons, with the same rules and the
+  reveal key; never on a cached view of another character's bags. `/gg` names the bag addon; on
+  Baganator, AdiBags, ArkInventory, BetterBags and EllesmereUIBags it says the arrows aren't there yet
+  (tooltips are).
 - Weight profiles window (GG-105, `/gg profiles`, or the settings page's button): up to 4 profiles
   per spec, one active; paste a Pawn string or a WoWSims Pawn EP export and see at once whether it
   is valid, how many weights it has and what it leaves out; add it as a new profile or replace one;
@@ -63,3 +83,8 @@
 - Set bonuses (GG-119): the client's item-set data (545 sets, build 1.60.1.70753) is built in, so
   tooltips say "Completes a 2-piece set bonus" / "Breaks a 4-piece set bonus" instead of only "Set
   item: bonus not scored". The bonus itself is still never scored.
+- Detailed comparison (GG-113, `/gg compare`, with an item link or the item last hovered): one item
+  against a spec's gear, with the stats behind the estimate (unweighted ones shown, marked), the
+  item score on the profile's scale, the verdict, how it was made (method, profile, source, the gear
+  compared with and its age) and what it leaves out. A spec with no recorded gear offers your saved
+  equipment sets. Built on the shared window of the profiles page.

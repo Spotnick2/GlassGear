@@ -245,8 +245,8 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Equipment-set mapping per spec.
   - Baseline entries in `EntrySync`.
   - Freshness and `expiresAt`.
-  - Companion off-hand from the worn gear (from the bags: GG-122).
-  - Owned better items in bags as an optional source: moved to GG-122.
+  - Companion off-hand from the worn gear (from the bags: GG-122, done).
+  - Owned better items in bags as an optional source: GG-122, done.
 - **Acceptance.**
   - A Holy result uses Holy gear after one Holy session.
   - "No Holy equipment recorded" offers "use current gear (estimate)" or "choose a saved set"
@@ -328,6 +328,13 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - "no equipment recorded" choices.
 - **Refs.** mockup 08; adr/0003.
 - **Validation:** game.
+- **Done (auto), game P16.** `/gg compare [link]` (else the item last hovered), `UI/CompareWindow.lua` on
+  the shared `UI/Window.lua` (extracted from the profiles window), `Presentation/CompareView.lua`
+  (pure). Spec tabs; the gear compared with and its age; equipped vs candidate (+ companion); the
+  stat table (unweighted stats shown, marked); item scores and change; the verdict; method,
+  profile, source, baseline; the tooltip's notes; "No <spec> equipment recorded" with the saved
+  sets as buttons (`Capture.MapSet`, also behind `/gg set`); View profile. `test_compare.lua`.
+  Not done: a key binding (a click handler would consume clicks; a binding needs owner approval).
 
 ### GG-114: Public API v1 runtime (P1, MVP)
 
@@ -434,6 +441,12 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   - Without AltStable, or with an older one: `/gg` and the API say exactly what is missing.
   - A third-party character is never listed as a recipient.
 - **Validation:** auto (`DetectAltStable` fixtures), game (two accounts).
+- **Done (auto).** `Integrations/RosterProvider.lua`: `Attach` at login follows AltStable's
+  `CharactersChanged` / `ProvenanceChanged` (snapshot rebuilt; `RosterChanged` + an invalidation only
+  when it changed) and `GearChanged` (→ `EquipmentChanged`). Only `self` / `own-account`; the current
+  character from Glass Gear itself. `GetSpecs` answers for an own alt. `/gg` counts them, or says
+  exactly what is missing. `test_roster.lua` (34 checks), against a fake built from AltStable's
+  docs/PUBLIC-API.md.
 
 ### GG-202: Entry sync over the shared library (ES-001) (P0, MVP)
 
@@ -483,6 +496,13 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   - "Open AltStable", with no duplicate pairing UI.
 - **Refs.** mockup 06.
 - **Validation:** game.
+- **Done (auto), game P17.** `UI/CharactersWindow.lua` (`/gg characters`, a settings button): grouped
+  by account (this one first); per spec a protection box (`Prefs.SetTracked`; an alt's boxes inactive, and said, until
+  the API has alt rows, GG-203; then alts are opted in); gear
+  freshness from `RosterProvider.Gear` (AltStable `GetCharacterGear.capturedAt`: fresh, stale with
+  the fix, none); weights counted; hidden alts dimmed; "seen by" for own-account characters; Open
+  AltStable (`OpenSheet`, else `ToggleSheet`); the unavailable state with what is missing; follows `RosterChanged` and
+  `ProfilesChanged`. `maybeBehind` needs sync manifests (GG-202). `test_characters.lua`.
 
 ## M3: Shatter protection
 
@@ -505,13 +525,20 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   - The token changes when a baseline goes stale without any other event.
 - **Refs.** API.md; mockups 07, G4.
 - **Validation:** auto, game with Shatter (P8).
+- **Done (auto).** `API.AssessProtection`: the tracked specs of the current character, computed fresh
+  on every call (never the result cache, never deferred by the frame budget), with the protection
+  threshold; `Policy.Protection` for the verdict; pending item data loads and then invalidates
+  (`itemData`); the token hashes instance GUID, bind state, `noWeights`, tracked specs and the
+  generation; a baseline passing `expiresAt` advances the freshness generation before the call
+  returns. Errors answer `unknown` (`INTERNAL_ERROR`). `test_protection.lua` (43 checks). Shatter's
+  side is SH-001.
 
 ## M4: Compatibility, performance, localisation, release
 
 | ID | P | Class | Repo | Outcome / acceptance |
 |---|---|---|---|---|
 | GUI-001 | P1 | EXT | GlassUI | GlassGear added to `Suite.ROSTER` as `dynamic`. Its card appears only while it is loaded |
-| GG-401 | P2 | MVP | GlassGear | Baganator/Bagnon marker adapters; until then `/gg` reports "bag replacement: markers unavailable" |
+| GG-401 | P2 | MVP | GlassGear | Baganator/Bagnon marker adapters; until then `/gg` reports "bag replacement: markers unavailable". **Bagnon done** (`UI/BagAddons.lua`: one hook on BagBrother's `Item:Update`, cached views skipped; `test_bag_addons.lua`, game P18). Baganator waits for its reference copy (CurseForge serves it by hand only) |
 | GG-402 | P1 | MVP | GlassGear | Performance: tooltip redraw does no recomputation (cache hit). Bag refresh stays within the per-frame budget. Measured. **Done (auto), game P19**: `test_perf.lua` (a full bag of 80 pieces x 3 specs = 240 rows: at most 200 at once, the rest over the next frames, one marker redraw per frame; reopening and 200 tooltip redraws recompute nothing); one evaluation ~22-24 us in plain Lua 5.1, so a full 200-row frame ~4.5-5 ms there; `/gg stats` reports evaluations, cache hits, deferred rows, queues and the busiest frame's time (`debugprofilestop`) to measure in game. If P19 shows hitches, lower `LIMITS.perFrame` (e.g. 100) |
 | GG-403 | P2 | MVP | GlassGear | Localisation: move strings to an `L` table. All comparisons are already locale-independent |
 | GG-404 | P1 | MVP | GlassGear | Release: CurseForge and Wago projects; `X-Curse-Project-ID` / `X-Wago-ID` in the TOC (the CI `wago` job needs it); `WAGO_API_TOKEN` secret; first `v0.1.0-alpha1` per RELEASING.md |

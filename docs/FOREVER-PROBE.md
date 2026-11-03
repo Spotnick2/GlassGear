@@ -35,6 +35,9 @@ needs to find out, and records the result here with the build once it is run.
 | P13 | Settings page | GG-112 | `gg options` | narrowed |
 | P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
 | P15 | Profiles window | GG-105 | `gg profiles` | queued |
+| P16 | Comparison window | GG-113 | `gg compare` | queued |
+| P17 | Characters page and AltStable roster | GG-201, GG-204 | `gg characters` | queued |
+| P18 | Bagnon markers | GG-401 | `gg bagnon` | queued |
 | P19 | Runtime cost in the client | GG-402 | `gg perf` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
@@ -374,6 +377,44 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** `/gg profiles`; paste the sample Pawn string from mockup 05; Add; edit a weight, rename,
   toggle armor; Export and paste the copy into chat; drag, `/reload`, reopen; Escape with and
   without focus.
+
+## P16: Comparison window (GG-113)
+
+- **Question.**
+  - Does `/gg compare` followed by a Shift-clicked item link pass the link through the slash command
+    intact (the `|H...|h` codes), and does `/gg compare` alone pick the item last hovered?
+  - Do the stat table's columns line up with `GameFontHighlightSmall`, and does a 12-row table fit?
+  - Do the saved-set buttons map the set (the gear line then names it)?
+- **Why.** Layout and link passing are unmeasured; the stubs model the text only.
+- **Steps.** Hover a bag item, `/gg compare`; `/gg compare ` + Shift-click an item; switch spec tabs;
+  for a spec with no recorded gear, click a saved set; View profile.
+
+## P17: Characters page and AltStable roster (GG-201, GG-204)
+
+- **Question.**
+  - With AltStable on both accounts: does `/gg` count this account's and the other account's
+    characters as AltStable's provenance says, and never a whitelisted friend's?
+  - Does the page show each alt's gear age from `GetCharacterGear(guid).capturedAt`, and does
+    playing an alt refresh it on the other account after a sync?
+  - Does "Open AltStable" open AltStable's sheet (`OpenSheet`)?
+  - Are an alt's spec boxes dimmed and locked, with the note that alts can't be protected yet?
+  - Do `CharactersChanged` / `ProvenanceChanged` arrive within a frame of a sync, and does the page
+    follow without reopening?
+- **Why.** The roster and page are built against a fake AltStable from its docs/PUBLIC-API.md.
+- **Steps.** `/gg`; `/gg characters`; try to tick a spec of an alt (inactive until GG-203); log the
+  other account, sync, back; Open AltStable.
+
+## P18: Bagnon markers (GG-401)
+
+- **Question.**
+  - With Bagnon (12.1.7, Forever build) on Forever, is `BagBrother.Item.Update` called for every item
+    button on open, sort and bag change, and does our mark sit on the button (our child frame)?
+  - Does `IsCached()` say true when Bagnon shows another character's bags (its character dropdown),
+    so no mark shows there?
+  - Does holding Ctrl show the amber marks in Bagnon's window (the window as a reveal surface)?
+- **Why.** The adapter is built from the reference copy's classes, not measured.
+- **Steps.** Install Bagnon; `/gg` (bag addon line); open the bags with an upgrade inside; sort; hold
+  Ctrl; switch Bagnon to another character's bags.
 
 ## P19: Runtime cost in the client (GG-402)
 
