@@ -83,7 +83,8 @@ LibGlass r11, not the painted textures.
   "Disenchant anyway" records `{guid, token}` for this one item and this session. It bypasses only
   Glass Gear's veto and expires on any token or GUID change. Mail Mode items belong to their
   senders, so no upgrade check applies to them. The secure one-click button is unchanged.
-- **08, comparison.** Shows the baseline source (saved set → gear seen in that spec → current gear
+- **08, comparison.** Built (GG-113): spec tabs replace the character dropdown (one character until
+  GG-201; no dropdowns), and "No equipment recorded" offers the saved sets by name. Shows the baseline source (saved set → gear seen in that spec → current gear
   labelled `fallback-current`), the replaced item(s) from the chosen legal configuration, and
   limitations such as `EFFECT_NOT_SCORED`. "Item score" and percentages are item-score estimates,
   never DPS or healing.

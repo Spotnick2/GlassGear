@@ -39,6 +39,7 @@ Presentation\Theme.lua
 Presentation\TooltipView.lua
 Presentation\MarkerView.lua
 Presentation\ProfileView.lua
+Presentation\CompareView.lua
 API\PublicAPI.lua
 UI\Diagnostics.lua
 UI\Results.lua
@@ -48,5 +49,7 @@ UI\Marks.lua
 UI\BagMarkers.lua
 UI\LootMarkers.lua
 UI\Options.lua
+UI\Window.lua
 UI\ProfilesWindow.lua
+UI\CompareWindow.lua
 Core\Main.lua

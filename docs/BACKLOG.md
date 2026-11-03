@@ -328,6 +328,13 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - "no equipment recorded" choices.
 - **Refs.** mockup 08; adr/0003.
 - **Validation:** game.
+- **Done (auto), game P16.** `/gg compare [link]` (else the item last hovered), `UI/CompareWindow.lua` on
+  the shared `UI/Window.lua` (extracted from the profiles window), `Presentation/CompareView.lua`
+  (pure). Spec tabs; the gear compared with and its age; equipped vs candidate (+ companion); the
+  stat table (unweighted stats shown, marked); item scores and change; the verdict; method,
+  profile, source, baseline; the tooltip's notes; "No <spec> equipment recorded" with the saved
+  sets as buttons (`Capture.MapSet`, also behind `/gg set`); View profile. `test_compare.lua`.
+  Not done: a key binding (a click handler would consume clicks; a binding needs owner approval).
 
 ### GG-114: Public API v1 runtime (P1, MVP)
 

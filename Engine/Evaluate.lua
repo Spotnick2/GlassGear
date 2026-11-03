@@ -217,7 +217,7 @@ function Evaluate.One(input)
         return res
     end
 
-    res.replaces = { slots = best.slots, items = {} }
+    res.replaces = { slots = best.slots, items = {}, companion = best.companion and best.companion.itemString }
     for _, d in ipairs(best.displaced) do add(res.replaces.items, d.itemString) end
 
     -- What the displaced items (and a companion) carry that the score can't see.

@@ -81,6 +81,7 @@ local function onItemTooltip(tooltip, data)
         { currentSpec = GG.currentSpec })
     if not lines then return end
     shown[tooltip] = { key = key, itemID = itemID }
+    Tooltip.lastRef = ref          -- /gg compare with nothing pasted compares this one (GG-113)
     Tooltip.Render(tooltip, lines)
 end
 Tooltip._OnItemTooltip = onItemTooltip   -- test seam
