@@ -31,6 +31,7 @@ Character\Baselines.lua
 Core\Callbacks.lua
 Core\DB.lua
 Core\Compat.lua
+Core\Prefs.lua
 Integrations\RosterProvider.lua
 Integrations\GlassUI.lua
 Presentation\Theme.lua
@@ -44,4 +45,5 @@ UI\Reveal.lua
 UI\Marks.lua
 UI\BagMarkers.lua
 UI\LootMarkers.lua
+UI\Options.lua
 Core\Main.lua

@@ -44,6 +44,8 @@ function WoW.reset()
     WoW.focus = nil       -- the edit box with keyboard focus
     WoW.combat = false
     WoW.atlases = { ["bags-greenarrow"] = true }
+    WoW.missingTemplates = {}
+    WoW.openedCategory = nil
     WoW.loot = {}         -- [lootSlot] = { itemID = n } | { money = true }
     WoW.rolls = {}        -- [rollID] = itemID
     if WoW.makeBagFrames then WoW.makeBagFrames() end
@@ -83,9 +85,16 @@ function WoW.chat() return table.concat(WoW.chatLines, "\n") end
 -- Widgets (only the methods Glass Gear calls)
 ------------------------------------------------------------
 local function newFontString()
-    local fs = {}
+    local fs = { shown = true }
     function fs:SetPoint() end
     function fs:SetText(t) self.text = t end
+    function fs:GetText() return self.text end
+    function fs:SetJustifyH() end
+    function fs:SetWidth() end
+    function fs:GetStringHeight() return 14 end
+    function fs:SetTextColor(r, g, b) self.color = { r, g, b } end
+    function fs:Show() self.shown = true end
+    function fs:Hide() self.shown = false end
     return fs
 end
 
@@ -99,12 +108,26 @@ local function newTexture()
     function t:SetColorTexture(r, g, b, a) self.color = { r, g, b, a } end
     function t:Show() self.shown = true end
     function t:Hide() self.shown = false end
+    function t:SetSize() end
+    function t:SetHeight() end
+    function t:SetTexture(p) self.texture = p end
+    function t:SetTexCoord() end
     return t
 end
 
-function CreateFrame(kind, name, parent)
+-- What a Blizzard template adds that Glass Gear checks or uses (UICheckButtonTemplate
+-- and UIRadioButtonTemplate: .text; UIPanelButtonTemplate: .Text; UIPanelScrollFrameTemplate:
+-- .ScrollBar). WoW.missingTemplates[name] = true makes CreateFrame return a bare frame.
+local TEMPLATE_FIELDS = {
+    UICheckButtonTemplate = "text", UIRadioButtonTemplate = "text",
+    UIPanelButtonTemplate = "Text", UIPanelScrollFrameTemplate = "ScrollBar",
+}
+
+function CreateFrame(kind, name, parent, template)
     local f = { _events = {}, _scripts = {}, _hooks = {}, kind = kind, name = name, parent = parent,
-        shown = true, inCombatCreate = WoW.combat }
+        shown = true, inCombatCreate = WoW.combat, template = template, enabled = true, alpha = 1 }
+    local field = template and TEMPLATE_FIELDS[template]
+    if field and not WoW.missingTemplates[template] then f[field] = field == "ScrollBar" and {} or newFontString() end
     function f:RegisterEvent(e) self._events[e] = true end
     function f:UnregisterEvent(e) self._events[e] = nil end
     function f:SetScript(s, fn) self._scripts[s] = fn end
@@ -113,7 +136,12 @@ function CreateFrame(kind, name, parent)
         self._hooks[s] = self._hooks[s] or {}
         table.insert(self._hooks[s], fn)
     end
-    function f:CreateFontString() return newFontString() end
+    function f:CreateFontString()
+        local fs = newFontString()
+        self._fs = self._fs or {}
+        self._fs[#self._fs + 1] = fs
+        return fs
+    end
     function f:CreateTexture() return newTexture() end
     function f:SetSize() end
     function f:SetPoint() end
@@ -127,14 +155,58 @@ function CreateFrame(kind, name, parent)
     function f:Show()
         local was = self.shown
         self.shown = true
-        if not was then for _, fn in ipairs(self._hooks.OnShow or {}) do fn(self) end end
+        if not was then
+            if self._scripts.OnShow then self._scripts.OnShow(self) end
+            for _, fn in ipairs(self._hooks.OnShow or {}) do fn(self) end
+        end
     end
     function f:Hide()
         local was = self.shown
         self.shown = false
-        if was then for _, fn in ipairs(self._hooks.OnHide or {}) do fn(self) end end
+        if was then
+            if self._scripts.OnHide then self._scripts.OnHide(self) end
+            for _, fn in ipairs(self._hooks.OnHide or {}) do fn(self) end
+        end
     end
     function f:SetShown(v) if v then self:Show() else self:Hide() end end
+    -- Options page widgets (UI/Options.lua).
+    function f:SetWidth() end
+    function f:SetHeight(h) self.height = h end
+    function f:SetAlpha(a) self.alpha = a end
+    function f:SetEnabled(v) self.enabled = v and true or false end
+    function f:IsEnabled() return self.enabled end
+    function f:SetChecked(v) self.checked = v and true or false end
+    function f:GetChecked() return self.checked == true end
+    function f:SetText(t) self.label_text = t end
+    function f:SetNormalTexture() end
+    function f:SetPushedTexture() end
+    function f:SetHighlightTexture() end
+    function f:SetCheckedTexture() end
+    function f:GetNormalTexture() return newTexture() end
+    function f:GetCheckedTexture() return newTexture() end
+    function f:GetHighlightTexture() return newTexture() end
+    -- A click as the client does it: a check button toggles, then OnClick and hooks run.
+    function f:Click()
+        if not self.enabled then return end
+        if self.kind == "CheckButton" then self.checked = not self.checked end
+        if self._scripts.OnClick then self._scripts.OnClick(self, "LeftButton", false) end
+    end
+    function f:SetScrollChild(c) self.scrollChild = c end
+    function f:EnableMouseWheel() end
+    function f:GetVerticalScrollRange() return 0 end
+    function f:GetVerticalScroll() return 0 end
+    function f:SetVerticalScroll() end
+    function f:SetOrientation() end
+    function f:SetMinMaxValues(lo, hi) self.min, self.max = lo, hi end
+    function f:SetValueStep(s) self.step = s end
+    function f:SetObeyStepOnDrag() end
+    function f:SetThumbTexture() end
+    function f:GetValue() return self.value end
+    function f:SetValue(v)
+        if self.min then v = math.max(self.min, math.min(self.max, v)) end
+        self.value = v
+        if self._scripts.OnValueChanged then self._scripts.OnValueChanged(self, v) end
+    end
     WoW.frames[#WoW.frames + 1] = f
     return f
 end
@@ -258,8 +330,20 @@ ItemLocation = {
 }
 
 Settings = {                                                                                            -- 28257, 28260
-    RegisterCanvasLayoutCategory = function(frame, name) return { frame = frame, name = name } end,
+    RegisterCanvasLayoutCategory = function(frame, name)
+        return { frame = frame, name = name, GetID = function() return name end }
+    end,
     RegisterAddOnCategory = function(c) WoW.settingsCategories[#WoW.settingsCategories + 1] = c end,
+    -- Blizzard Lua (Blizzard_Settings_Shared): shows the category's canvas frame.
+    OpenToCategory = function(id)
+        for _, c in ipairs(WoW.settingsCategories) do
+            if c:GetID() == id then WoW.openedCategory = id; c.frame:Show(); return true end
+        end
+        return false
+    end,
+}
+GameTooltip = {                                                                                         -- GameTooltip.xml
+    SetOwner = function() end, SetText = function() end, Show = function() end, Hide = function() end,
 }
 
 -- Generated API docs (TooltipInfoSharedDocumentation.lua:89-96) and Blizzard

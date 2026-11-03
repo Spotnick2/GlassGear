@@ -93,7 +93,7 @@ Rules that apply everywhere:
 |---|---|---|
 | Tooltip specs | All my specs, current first | Options: current only, all my specs, selected specs |
 | Tooltip alts | On when AltStable provides own characters | Eligible own alts on transferable items only |
-| Marker scope | Current spec | Options: current spec, or + selected own specs |
+| Marker scope | Current spec | Options: current spec, + selected own specs, or all my specs |
 | Mark transferable upgrades | On | Amber for transferable items (matrix row 3) |
 | Reveal modifier | Ctrl | Ctrl / Alt / None |
 | Minimum upgrade | 0.5 % | Same threshold as Pawn (`Pawn.lua:3760`). It applies to markers and protection, not to the rows themselves |

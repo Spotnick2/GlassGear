@@ -1,5 +1,6 @@
 ------------------------------------------------------------
--- UI/Diagnostics.lua - /glassgear (/gg) and the Settings category stub.
+-- UI/Diagnostics.lua - /glassgear (/gg): diagnostics, spec mapping, imports,
+-- and /gg options (the settings page is UI/Options.lua).
 -- This is the shipped addon's own output (chat), not a probe.
 ------------------------------------------------------------
 
@@ -38,6 +39,8 @@ function Diagnostics.Lines()
         or ("unavailable (" .. tostring(GG.lootMarkersInfo) .. ")")))
     local mod = GG.db and GG.db.settings.reveal.modifier or "CTRL"
     add("reveal: " .. (mod == "NONE" and "off" or ("hold " .. mod .. " to show off-spec upgrades")))
+    add("settings: " .. (GG.optionsOn and "Esc > Options > AddOns > Glass Gear (/gg options)"
+        or ("unavailable (" .. tostring(GG.optionsInfo) .. ")")))
     add("unavailable in this build: protection (GG-301), bag addons (GG-401)")
     return lines
 end
@@ -69,6 +72,8 @@ function Diagnostics.Slash(msg)
         GG.ResolveSpec()
         GG.API._Invalidate("spec", { GG.player.key })
         out("spec group " .. group .. " -> " .. key)
+    elseif cmd == "options" or cmd == "config" then
+        if not GG.Options.Open() then out("settings: Esc > Options > AddOns > Glass Gear") end
     elseif cmd == "import" then
         local spec, text = rest:match("^(%S+)%s+(.+)$")
         if not spec or not ownSpec(spec) then
@@ -87,18 +92,6 @@ function Diagnostics.Slash(msg)
     else
         for _, line in ipairs(Diagnostics.Lines()) do out(line) end
     end
-end
-
--- A Settings category so the addon is discoverable (porting guide: Settings
--- API). The real panel is GG-112.
-function Diagnostics.RegisterSettings()
-    local panel = CreateFrame("Frame")
-    local text = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    text:SetPoint("TOPLEFT", 16, -16)
-    text:SetText("Glass Gear - foundation build. Settings arrive with GG-112.\nType /gg for diagnostics.")
-    local category = Settings.RegisterCanvasLayoutCategory(panel, "Glass Gear")
-    Settings.RegisterAddOnCategory(category)
-    return category
 end
 
 return Diagnostics

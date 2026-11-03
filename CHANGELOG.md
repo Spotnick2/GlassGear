@@ -32,3 +32,9 @@
 - Loot markers (GG-111): the same arrows on the loot window and the group roll frames. Green for a
   current-spec upgrade; off-spec upgrades show amber only while you hold the reveal key (BoP and
   BoE alike). Marks work in combat (a small pool made beforehand).
+- Settings page (GG-112): Esc > Options > AddOns > Glass Gear, or `/gg options`. Tooltips (which
+  specs, alts, set-bonus warnings); bag and loot arrows (current spec, + selected specs, or all
+  specs; amber for transferable items; the reveal key, Shift shown but not allowed); upgrade rules
+  (minimum upgrade, level window and look-ahead, spec armor); disenchant protection (tracked specs,
+  specs without weights); appearance (Glass UI's decision) with a live preview; Defaults. Every
+  change applies at once.
