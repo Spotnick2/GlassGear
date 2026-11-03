@@ -9,8 +9,8 @@
 -- own art if one is missing; a hand-built slider; radio groups, never a
 -- dropdown; a scroll frame for the height.
 --
--- Sections follow the three independent scopes (adr/0006, mockups 04 and G2):
--- Tooltips; Bag and loot arrows with the reveal key; Upgrade rules (minimum
+-- Sections follow the three independent scopes (adr/0006, mockups 04 and G2),
+-- after Specs (which spec each spec group is, GG-104): Tooltips; Bag and loot arrows with the reveal key; Upgrade rules (minimum
 -- upgrade, level window, spec armor); Disenchant protection (tracked specs);
 -- Appearance (Glass UI's decision, and a live preview drawn by the same
 -- Policy and TooltipView code as the real tooltip and arrows).
@@ -236,6 +236,56 @@ local function specChecks(col, list, scopePath)
     return boxes
 end
 
+-- Which spec each spec group is (GG-104): one line per spec, one radio
+-- column per spec group, and "Not set". Through GG.Spec.Map, like /gg spec.
+local function specMapping(col)
+    local groups = {}
+    local X = { col.x + 170, col.x + 240 }
+    local heads = {}
+    for g = 1, GG.Spec.MAX_GROUPS do
+        heads[g] = label(col.parent, "Group " .. g, "GameFontHighlightSmall")
+        heads[g]:SetPoint("TOPLEFT", col.parent, "TOPLEFT", X[g] - 8, col.y)
+        groups[g] = {}
+    end
+    col.y = col.y - 16
+    local rows = {}
+    for _, s in ipairs(specs()) do rows[#rows + 1] = { key = s.key, name = s.name } end
+    rows[#rows + 1] = { key = "none", name = "Not set" }
+    for _, r in ipairs(rows) do
+        local name = label(col.parent, r.name)
+        place(col, name, 22, 8)
+        for g = 1, GG.Spec.MAX_GROUPS do
+            local rb = checkButton(col.parent, "", true)
+            rb:SetPoint("TOPLEFT", col.parent, "TOPLEFT", X[g], col.y + 22)
+            rb.value, rb.group = r.key, g
+            rb:SetScript("OnClick", function()
+                local ok, why = GG.Spec.Map(g, r.key ~= "none" and r.key or nil)
+                if not ok then Options.lastRefusal = why end
+                Options.Refresh()     -- a refused choice snaps back
+            end)
+            groups[g][#groups[g] + 1] = rb
+        end
+    end
+    local status = note(col, "")
+    controls[#controls + 1] = function()
+        local map = GG.charDB and GG.charDB.specMap or {}
+        local n = GG.Compat.NumSpecGroups()
+        for g = 1, GG.Spec.MAX_GROUPS do
+            local mapped = map[g] or "none"
+            for _, rb in ipairs(groups[g]) do
+                rb:SetChecked(rb.value == mapped)
+                dim(rb, GG.readOnly)
+            end
+            local tag = (GG.specGroup == g and " (active)") or ((n and g > n) and " (not learned)") or ""
+            heads[g]:SetText("Group " .. g .. tag)
+        end
+        status:SetText(GG.currentSpec and ("Current spec: " .. (GG.Data.Classes.Spec(GG.currentSpec) or {}).name)
+            or "Current spec: not set. Choose the spec of your active group.")
+    end
+    Options.specRadios, Options.specHeads = groups, heads
+    return groups
+end
+
 local function set(path) return function(v) GG.Prefs.Set(path, v) end end
 local function get(path) return function() return GG.Prefs.Get(path) end end
 
@@ -353,6 +403,11 @@ local function build()
     profiles:SetPoint("TOPLEFT", content, "TOPLEFT", W * 2 - 116, -8)
     profiles:SetScript("OnClick", function() GG.ProfilesWindow.Open() end)
     Options.profilesButton = profiles
+
+    -- Specs
+    header(left, "SPECS")
+    note(left, "Which spec each spec group is. Automatic detection comes after the in-game probe (GG-101).")
+    specMapping(left)
 
     -- Tooltips
     header(left, "TOOLTIPS")

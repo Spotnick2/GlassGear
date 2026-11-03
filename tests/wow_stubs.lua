@@ -36,6 +36,7 @@ function WoW.reset()
     WoW.player = { name = "Karuzo", realm = "Forever", class = "PRIEST", className = "Priest",
         level = 60, faction = "Alliance", guid = "Player-1-0000AAAA", dualWield = false }
     WoW.specGroup = 1
+    WoW.numSpecGroups = 2   -- GetNumSpecGroups (1 without dual spec)
     WoW.items = {}        -- [itemID] = { name, equipLoc, classID, subclassID, minLevel, bindType, setID, stats, spell, unique = {cat,max} }
     WoW.cacheMiss = {}    -- [itemID] = true -> GetItemInfo / GetItemStats return nothing
     WoW.equipped = {}     -- [slot] = itemID
@@ -309,6 +310,7 @@ function GetInventoryItemLink(unit, slot)                                       
     return id and WoW.link(id) or nil
 end
 
+function GetNumSpecGroups() return WoW.numSpecGroups end                                     -- 19269 (undocumented)
 C_SpecializationInfo = { GetActiveSpecGroup = function() return WoW.specGroup end }                   -- 3490
 C_SpellBook = { IsSpellKnown = function() return false end }                                          -- 3634
 
