@@ -188,6 +188,16 @@ function Compat.ActiveSpecGroup()
     return C_SpecializationInfo.GetActiveSpecGroup()
 end
 
+-- How many spec groups the character has (2 once dual spec is learned).
+-- GetNumSpecGroups is in the dump's undocumented list (no signature):
+-- AltStableSync measured 1 without dual spec. nil when it can't be read.
+function Compat.NumSpecGroups()
+    local f = rawget(_G, "GetNumSpecGroups")
+    if type(f) ~= "function" then return nil end
+    local ok, n = pcall(f)
+    if ok and type(n) == "number" then return n end
+end
+
 -- { [subclass] = true } from known proficiency spells, or nil (fallback table).
 function Compat.KnownArmor()
     if not Compat.USE_KNOWN_SKILLS then return nil end

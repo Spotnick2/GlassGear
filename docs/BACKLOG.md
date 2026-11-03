@@ -127,6 +127,11 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Changing it fires `EvaluationInvalidated`.
 - **Refs.** mockup 05.
 - **Validation:** auto (resolver), game.
+- **Done (auto), game P13.** The settings page's SPECS section: one line per spec, a radio column
+  per spec group, and Not set (radios, not dropdowns: the porting guide). `Spec.Map` is the one
+  setter, also behind `/gg spec` (which now takes `none`). The active group is labelled; group 2
+  says "not learned" without dual spec. The tooltip's hint points at `/gg options`.
+  `test_spec_mapping.lua`. Automatic detection stays with GG-101.
 
 ### GG-105: Profiles UI with Pawn import/export (P0, MVP)
 

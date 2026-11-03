@@ -321,6 +321,8 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Question.**
   - Does Esc > Options > AddOns > Glass Gear show the page **on the first visit** (built on first
     show, hidden at creation: the porting guide's recipe)? Does `/gg options` open it?
+  - SPECS (GG-104): does `GetNumSpecGroups()` return 1 without dual spec and 2 with it (the page
+    labels group 2 "not learned" from it), and does a radio change show the right "Current spec"?
   - Do the check and radio buttons (`UICheckButtonTemplate`, `UIRadioButtonTemplate`), the hand-built
     sliders and the scroll frame render and respond? Is Shift visibly disabled, with its tooltip?
   - Does the page fit two columns in the Settings canvas, and does it scroll to Defaults?

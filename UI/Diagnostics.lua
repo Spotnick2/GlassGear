@@ -22,7 +22,8 @@ function Diagnostics.Lines()
         GG.MEASURED_ON_BUILD, GG.API.API_VERSION, GG.SCHEMA, GG.readOnly and " READ-ONLY (newer data)" or ""))
     if GG.player then
         add(string.format("%s, %s level %d", tostring(GG.player.name), tostring(GG.player.class), GG.player.level or 0))
-        add("current spec: " .. (GG.currentSpec or ("unknown (" .. tostring(GG.specReason) .. ") - map it: /gg spec <group> <key>")))
+        add("current spec: " .. (GG.currentSpec or ("unknown (" .. tostring(GG.specReason)
+        .. ") - map it in /gg options, or /gg spec <group> <key>")))
         for _, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
             local p = GG.store and GG.Profiles.Active(GG.store, GG.player.key, s.key)
             add(string.format("  %s: %s", s.key, p and (p.name .. " [" .. tostring(p.source) .. "]") or "no weights"))
@@ -67,16 +68,18 @@ function Diagnostics.Slash(msg)
     if cmd == "spec" then
         local group, key = rest:match("^(%d+)%s+(%S+)$")
         group = tonumber(group)
-        if not group or not GG.Spec.ValidMapping(GG.player.class, group, key) then
-            out(string.format("usage: /gg spec <1-%d> <SPEC.KEY> (a %s spec)  e.g. /gg spec 1 %s",
+        local none = key and key:lower() == "none"
+        local ok, why = false, "usage"
+        if group and (none or GG.Spec.ValidMapping(GG.player.class, group, key)) then
+            ok, why = GG.Spec.Map(group, not none and key or nil)
+        end
+        if not ok then
+            if why == "read-only" then out("read-only this session: the spec mapping can't change") return end
+            out(string.format("usage: /gg spec <1-%d> <SPEC.KEY | none> (a %s spec)  e.g. /gg spec 1 %s",
                 GG.Spec.MAX_GROUPS, tostring(GG.player.class), specExample()))
             return
         end
-        GG.charDB.specMap[group] = key
-        GG.ResolveSpec()
-        GG.API._Invalidate("spec", { GG.player.key })
-        GG.Capture.Request()
-        out("spec group " .. group .. " -> " .. key)
+        out("spec group " .. group .. " -> " .. (none and "not set" or key))
     elseif cmd == "set" then
         -- /gg set <SPEC.KEY> <set name> | none | auto: compare that spec with a
         -- saved set; none: never a set, not even one assigned in the client;

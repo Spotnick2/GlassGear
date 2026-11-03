@@ -191,7 +191,7 @@ function View.Build(response, settings, ctx)
         lines[#lines + 1] = { left = "Gear recorded over 14 days ago: " .. table.concat(stale, ", "), lc = C.later }
     end
     if not ctx.currentSpec then
-        lines[#lines + 1] = { left = "Current spec not set: /gg spec", lc = C.muted }
+        lines[#lines + 1] = { left = "Current spec not set: /gg options", lc = C.muted }
     end
     local footer = "Weighted item score \194\183 estimates"
     if offSpecVsCurrentGear then footer = footer .. " \194\183 other specs vs current gear" end
