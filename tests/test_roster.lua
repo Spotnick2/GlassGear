@@ -46,7 +46,8 @@ local api = GG.API
 local RP = GG.Integrations.RosterProvider
 local function names(list) local t = {} for _, c in ipairs(list) do t[#t + 1] = c.name end return table.concat(t, ",") end
 
-H.eq(api.GetCapabilities().features.roster, true, "features.roster")
+H.eq(api.GetCapabilities().features.roster, true, "features.roster (AltStable usable)")
+H.check(api.GetCapabilities().unavailable.alts:find("GG-203", 1, true) ~= nil, "unavailable.alts points at GG-203, not GG-201")
 local list = api.GetCharacters()
 H.eq(names(list), "Karuzo,Wanda,Drakuza,Banky", "the current character first, then the player's own others")
 H.eq(list[1].current, true, "...the current one from Glass Gear itself")
@@ -85,7 +86,7 @@ chars[4].provenance = "own-account"           -- a sync proved the friend's acco
 fire("ProvenanceChanged")
 WoW.flush()
 H.eq(roster, 1, "a provenance change: RosterChanged")
-H.check(H.has(inval, "roster"), "...and answers are invalidated")
+H.eq(H.has(inval, "roster"), false, "...no invalidation: no answer depends on alts yet (GG-203)")
 H.check(names(api.GetCharacters()):find("Friendo", 1, true) ~= nil, "...the character proven own is listed now")
 chars[2].level = 43
 fire("CharactersChanged")
@@ -99,6 +100,33 @@ api.RegisterCallback("EquipmentChanged", function(_, p) eq = p end, "test_roster
 fire("GearChanged", { "Player-1-ALT1" })
 WoW.flush()
 H.eq(eq and eq.charKeys and eq.charKeys[1], "Player-1-ALT1", "GearChanged -> EquipmentChanged for that alt")
+eq = nil
+chars[4].provenance = "third-party"
+fire("ProvenanceChanged")
+WoW.flush()
+fire("GearChanged", { "Player-1-FRIEND", ME })
+WoW.flush()
+H.eq(eq, nil, "a third-party character's or the current one's gear: no EquipmentChanged from AltStable")
+eq = nil
+fire("GearChanged", { "Player-1-FRIEND", "Player-1-ALT2" })
+WoW.flush()
+H.eq(eq and #eq.charKeys, 1, "...mixed: only the own alt is named")
+
+-- Any field the page shows is a roster change.
+local r0 = roster
+chars[3].provenanceVia = "Bob"
+fire("CharactersChanged")
+WoW.flush()
+H.eq(roster, r0 + 1, "who vouched for an own-account character changed: RosterChanged")
+chars[2].account = "3"
+fire("CharactersChanged")
+WoW.flush()
+H.eq(roster, r0 + 2, "an account label changed (the page groups by it): RosterChanged")
+
+-- A retry doesn't register handlers twice.
+local before = #(callbacks.CharactersChanged or {})
+GG.Integrations.RosterProvider.Attach()
+H.eq(#callbacks.CharactersChanged, before, "Attach again: no second handler")
 
 -- AltStable failing: only this character, the reason reported.
 failing = true
@@ -106,6 +134,7 @@ fire("CharactersChanged")
 WoW.flush()
 H.eq(names(api.GetCharacters()), "Karuzo", "GetCharacters failing: only this character")
 H.check(RP.Status().reason:find("GetCharacters failed", 1, true) ~= nil, "...the reason reported")
+SlashCmdList.GLASSGEAR("")
 H.eq(#WoW.errors, 1, "...and the error goes to the error handler")
 failing = false
 fire("CharactersChanged")
@@ -120,10 +149,27 @@ SlashCmdList.GLASSGEAR("")
 H.check(WoW.chat():find("AltStable: present, AltStable lacks AS-003 - only this character is known", 1, true) ~= nil,
     "/gg says exactly what is missing")
 H.check(api.GetCapabilities().unavailable.alts:find("AS-003", 1, true) ~= nil, "...so does the API")
+H.eq(api.GetCapabilities().features.roster, false, "...features.roster is false then")
 rawset(_G, "AltStable", nil)
 RP._Reset()
 RP.Refresh()
 SlashCmdList.GLASSGEAR("")
 H.check(WoW.chat():find("AltStable: absent - only this character is known", 1, true) ~= nil, "no AltStable: said so")
+H.eq(api.GetCapabilities().features.roster, false, "...features.roster false")
+
+-- A registration that fails keeps its reason through later rebuilds.
+local partial = {
+    PUBLIC_API_VERSION = 1, PUBLIC_API_FEATURES = { provenance = true, gear = true },
+    GetCharacters = AS.GetCharacters, GetCharacterProvenance = AS.GetCharacterProvenance,
+    GetCharacterGear = AS.GetCharacterGear,
+    RegisterCallback = function(event, fn) if event == "ProvenanceChanged" then error("no") end end,
+}
+rawset(_G, "AltStable", partial)
+RP._Reset()
+RP.Attach()
+RP.Refresh()
+H.check((RP.Status().reason or ""):find("callbacks unavailable", 1, true) ~= nil,
+    "a failed callback registration is still reported after a rebuild")
+rawset(_G, "AltStable", nil)
 
 H.done("test_roster")

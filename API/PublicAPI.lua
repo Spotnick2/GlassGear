@@ -91,7 +91,8 @@ local function features()
     return {
         evaluate = true, evaluateBatch = true, cancelRequest = true,
         scopes = { current = true, own = true, tracked = false, targets = true },
-        alts = false, roster = true, sync = false, assessProtection = false, frameBudget = true, resultCache = true,
+        alts = false, roster = GG.Integrations.RosterProvider.DetectAltStable().usable, sync = false,
+        assessProtection = false, frameBudget = true, resultCache = true,
     }
 end
 
@@ -101,10 +102,10 @@ function API.GetCapabilities()
         apiVersion = API.API_VERSION, build = GG.MEASURED_ON_BUILD, features = features(),
         limits = API.LIMITS,
         unavailable = {
-            alts = alt.reason or "GG-201 not implemented",
+            alts = alt.reason or "alt rows are GG-203 (the entry-sync library ES-001 and the transfer-rule probe GG-116)",
             sync = "needs the entry-sync library (ES-001, GG-202)",
             assessProtection = "GG-301 not implemented",
-            ["scope:tracked"] = "needs alts (GG-201)",
+            ["scope:tracked"] = "needs alt rows (GG-203)",
         },
     })
 end
