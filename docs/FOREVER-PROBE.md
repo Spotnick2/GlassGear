@@ -37,6 +37,7 @@ needs to find out, and records the result here with the build once it is run.
 | P15 | Profiles window | GG-105 | `gg profiles` | queued |
 | P16 | Comparison window | GG-113 | `gg compare` | queued |
 | P17 | Characters page and AltStable roster | GG-201, GG-204 | `gg characters` | queued |
+| P18 | Bagnon markers | GG-401 | `gg bagnon` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -401,3 +402,15 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Why.** The roster and page are built against a fake AltStable from its docs/PUBLIC-API.md.
 - **Steps.** `/gg`; `/gg characters`; try to tick a spec of an alt (inactive until GG-203); log the
   other account, sync, back; Open AltStable.
+
+## P18: Bagnon markers (GG-401)
+
+- **Question.**
+  - With Bagnon (12.1.7, Forever build) on Forever, is `BagBrother.Item.Update` called for every item
+    button on open, sort and bag change, and does our mark sit on the button (our child frame)?
+  - Does `IsCached()` say true when Bagnon shows another character's bags (its character dropdown),
+    so no mark shows there?
+  - Does holding Ctrl show the amber marks in Bagnon's window (the window as a reveal surface)?
+- **Why.** The adapter is built from the reference copy's classes, not measured.
+- **Steps.** Install Bagnon; `/gg` (bag addon line); open the bags with an upgrade inside; sort; hold
+  Ctrl; switch Bagnon to another character's bags.

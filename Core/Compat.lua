@@ -199,6 +199,14 @@ function Compat.Player()
         canDualWield = CanDualWield(), current = true }
 end
 
+-- Is an addon loaded? (C_AddOns.IsAddOnLoaded, dump :197) false when unknown.
+function Compat.AddOnLoaded(name)
+    local A = rawget(_G, "C_AddOns")
+    if not (A and type(A.IsAddOnLoaded) == "function") then return false end
+    local ok, loaded = pcall(A.IsAddOnLoaded, name)
+    return ok and loaded == true
+end
+
 function Compat.ActiveSpecGroup()
     if not (C_SpecializationInfo and C_SpecializationInfo.GetActiveSpecGroup) then return nil, "unavailable" end
     return C_SpecializationInfo.GetActiveSpecGroup()

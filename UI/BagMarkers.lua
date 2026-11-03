@@ -45,6 +45,7 @@ function Markers.For(bag, slot, ctx)
 end
 
 -- One pass's shared inputs, or false when markers are off.
+-- (Markers.Context: shared with the bag addons' adapter, UI/BagAddons.lua.)
 local function context()
     if not (GG.API.IsReady() and GG.player) then return false end
     local specs = {}
@@ -55,17 +56,20 @@ local function context()
     }
 end
 
-local function decorate(button, ctx)
+-- Decorate any button: Blizzard's (bag/slot read here) or a bag addon's
+-- (bag/slot given; nil bag clears its mark). `rewhere` is the adapter's
+-- own reader, used again for a button first met in combat.
+local function decorate(button, ctx, bag, slot, given, rewhere)
     local kind
     if ctx then
-        local bag, slot = where(button)
+        if not given then bag, slot = where(button) end
         if bag then kind = Markers.For(bag, slot, ctx) end
     end
     local m = marks[button]
     if not m then
         if not kind then return end
         if GG.Compat.InCombat() then
-            pending[button] = true
+            pending[button] = rewhere or true
             events:RegisterEvent("PLAYER_REGEN_ENABLED")
             return
         end
@@ -111,9 +115,15 @@ end
 local function afterCombat()
     events:UnregisterEvent("PLAYER_REGEN_ENABLED")
     local ctx = context()
-    for button in pairs(pending) do
+    for button, how in pairs(pending) do
         pending[button] = nil
-        decorate(button, ctx)
+        if type(how) == "function" then
+            -- A bag addon's button: its own reader, never Blizzard's GetBagID.
+            local bag, slot = how(button)
+            decorate(button, ctx, bag, slot, true, how)
+        else
+            decorate(button, ctx)
+        end
     end
 end
 
@@ -155,6 +165,9 @@ function Markers.Initialize()
     if #bagFrames == 0 then return false, "Blizzard's bag frames missing" end
     return true, #bagFrames
 end
+
+Markers.Context = context
+function Markers.Decorate(button, ctx, bag, slot, rewhere) decorate(button, ctx, bag, slot, true, rewhere) end
 
 -- Test seams.
 Markers._marks = marks

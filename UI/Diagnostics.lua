@@ -48,6 +48,7 @@ function Diagnostics.Lines()
     add("tooltip rows: " .. (GG.tooltipHooked and "on" or ("unavailable (" .. tostring(GG.tooltipReason) .. ")")))
     add("bag markers: " .. (GG.bagMarkersOn and ("on (" .. tostring(GG.bagMarkersInfo) .. " bag frames)")
         or ("unavailable (" .. tostring(GG.bagMarkersInfo) .. ")")))
+    add(GG.BagAddons.Status())
     add("loot markers: " .. (GG.lootMarkersOn and ("on (" .. tostring(GG.lootMarkersInfo) .. ")")
         or ("unavailable (" .. tostring(GG.lootMarkersInfo) .. ")")))
     local mod = GG.db and GG.db.settings.reveal.modifier or "CTRL"
@@ -57,7 +58,7 @@ function Diagnostics.Lines()
     add("weights: /gg profiles (import, edit, export; up to "
         .. GG.Profiles.MAX_PER_SPEC .. " profiles per spec)")
     add("disenchant protection: ready for Shatter (GlassGear.API.AssessProtection, tracked specs)")
-    add("unavailable in this build: bag addons (GG-401)")
+    add("unavailable in this build: markers on " .. table.concat(GG.BagAddons.UNSUPPORTED, ", "))
     return lines
 end
 

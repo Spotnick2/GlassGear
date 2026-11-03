@@ -53,6 +53,8 @@ function handlers.PLAYER_LOGIN()
     GG.tooltipHooked, GG.tooltipReason = GG.Tooltip.Initialize()
     GG.Reveal.Initialize()
     GG.bagMarkersOn, GG.bagMarkersInfo = GG.BagMarkers.Initialize()
+    local okB, errB = pcall(GG.BagAddons.Initialize)          -- Bagnon (GG-401)
+    if not okB then geterrorhandler()("GlassGear bag addons: " .. tostring(errB)) end
     GG.lootMarkersOn, GG.lootMarkersInfo = GG.LootMarkers.Initialize()
     GG.optionsOn, GG.optionsInfo = GG.Options.Register()
     GG.API._SetReady()
