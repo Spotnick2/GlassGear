@@ -40,6 +40,9 @@ local state = { ready = false, nextId = 0, requests = {}, requestCount = 0, jobs
     waiting = {}, waitingCount = 0, generation = 0, gens = {}, frameTime = nil, frameUsed = 0,
     deferredScheduled = false,
     protectionWaits = {},     -- [itemID] = true: an AssessProtection waits for this item's data
+    protectionGaveUp = {},    -- [itemID] = GetTime() its load gave up: unknown until PROTECTION_RETRY passes
+    itemDataSignal = nil,     -- item IDs for the next coalesced EvaluationInvalidated(itemData)
+    equippedMemo = nil,       -- { frame, generation, equipped, missing } (one build per frame)
     nextExpiry = nil,         -- earliest baseline expiresAt a protection answer depended on
     stats = { evaluations = 0, hits = 0, misses = 0, deferredRows = 0, protections = 0 } }
 API._state = state   -- test seam
@@ -217,7 +220,9 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
     opts = opts or {}
     local response = { requestId = requestId, results = {} }
     local rowDeps = {}
-    local link, instance = GG.Compat.ResolveItemRef(request.item)
+    local link, instance
+    if opts.link then link, instance = opts.link, opts.instance
+    else link, instance = GG.Compat.ResolveItemRef(request.item) end
     local facts = link and GG.Compat.ItemFacts(link)
     if not facts then
         response.results = rowsFor(specs, "unknown", "NO_ITEM")
@@ -225,7 +230,16 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
         return response, rowDeps
     end
     local now = time()
-    local equipped, missing = GG.Compat.EquippedBaseline(now)
+    -- The worn gear, built once per frame and generation (a bag scan by a
+    -- consumer evaluates many items in one frame; equipment changes invalidate).
+    local memo = state.equippedMemo
+    local frame = GetTime()
+    if not (memo and memo.frame == frame and memo.generation == state.generation and #memo.missing == 0) then
+        local e, m = GG.Compat.EquippedBaseline(now)
+        memo = { frame = frame, generation = state.generation, equipped = e, missing = m }
+        state.equippedMemo = memo
+    end
+    local equipped, missing = memo.equipped, memo.missing
     -- Worn items still loading hold up only the specs that need them (GG-108):
     -- those compared with the current gear, and a candidate that pairs with a
     -- worn hand whose data hasn't arrived. Pending, not an "unknown slot" verdict.
@@ -246,7 +260,12 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
             r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
             for id in pairs(priorDeps and priorDeps[i] or {}) do deps[id] = true end
         else
-            spend()
+            if opts.protection then
+                -- Protection never spends the display budget (adr/0006).
+                state.stats.evaluations = state.stats.evaluations + 1
+            else
+                spend()
+            end
             if not facts.ready then deps[facts.itemID] = true end
             -- Each spec's own gear (GG-108): a set, what it wore, or the current gear.
             local baseline, specMissing, fromLive = GG.Capture.BaselineFor(spec, equipped, now)
@@ -616,9 +635,10 @@ function API._ItemDataArrived(itemID, success)
     if state.protectionWaits[itemID] and GG.Compat.ItemLoaded(itemID) then
         -- A protection answer was pending on it: consumers (Shatter) re-ask.
         state.protectionWaits[itemID] = nil
-        API._Invalidate("itemData", GG.player and { GG.player.key } or nil)
+        API._SignalItemData(itemID)
         if not next(jobsWaitingFor(itemID)) then unwait(itemID) end
     end
+    if GG.Compat.ItemLoaded(itemID) then state.protectionGaveUp[itemID] = nil end
     if GG.Compat.ItemLoaded(itemID) and not computedMissing and not w.ready then
         w.ready = true               -- no more retries; released once no row waits for it
         GG.Callbacks.Fire("ItemDataReady", { itemIDs = { itemID } })
@@ -667,7 +687,13 @@ function API._Tick(now)
     table.sort(gaveUp)
     for _, itemID in ipairs(gaveUp) do
         local keys = jobsWaitingFor(itemID)
-        state.protectionWaits[itemID] = nil      -- the next assessment asks again
+        if state.protectionWaits[itemID] then
+            -- A protection answer waited for it: it is final now (unknown,
+            -- kept), and the consumer is told to ask again.
+            state.protectionWaits[itemID] = nil
+            state.protectionGaveUp[itemID] = now
+            API._SignalItemData(itemID)
+        end
         unwait(itemID)
         for _, k in ipairs(keys) do
             local job = state.jobs[k.key]
@@ -707,14 +733,20 @@ local function hash(s)
     return string.format("%08x", h)
 end
 
-local function verdictOf(verdict, reasons, extra)
-    local out = { verdict = verdict, token = nil, expiresAt = nil, recipients = {}, unchecked = {}, reasons = reasons }
-    for k, v in pairs(extra or {}) do out[k] = v end
-    return out
+-- The early answers (not ready, no item, nothing tracked, errors): the shape
+-- of Policy.Protection's, no token (consumers never store an override for them).
+local function verdictOf(verdict, reasons)
+    return { verdict = verdict, token = nil, expiresAt = nil, recipients = {}, unchecked = {}, reasons = reasons }
 end
 
+local NO_WEIGHTS_MODES = { ignore = true, keep = true }
+API.PROTECTION_RETRY = 60    -- seconds an item whose load gave up stays unknown before a new try
+
 local function assess(itemRef, opts)
+    opts = type(opts) == "table" and opts or {}
     if not state.ready then return verdictOf("unknown", { "NOT_READY" }) end
+    -- One scope: the tracked specs. Anything else is refused, never narrowed.
+    if opts.scope ~= nil and opts.scope ~= "tracked" then return verdictOf("unsupported", { "SCOPE_UNSUPPORTED" }) end
     -- A baseline a previous answer depended on went stale meanwhile: the
     -- freshness generation advances first, so this token differs.
     if state.nextExpiry and time() >= state.nextExpiry then
@@ -728,17 +760,56 @@ local function assess(itemRef, opts)
     state.stats.protections = state.stats.protections + 1
     -- Computed now, every time: protection never reads a cached answer
     -- (instance bind state, GUID and expiry are re-read on every call).
-    local response, rowDeps = evaluateOne({ item = itemRef }, nil, specs, nil, nil, { protection = true })
+    local response, rowDeps = evaluateOne({ item = itemRef }, nil, specs, nil, nil,
+        { protection = true, link = link, instance = instance })
     local s = GG.db and GG.db.settings.protection or GG.DB.DEFAULTS.settings.protection
-    local noWeights = (opts and opts.noWeights) or s.noWeights
+    -- noWeights: "ignore" or "keep"; anything else keeps the item (fail-closed).
+    local noWeights = opts.noWeights
+    if noWeights == nil then noWeights = NO_WEIGHTS_MODES[s.noWeights] and s.noWeights or "keep"
+    elseif not NO_WEIGHTS_MODES[noWeights] then noWeights = "keep" end
     local out = GG.Engine.Policy.Protection(response.results, { noWeights = noWeights })
     if out.verdict == "pending" then
-        -- Load what it needs; when the data arrives, EvaluationInvalidated
-        -- tells the consumer to ask again (no deferred verdict, ever).
+        -- Load what it needs; when the data arrives (or gives up),
+        -- EvaluationInvalidated(itemData) tells the consumer to ask again.
+        -- No verdict is ever delivered later by itself.
+        local needed, seen = {}, {}
         for _, deps in pairs(rowDeps) do
             for itemID in pairs(deps) do
-                if wait(itemID) then state.protectionWaits[itemID] = true
-                else out.verdict = "unknown"; out.reasons[#out.reasons + 1] = "ITEM_QUEUE_FULL" end
+                if not seen[itemID] then seen[itemID] = true; needed[#needed + 1] = itemID end
+            end
+        end
+        table.sort(needed)
+        local gaveUp = false
+        for _, itemID in ipairs(needed) do
+            local at = state.protectionGaveUp[itemID]
+            if at and GetTime() - at < API.PROTECTION_RETRY then gaveUp = true
+            else state.protectionGaveUp[itemID] = nil end           -- long enough: try loading again
+        end
+        if gaveUp then
+            out.verdict = "unknown"
+            out.reasons[#out.reasons + 1] = "ITEM_DATA_UNAVAILABLE"
+        else
+            local added, full = {}, false
+            for _, itemID in ipairs(needed) do
+                if wait(itemID) then
+                    local w = state.waiting[itemID]
+                    -- Taken for loaded by another job, yet a row here can't
+                    -- use it: its retries resume (never pinned forever).
+                    if w.ready then w.ready, w.since = nil, GetTime() end
+                    if not state.protectionWaits[itemID] then added[#added + 1] = itemID end
+                    state.protectionWaits[itemID] = true
+                else
+                    full = true
+                    break
+                end
+            end
+            if full then
+                -- Nothing half-queued for an answer that is already final.
+                local release = {}
+                for _, itemID in ipairs(added) do state.protectionWaits[itemID] = nil; release[itemID] = true end
+                releaseUnneeded(release)
+                out.verdict = "unknown"
+                out.reasons[#out.reasons + 1] = "ITEM_QUEUE_FULL"
             end
         end
     end
@@ -781,10 +852,31 @@ function API._Invalidate(reason, charKeys)
     GG.Callbacks.Fire("EvaluationInvalidated", { reason = reason, charKeys = charKeys })
 end
 
+-- Item data a protection answer waited for has arrived (or gave up): tell
+-- consumers to ask again. Coalesced to one event per frame; it does not
+-- advance the generation: no cached answer depends on an item that wasn't
+-- loaded (pending answers are never cached).
+function API._SignalItemData(itemID)
+    if state.itemDataSignal then
+        state.itemDataSignal[#state.itemDataSignal + 1] = itemID
+        return
+    end
+    state.itemDataSignal = { itemID }
+    C_Timer.After(0, function()
+        local ids = state.itemDataSignal or {}
+        state.itemDataSignal = nil
+        table.sort(ids)
+        GG.Callbacks.Fire("EvaluationInvalidated", { reason = "itemData", itemIDs = ids,
+            charKeys = GG.player and { GG.player.key } or nil })
+    end)
+end
+
 -- Test seam: drop every pending job, subscription and item load.
 function API._ResetQueues()
     state.jobs, state.requests, state.waiting = {}, {}, {}
     state.jobRows, state.requestCount, state.waitingCount = 0, 0, 0
+    state.protectionWaits, state.protectionGaveUp, state.nextExpiry = {}, {}, nil
+    state.equippedMemo = nil
 end
 
 return API

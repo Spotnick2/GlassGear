@@ -165,10 +165,78 @@ WoW.items[61] = shoulder("Lost Mantle", { [INT] = 50 }, 2)
 WoW.bags[0][5] = { itemID = 61, isBound = false, guid = "Item-1-LOST" }
 WoW.cacheMiss[61] = true
 api.AssessProtection(bag(5))
+WoW.flush(1); inval = {}
+local signals = {}
+api.RegisterCallback("EvaluationInvalidated", function(_, p)
+    inval[#inval + 1] = p.reason
+    if p.reason == "itemData" then signals[#signals + 1] = p end
+end, "test_protection")
 for _ = 1, 20 do WoW.time = WoW.time + 1; WoW.flush(1) end
 H.eq(S.protectionWaits[61], nil, "a load that gives up releases the protection wait")
-H.eq(api.AssessProtection(bag(5)).verdict, "pending", "...the next call asks again (still pending, kept)")
+H.check(signals[1] and has(signals[1].itemIDs, 61), "...and tells the consumer to ask again (itemData)")
+local lost = api.AssessProtection(bag(5))
+H.eq(lost.verdict, "unknown", "...which then gets a final answer: unknown (kept)")
+H.check(has(lost.reasons, "ITEM_DATA_UNAVAILABLE"), "...ITEM_DATA_UNAVAILABLE")
+H.eq(S.waiting[61], nil, "...without loading it again at once")
+WoW.time = WoW.time + api.PROTECTION_RETRY + 1
+H.eq(api.AssessProtection(bag(5)).verdict, "pending", "a minute later it tries loading again")
 WoW.cacheMiss[61] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 61, true)
+WoW.flush(1)
+
+-- Arrivals are coalesced, and don't drop cached answers.
+WoW.items[62] = shoulder("Late A", { [INT] = 51 }, 2)
+WoW.items[63] = shoulder("Late B", { [INT] = 52 }, 2)
+WoW.bags[0][6] = { itemID = 62, isBound = false, guid = "Item-1-LA" }
+WoW.bags[0][7] = { itemID = 63, isBound = false, guid = "Item-1-LB" }
+WoW.cacheMiss[62], WoW.cacheMiss[63] = true, true
+api.AssessProtection(bag(6)); api.AssessProtection(bag(7))
+WoW.flush(1); signals = {}
+local genA = S.generation
+WoW.cacheMiss[62], WoW.cacheMiss[63] = nil, nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 62, true)
+WoW.fire("ITEM_DATA_LOAD_RESULT", 63, true)
+WoW.flush(1)
+H.eq(#signals, 1, "two arrivals in one frame: one itemData event")
+H.eq(signals[1] and #signals[1].itemIDs, 2, "...naming both items")
+H.eq(S.generation, genA, "...and the generation (cached answers) is untouched")
+
+-- A queue that fills part-way: nothing half-queued, one reason.
+WoW.items[64] = shoulder("Never A", { [INT] = 53 }, 2)
+WoW.bags[0][8] = { itemID = 64, isBound = false, guid = "Item-1-NA" }
+WoW.cacheMiss[64] = true
+GG.Capture._Reset()                           -- Holy's recorded mantle not loaded either: two items needed
+WoW.cacheMiss[52] = true
+local qsaved = api.LIMITS.itemQueue
+api.LIMITS.itemQueue = S.waitingCount + 1     -- room for one of the two
+local qf = api.AssessProtection(bag(8))
+local nq = 0
+for _, r in ipairs(qf.reasons) do if r == "ITEM_QUEUE_FULL" then nq = nq + 1 end end
+H.eq(qf.verdict, "unknown", "a full item queue: unknown (kept)")
+H.eq(nq, 1, "...ITEM_QUEUE_FULL once")
+H.eq(S.protectionWaits[64], nil, "...no protection wait left behind")
+H.eq(S.protectionWaits[52], nil, "...not even for the item that did fit")
+H.eq(S.waiting[52], nil, "...and its load released")
+api.LIMITS.itemQueue = qsaved
+WoW.cacheMiss[64], WoW.cacheMiss[52] = nil, nil
+
+-- Options are validated.
+local bad = api.AssessProtection(bag(2), { noWeights = true })
+H.eq(bad.reasons[1] ~= "INTERNAL_ERROR", true, "noWeights = true: no error")
+H.eq(bad.verdict, "unknown", "...an unknown mode keeps the item (as \"keep\")")
+H.eq(api.AssessProtection(bag(2), { scope = "own" }).verdict, "unsupported", "a scope other than tracked: unsupported")
+H.eq(api.AssessProtection(bag(2), { scope = "own" }).reasons[1], "SCOPE_UNSUPPORTED", "...SCOPE_UNSUPPORTED")
+
+-- Protection never spends the display budget.
+local pbudget = api.LIMITS.perFrame
+api.LIMITS.perFrame = 4
+WoW.time = WoW.time + 1
+api._cache.clear()
+api.Evaluate({ item = WoW.link(51), scope = "current" })   -- this frame's first row: 3 left
+api.AssessProtection(bag(1)); api.AssessProtection(bag(2))
+local ev = api.Evaluate({ item = WoW.link(53), scope = "own" })
+H.check(ev.results[3].reasons[1] ~= "FRAME_BUDGET", "after two assessments, Evaluate still has its whole budget")
+api.LIMITS.perFrame = pbudget
 
 ------------------------------------------------------------
 -- Fail-closed.
