@@ -14,7 +14,7 @@
 --   RosterProvider.Characters(p)   the current character, then the player's
 --                                  own other characters (a cached snapshot)
 --   RosterProvider.Find(guid)      one of them, or nil
---   RosterProvider.Status()        what /gg and the API report
+--   RosterProvider.Status()        what /gg and the characters page show
 --
 -- Ownership is AltStable's provenance, never the `account` label: only
 -- "self" (scanned on this WoW account) and "own-account" (a proven own
@@ -24,6 +24,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local RosterProvider = {}
 GG.Integrations.RosterProvider = RosterProvider
 
@@ -35,17 +36,21 @@ RosterProvider.ALTSTABLE_NEEDS = {
 }
 RosterProvider.OWN = { self = true, ["own-account"] = true }
 
--- Returns { present, apiVersion, usable, missing = {ids}, reason }.
+-- Returns { present, apiVersion, usable, missing = {ids}, reason, reasonText }.
+-- `reason` stays English (the public API hands it to other addons);
+-- `reasonText` is the same in the player's language (Status, /gg, the page).
 function RosterProvider.DetectAltStable(env)
     env = env or _G
     local as = rawget(env, "AltStable")
     if type(as) ~= "table" then
-        return { present = false, usable = false, missing = {}, reason = "AltStable not loaded" }
+        return { present = false, usable = false, missing = {}, reason = "AltStable not loaded",
+            reasonText = L["AltStable not loaded"] }
     end
     local version = rawget(as, "PUBLIC_API_VERSION")
     local out = { present = true, apiVersion = version, missing = {}, usable = false }
     if type(version) ~= "number" or version < 1 then
         out.reason = "AltStable public API not found"
+        out.reasonText = L["AltStable public API not found"]
         return out
     end
     local flags = rawget(as, "PUBLIC_API_FEATURES")
@@ -55,7 +60,10 @@ function RosterProvider.DetectAltStable(env)
     end
     out.usable = #out.missing == 0
     -- (not `usable and nil or ...`: that always yields the second branch)
-    if not out.usable then out.reason = "AltStable lacks " .. table.concat(out.missing, ", ") end
+    if not out.usable then
+        out.reason = "AltStable lacks " .. table.concat(out.missing, ", ")
+        out.reasonText = L["AltStable lacks %s"]:format(table.concat(out.missing, ", "))
+    end
     return out
 end
 
@@ -99,7 +107,7 @@ function RosterProvider.Refresh()
         RosterProvider.rebuilds = RosterProvider.rebuilds + 1
         local ok, chars = pcall(as().GetCharacters)
         if not ok or type(chars) ~= "table" then
-            fetchError = "AltStable.GetCharacters failed"
+            fetchError = L["AltStable.GetCharacters failed"]
             if not ok then geterrorhandler()("GlassGear roster: " .. tostring(chars)) end
             chars = {}
         end
@@ -156,7 +164,7 @@ function RosterProvider.Attach()
             if pcall(A.RegisterCallback, event, HANDLERS[event]) then
                 registered[event] = true
             else
-                attachError = "AltStable callbacks unavailable (" .. event .. ")"
+                attachError = L["AltStable callbacks unavailable (%s)"]:format(event)
             end
         end
     end
@@ -189,11 +197,11 @@ end
 function RosterProvider.OpenAltStable()
     local A = as()
     local fn = A and (rawget(A, "OpenSheet") or rawget(A, "ToggleSheet"))
-    if type(fn) ~= "function" then return false, "AltStable has no sheet to open" end
+    if type(fn) ~= "function" then return false, L["AltStable has no sheet to open"] end
     local ok, err = pcall(fn)
     if not ok then
         geterrorhandler()("GlassGear: opening AltStable: " .. tostring(err))
-        return false, "AltStable failed to open"
+        return false, L["AltStable failed to open"]
     end
     return true
 end
@@ -208,10 +216,11 @@ function RosterProvider.Find(guid)
     for _, c in ipairs(alts) do if c.guid == guid then return c end end
 end
 
--- { present, usable, missing, reason, own, self, ownAccount, thirdParty }
+-- { present, usable, missing, reason, own, self, ownAccount, thirdParty };
+-- `reason` here is the player's text (shown by /gg and the characters page).
 function RosterProvider.Status()
     local d = RosterProvider.DetectAltStable()
-    d.reason = fetchError or attachError or d.reason
+    d.reason = fetchError or attachError or d.reasonText
     d.own = #alts
     d.self, d.ownAccount, d.thirdParty = counts.self, counts.ownAccount, counts.thirdParty
     return d

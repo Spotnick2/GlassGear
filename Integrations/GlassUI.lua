@@ -7,6 +7,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local GlassUI = {}
 GG.Integrations.GlassUI = GlassUI
 
@@ -22,9 +23,9 @@ end
 -- Asked once, before any glass is built. Returns { following, theme, reason }.
 function GlassUI.Ask(env)
     local s = GlassUI.SuiteAPI(env)
-    if not s then return { following = false, reason = "Glass UI not loaded" } end
+    if not s then return { following = false, reason = L["Glass UI not loaded"] } end
     local ok, theme, why = pcall(s.Theme, GG.NAME)
-    if not ok then return { following = false, reason = "Glass UI error" } end
+    if not ok then return { following = false, reason = L["Glass UI error"] } end
     if type(theme) ~= "table" then return { following = false, reason = tostring(why or "not-following") } end
     return { following = true, theme = theme }
 end

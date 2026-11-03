@@ -17,6 +17,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Prefs = {}
 GG.Prefs = Prefs
 
@@ -45,7 +46,7 @@ local RULES = {
     ["setBonusWarnings"] = bool,
     ["protection.noWeights"] = oneOf("ignore", "keep"),
 }
-Prefs.SHIFT_REASON = "Shift is used by item comparison"
+Prefs.SHIFT_REASON = L["Shift is used by item comparison"]   -- shown by the options page
 
 local function settings() return GG.db.settings end
 

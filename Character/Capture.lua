@@ -26,6 +26,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Capture = {}
 GG.Capture = Capture
 
@@ -115,29 +116,31 @@ end
 -- client's) or "auto" (the client's, if any). The one setter behind
 -- /gg set and the comparison window. Returns ok, message.
 function Capture.MapSet(spec, name)
-    if GG.readOnly then return false, "read-only this session: the set mapping can't change" end
-    if not (GG.player and GG.charDB) then return false, "not ready" end
+    if GG.readOnly then return false, L["read-only this session: the set mapping can't change"] end
+    if not (GG.player and GG.charDB) then return false, L["not ready"] end
     local lower = tostring(name or ""):lower()
     local msg
     if lower == "none" then
         GG.charDB.equipSetMap[spec] = { none = true }
-        msg = spec .. ": no equipment set, not even one assigned in the client; compared with the gear it wore"
+        msg = L["%s: no equipment set, not even one assigned in the client; compared with the gear it wore"]:format(spec)
     elseif lower == "auto" then
         GG.charDB.equipSetMap[spec] = nil
-        msg = spec .. ": the equipment set assigned to it in the client, if any; else the gear it wore"
+        msg = L["%s: the equipment set assigned to it in the client, if any; else the gear it wore"]:format(spec)
     else
         local sets = GG.Compat.EquipmentSets()
-        if not sets then return false, "equipment sets are not available" end
+        if not sets then return false, L["equipment sets are not available"] end
         local found
         for _, s in ipairs(sets) do if s.name:lower() == lower then found = s end end
         if not found then
             local names = {}
             for _, s in ipairs(sets) do names[#names + 1] = s.name end
-            return false, "no equipment set named '" .. tostring(name) .. "'"
-                .. (#names > 0 and (". Sets: " .. table.concat(names, ", ")) or "")
+            if #names > 0 then
+                return false, L["no equipment set named '%s'. Sets: %s"]:format(tostring(name), table.concat(names, ", "))
+            end
+            return false, L["no equipment set named '%s'"]:format(tostring(name))
         end
         GG.charDB.equipSetMap[spec] = { id = found.id, name = found.name }
-        msg = spec .. " -> equipment set '" .. found.name .. "'"
+        msg = L["%s -> equipment set '%s'"]:format(spec, found.name)
     end
     Capture.CheckSets()
     GG.API._Invalidate("baselines", { GG.player.key })
@@ -192,27 +195,45 @@ end
 
 local function age(seconds)
     local days = math.floor(seconds / 86400)
-    if days >= 1 then return days .. " d ago" end
+    if days >= 1 then return L["%d d ago"]:format(days) end
     local hours = math.floor(seconds / 3600)
-    return hours >= 1 and (hours .. " h ago") or "just now"
+    return hours >= 1 and L["%d h ago"]:format(hours) or L["just now"]
 end
 
 function Capture.Status(spec, now)
     local setID, name, origin = Capture.SetFor(spec)
     if setID then
-        return "equipment set " .. (name and ("'" .. name .. "'") or ("#" .. setID))
-            .. (origin == "client" and " (assigned in the client)" or "")
+        local client = origin == "client"
+        if name then
+            return (client and L["equipment set '%s' (assigned in the client)"] or L["equipment set '%s'"]):format(name)
+        end
+        return (client and L["equipment set #%s (assigned in the client)"] or L["equipment set #%s"]):format(tostring(setID))
     end
+    -- Equipment sets turned off for this spec (/gg set <spec> none): each line says how to turn them back on.
     local m = GG.charDB and GG.charDB.equipSetMap and GG.charDB.equipSetMap[spec]
-    local off = type(m) == "table" and m.none and " (equipment sets off: /gg set " .. spec .. " auto)" or ""
-    if spec == GG.currentSpec then return "what you wear now (current spec)" .. off end
+    local off = type(m) == "table" and m.none and true or false
+    if spec == GG.currentSpec then
+        if off then return L["what you wear now (current spec) (equipment sets off: /gg set %s auto)"]:format(spec) end
+        return L["what you wear now (current spec)"]
+    end
     local e = GG.player and GG.store and GG.store:Get(Capture.ID(GG.player.key, spec))
     if e and not e.deleted and e.data and e.data.capturedAt then
         local stale = GG.Baselines.Freshness(e.data, now)
-        return "recorded " .. age(now - e.data.capturedAt) .. (stale and " (stale: play it again)" or "") .. off
+        local when = age(now - e.data.capturedAt)
+        if stale and off then
+            return L["recorded %s (stale: play it again) (equipment sets off: /gg set %s auto)"]:format(when, spec)
+        elseif stale then
+            return L["recorded %s (stale: play it again)"]:format(when)
+        elseif off then
+            return L["recorded %s (equipment sets off: /gg set %s auto)"]:format(when, spec)
+        end
+        return L["recorded %s"]:format(when)
     end
-    return "none recorded: compared with your current gear (estimate). Play it once, or /gg set "
-        .. spec .. " <set name>" .. off
+    if off then
+        return L["none recorded: compared with your current gear (estimate). Play it once, or /gg set %s <set name> (equipment sets off: /gg set %s auto)"]
+            :format(spec, spec)
+    end
+    return L["none recorded: compared with your current gear (estimate). Play it once, or /gg set %s <set name>"]:format(spec)
 end
 
 -- Test seam.

@@ -18,6 +18,7 @@
 ------------------------------------------------------------
 
 local GG = GlassGear
+local L = GG.L
 local Markers = {}
 GG.BagMarkers = Markers
 
@@ -162,7 +163,7 @@ function Markers.Initialize()
     end
     GG.Results.Listen(Markers.RequestRefresh)
     GG.Reveal.Listen(Markers.Refresh)
-    if #bagFrames == 0 then return false, "Blizzard's bag frames missing" end
+    if #bagFrames == 0 then return false, L["Blizzard's bag frames missing"] end
     return true, #bagFrames
 end
 
