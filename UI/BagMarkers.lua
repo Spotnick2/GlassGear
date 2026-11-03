@@ -45,6 +45,7 @@ function Markers.For(bag, slot, ctx)
 end
 
 -- One pass's shared inputs, or false when markers are off.
+-- (Markers.Context: shared with the bag addons' adapter, UI/BagAddons.lua.)
 local function context()
     if not (GG.API.IsReady() and GG.player) then return false end
     local specs = {}
@@ -55,10 +56,12 @@ local function context()
     }
 end
 
-local function decorate(button, ctx)
+-- Decorate any button: Blizzard's (bag/slot read here) or a bag addon's
+-- (bag/slot given; nil bag clears its mark).
+local function decorate(button, ctx, bag, slot, given)
     local kind
     if ctx then
-        local bag, slot = where(button)
+        if not given then bag, slot = where(button) end
         if bag then kind = Markers.For(bag, slot, ctx) end
     end
     local m = marks[button]
@@ -155,6 +158,9 @@ function Markers.Initialize()
     if #bagFrames == 0 then return false, "Blizzard's bag frames missing" end
     return true, #bagFrames
 end
+
+Markers.Context = context
+function Markers.Decorate(button, ctx, bag, slot) decorate(button, ctx, bag, slot, true) end
 
 -- Test seams.
 Markers._marks = marks

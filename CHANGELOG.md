@@ -50,6 +50,9 @@
   tooltip or a bag costs a lookup; at most 200 comparisons run per frame (the rest finish on the
   next frames); requests for the same item share one computation; bounded queues answer OVERLOADED
   instead of growing.
+- Bagnon (GG-401): the upgrade arrows also show on Bagnon's bag buttons, with the same rules and the
+  reveal key; never on a cached view of another character's bags. `/gg` names the bag addon; on
+  Baganator, AdiBags, ArkInventory and BetterBags it says the arrows aren't there yet (tooltips are).
 - Weight profiles window (GG-105, `/gg profiles`, or the settings page's button): up to 4 profiles
   per spec, one active; paste a Pawn string or a WoWSims Pawn EP export and see at once whether it
   is valid, how many weights it has and what it leaves out; add it as a new profile or replace one;

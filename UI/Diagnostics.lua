@@ -38,6 +38,7 @@ function Diagnostics.Lines()
     add("tooltip rows: " .. (GG.tooltipHooked and "on" or ("unavailable (" .. tostring(GG.tooltipReason) .. ")")))
     add("bag markers: " .. (GG.bagMarkersOn and ("on (" .. tostring(GG.bagMarkersInfo) .. " bag frames)")
         or ("unavailable (" .. tostring(GG.bagMarkersInfo) .. ")")))
+    add(GG.BagAddons.Status())
     add("loot markers: " .. (GG.lootMarkersOn and ("on (" .. tostring(GG.lootMarkersInfo) .. ")")
         or ("unavailable (" .. tostring(GG.lootMarkersInfo) .. ")")))
     local mod = GG.db and GG.db.settings.reveal.modifier or "CTRL"
@@ -46,7 +47,7 @@ function Diagnostics.Lines()
         or ("unavailable (" .. tostring(GG.optionsInfo) .. ")")))
     add("weights: /gg profiles (import, edit, export; up to "
         .. GG.Profiles.MAX_PER_SPEC .. " profiles per spec)")
-    add("unavailable in this build: protection (GG-301), bag addons (GG-401)")
+    add("unavailable in this build: protection (GG-301), markers on Baganator, AdiBags, ArkInventory, BetterBags")
     return lines
 end
 

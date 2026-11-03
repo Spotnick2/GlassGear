@@ -511,7 +511,7 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 | ID | P | Class | Repo | Outcome / acceptance |
 |---|---|---|---|---|
 | GUI-001 | P1 | EXT | GlassUI | GlassGear added to `Suite.ROSTER` as `dynamic`. Its card appears only while it is loaded |
-| GG-401 | P2 | MVP | GlassGear | Baganator/Bagnon marker adapters; until then `/gg` reports "bag replacement: markers unavailable" |
+| GG-401 | P2 | MVP | GlassGear | Baganator/Bagnon marker adapters; until then `/gg` reports "bag replacement: markers unavailable". **Bagnon done** (`UI/BagAddons.lua`: one hook on BagBrother's `Item:Update`, cached views skipped; `test_bag_addons.lua`, game P18). Baganator waits for its reference copy (CurseForge serves it by hand only) |
 | GG-402 | P1 | MVP | GlassGear | Performance: tooltip redraw does no recomputation (cache hit). Bag refresh stays within the per-frame budget. Measured |
 | GG-403 | P2 | MVP | GlassGear | Localisation: move strings to an `L` table. All comparisons are already locale-independent |
 | GG-404 | P1 | MVP | GlassGear | Release: CurseForge and Wago projects; `X-Curse-Project-ID` / `X-Wago-ID` in the TOC (the CI `wago` job needs it); `WAGO_API_TOKEN` secret; first `v0.1.0-alpha1` per RELEASING.md |

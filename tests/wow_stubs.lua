@@ -37,6 +37,7 @@ function WoW.reset()
         level = 60, faction = "Alliance", guid = "Player-1-0000AAAA", dualWield = false }
     WoW.specGroup = 1
     WoW.numSpecGroups = 2   -- GetNumSpecGroups (1 without dual spec)
+    WoW.loadedAddOns = {}   -- C_AddOns.IsAddOnLoaded
     WoW.items = {}        -- [itemID] = { name, equipLoc, classID, subclassID, minLevel, bindType, setID, stats, spell, unique = {cat,max} }
     WoW.cacheMiss = {}    -- [itemID] = true -> GetItemInfo / GetItemStats return nothing
     WoW.statsMiss = {}    -- [itemID] = true -> only GetItemStats returns nothing (name known, stats not)
@@ -311,6 +312,7 @@ function GetInventoryItemLink(unit, slot)                                       
     return id and WoW.link(id) or nil
 end
 
+C_AddOns = { IsAddOnLoaded = function(name) return WoW.loadedAddOns[name] == true, WoW.loadedAddOns[name] == true end }  -- 197
 function GetNumSpecGroups() return WoW.numSpecGroups end                                     -- 19269 (undocumented)
 C_SpecializationInfo = { GetActiveSpecGroup = function() return WoW.specGroup end }                   -- 3490
 C_SpellBook = { IsSpellKnown = function() return false end }                                          -- 3634

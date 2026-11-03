@@ -35,6 +35,7 @@ needs to find out, and records the result here with the build once it is run.
 | P13 | Settings page | GG-112 | `gg options` | narrowed |
 | P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
 | P15 | Profiles window | GG-105 | `gg profiles` | queued |
+| P18 | Bagnon markers | GG-401 | `gg bagnon` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -373,3 +374,15 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** `/gg profiles`; paste the sample Pawn string from mockup 05; Add; edit a weight, rename,
   toggle armor; Export and paste the copy into chat; drag, `/reload`, reopen; Escape with and
   without focus.
+
+## P18: Bagnon markers (GG-401)
+
+- **Question.**
+  - With Bagnon (12.1.7, Forever build) on Forever, is `BagBrother.Item.Update` called for every item
+    button on open, sort and bag change, and does our mark sit on the button (our child frame)?
+  - Does `IsCached()` say true when Bagnon shows another character's bags (its character dropdown),
+    so no mark shows there?
+  - Does holding Ctrl show the amber marks in Bagnon's window (the window as a reveal surface)?
+- **Why.** The adapter is built from the reference copy's classes, not measured.
+- **Steps.** Install Bagnon; `/gg` (bag addon line); open the bags with an upgrade inside; sort; hold
+  Ctrl; switch Bagnon to another character's bags.
