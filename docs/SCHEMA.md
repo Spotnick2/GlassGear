@@ -47,7 +47,9 @@ GlassGearChar = {
   specMap = { [1] = "PRIEST.SHADOW", [2] = "PRIEST.HOLY" },  -- spec group (1-2) -> spec key of this
                                                              -- class (manual); anything else is
                                                              -- ignored as "invalid-mapping"
-  equipSetMap = { ["PRIEST.HOLY"] = { id = <equipmentSetID>, name = "Holy Set" } },  -- /gg set (GG-108)
+  equipSetMap = { ["PRIEST.HOLY"] = { id = <equipmentSetID>, name = "Holy Set" },  -- /gg set (GG-108)
+                  ["PRIEST.SHADOW"] = { none = true } },  -- /gg set none: no set, not even the client's
+                  -- absent (/gg set auto): the set the client assigned to the spec's group, if any
 }
 ```
 

@@ -341,6 +341,8 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   - Does `GetEquipmentSetForSpec(group)` return the set assigned to a spec group on Forever (the
     equipment manager's spec checkbox), and nil otherwise?
   - Does `EQUIPMENT_SETS_CHANGED` fire on saving, renaming and deleting a set?
+  - Does `BAG_UPDATE_DELAYED` fire after taking a set piece from the bank into the bags and back
+    (Glass Gear re-checks the sets' pieces then)?
   - After a dual-spec switch that swaps gear, are the swap's `PLAYER_EQUIPMENT_CHANGED` events done
     within 2 s of `ACTIVE_TALENT_GROUP_CHANGED` (Capture.DELAY), so the new spec records its own gear?
   - Do `GetItemInfo` / `GetItemStats` read the stored trimmed string like the full link (also P4)?

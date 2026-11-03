@@ -77,8 +77,10 @@ end
       baseline    = { source = "equipment-set" | "observed" | "fallback-current",
                       capturedAt, complete = true, stale = false, maybeBehind = false,
                       expiresAt },   -- per spec (GG-108): the spec's own gear
-                      -- A spec whose recorded gear is still loading is its own
-                      -- pending row (BASELINE_ITEM_DATA_PENDING); the others aren't held up.
+                      -- A spec whose own gear is still loading is its own pending row
+                      -- (BASELINE_ITEM_DATA_PENDING): a stored or set baseline's items, or,
+                      -- for a spec compared with the worn gear (or a candidate pairing with
+                      -- a worn hand), a worn item. The others aren't held up.
       replaces    = { slots = { 3 }, items = { "itemString" } },
       score       = { candidate = 108.6, baseline = 100.0, delta = 8.6, pct = 0.086 },
       method      = "weights-linear",

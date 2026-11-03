@@ -75,16 +75,21 @@ function Diagnostics.Slash(msg)
         GG.Capture.Request()
         out("spec group " .. group .. " -> " .. key)
     elseif cmd == "set" then
-        -- /gg set <SPEC.KEY> <set name> | none: compare that spec with a saved set.
+        -- /gg set <SPEC.KEY> <set name> | none | auto: compare that spec with a
+        -- saved set; none: never a set, not even one assigned in the client;
+        -- auto: the set assigned in the client, if any (the default).
         local spec, name = rest:match("^(%S+)%s+(.+)$")
         if not spec or not ownSpec(spec) then
-            out(string.format("usage: /gg set <SPEC.KEY> <equipment set name | none> (a %s spec)",
+            out(string.format("usage: /gg set <SPEC.KEY> <equipment set name | none | auto> (a %s spec)",
                 tostring(GG.player.class)))
             return
         end
         if name:lower() == "none" then
+            GG.charDB.equipSetMap[spec] = { none = true }
+            out(spec .. ": no equipment set, not even one assigned in the client; compared with the gear it wore")
+        elseif name:lower() == "auto" then
             GG.charDB.equipSetMap[spec] = nil
-            out(spec .. ": no equipment set; compared with the gear it wore")
+            out(spec .. ": the equipment set assigned to it in the client, if any; else the gear it wore")
         else
             local sets = GG.Compat.EquipmentSets()
             if not sets then out("equipment sets are not available") return end
@@ -99,6 +104,7 @@ function Diagnostics.Slash(msg)
             GG.charDB.equipSetMap[spec] = { id = found.id, name = found.name }
             out(spec .. " -> equipment set '" .. found.name .. "'")
         end
+        GG.Capture.CheckSets()
         GG.API._Invalidate("baselines", { GG.player.key })
     elseif cmd == "options" or cmd == "config" then
         if not GG.Options.Open() then out("settings: Esc > Options > AddOns > Glass Gear") end

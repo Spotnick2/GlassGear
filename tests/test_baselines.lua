@@ -4,8 +4,10 @@
 -- a Holy result uses Holy gear after one Holy session; unchanged gear mints
 -- no new version; staleness after 14 days, reported in the tooltip and /gg;
 -- equipment sets (mapped with /gg set, or assigned in the client), with
--- ambiguous or missing items left unknown; the worn off-hand as companion;
--- per-spec pending while a stored baseline's items load; unknown spec.
+-- ambiguous or missing items left unknown, re-checked when set pieces move
+-- in or out of the bags; /gg set none and auto; the worn off-hand as
+-- companion; per-spec pending while a stored baseline's or a needed worn
+-- item loads; unknown spec.
 ------------------------------------------------------------
 
 local H = dofile("tests/harness.lua")
@@ -149,12 +151,39 @@ H.eq(h.baseline.complete, false, "a set item no longer worn or in the bags (bank
 WoW.bags[0][1] = { itemID = 55, isBound = true }
 SlashCmdList.GLASSGEAR("set PRIEST.HOLY Nope")
 H.check(WoW.chat():find("no equipment set named 'Nope'. Sets: Holy Set", 1, true) ~= nil, "an unknown set name lists the sets")
+
+-- A set piece moving in or out of the bags changes that set's baseline:
+-- answers already given are invalidated.
+local inval = {}
+GG.API.RegisterCallback("EvaluationInvalidated", function(_, p) inval[#inval + 1] = p.reason end, "test_baselines_inv")
+local function bagChange(fn)
+    WoW.flush()
+    inval = {}
+    fn()
+    WoW.fire("BAG_UPDATE_DELAYED")
+    WoW.flush()
+    return has(inval, "baselines")
+end
+H.eq(bagChange(function() WoW.bags[0][4] = { itemID = 61 } end), false, "a bag change that moves no set piece: nothing invalidated")
+H.eq(bagChange(function() WoW.bags[0][1] = nil end), true, "the set's mantle leaves the bags (bank): answers are invalidated")
+H.eq(holy(54).baseline.complete, false, "...and the next answer has that slot unknown")
+H.eq(bagChange(function() WoW.bags[0][1] = { itemID = 55, isBound = true } end), true, "...back in the bags: invalidated again")
+H.eq(holy(54).baseline.complete, true, "...and the slot is known again")
+WoW.bags[0][4] = nil
+
 SlashCmdList.GLASSGEAR("set PRIEST.HOLY none")
 h = holy(54)
-H.eq(h.baseline.source, "observed", "set unmapped: recorded gear again")
+H.eq(h.baseline.source, "observed", "/gg set none: recorded gear again")
+H.eq(bagChange(function() WoW.bags[0][1] = nil end), false, "no spec uses a set: a set piece moving invalidates nothing")
+WoW.bags[0][1] = { itemID = 55, isBound = true }
 WoW.sets[7].specGroup = 2
 h = holy(54)
-H.eq(h.baseline.source, "equipment-set", "the set the client assigned to Holy's group is used")
+H.eq(h.baseline.source, "observed", "...even with a set assigned to Holy's group in the client")
+SlashCmdList.GLASSGEAR("")
+H.check(WoW.chat():find("equipment sets off: /gg set PRIEST.HOLY auto", 1, true) ~= nil, "/gg says sets are off and how to undo it")
+SlashCmdList.GLASSGEAR("set PRIEST.HOLY auto")
+h = holy(54)
+H.eq(h.baseline.source, "equipment-set", "/gg set auto: the set the client assigned to Holy's group is used")
 SlashCmdList.GLASSGEAR("")
 H.check(WoW.chat():find("(assigned in the client)", 1, true) ~= nil, "/gg says where the set came from")
 WoW.sets[7].specGroup = nil
@@ -179,6 +208,29 @@ local doneHoly
 for _, x in ipairs(done and done.results or {}) do if x.spec == "PRIEST.HOLY" then doneHoly = x end end
 H.eq(doneHoly and doneHoly.baseline.source, "observed", "data arrived: the Holy result completes against Holy gear")
 H.eq(doneHoly and doneHoly.status, "no_upgrade", "...a full comparison, not an unknown slot")
+
+-- A worn item loading holds up only the specs that need it.
+WoW.cacheMiss[50] = true            -- the worn Shadow mantle
+local sp, r2 = result(54, "PRIEST.SHADOW")
+H.eq(sp.status, "pending", "a worn item loading: the current spec, compared with what is worn, is pending")
+H.eq(holy(54).status, "no_upgrade", "...Holy, compared with its recorded gear, is not held up")
+WoW.cacheMiss[50] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 50, true)
+WoW.flush()
+local doneShadow
+for _, p in ipairs(ready) do
+    if p.requestId == r2.requestId then
+        for _, x in ipairs(p.response.results) do if x.spec == "PRIEST.SHADOW" then doneShadow = x end end
+    end
+end
+H.eq(doneShadow and doneShadow.status, "no_upgrade", "...data arrived: the Shadow result completes (Shadow has no healing weight)")
+WoW.cacheMiss[62] = true            -- the worn orb, the companion of a 1H for Holy's staff
+H.eq(holy(63).status, "pending", "a mace against Holy's staff while the worn orb loads: pending, not 'needs an off-hand'")
+H.eq(holy(54).status, "no_upgrade", "...a shoulder for Holy needs no companion: not held up")
+WoW.cacheMiss[62] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 62, true)
+WoW.flush()
+H.eq(holy(63).status, "upgrade", "...the orb loaded: mace + orb beat the staff")
 
 ------------------------------------------------------------
 -- Unknown spec: nothing is captured.

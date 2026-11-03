@@ -4,8 +4,10 @@
 --
 --   Capture.Request()          observe the current spec's gear soon (coalesced)
 --   Capture.Observe(now)       observe now -> ok, what
---   Capture.BaselineFor(spec, live, now) -> baseline | nil, missing itemIDs
+--   Capture.BaselineFor(spec, live, now) -> baseline | nil, missing itemIDs,
+--                              fromLive (the baseline is the current gear)
 --   Capture.SetFor(spec)       the equipment set used for a spec, if any
+--   Capture.CheckSets()        after a bag change: invalidate if a set's pieces moved
 --   Capture.Status(spec, now)  one line for /gg
 --
 -- Observed baselines are entries in the entry store (adr/0001), id
@@ -17,7 +19,7 @@
 --
 -- Precedence per spec (adr/0003):
 --   1. an equipment set mapped to the spec (/gg set), else the set the client
---      assigned to that spec's group;
+--      assigned to that spec's group (unless /gg set <spec> none);
 --   2. the current spec: what is worn now (observed, live);
 --      another spec: its stored observed baseline (stale after 14 days);
 --   3. the current gear, labelled fallback-current.
@@ -33,6 +35,7 @@ Capture.MAX_ATTEMPTS = 5
 local scheduled = false
 local attempts = 0
 local hydrated = {}          -- [entryId .. "@" .. version] = baseline (complete hydrations only)
+local setSig                 -- Compat.SetSignature of the sets in use, last seen
 
 function Capture.ID(guid, specKey) return guid .. ":" .. specKey .. ":baseline" end
 
@@ -86,9 +89,11 @@ end
 
 -- The set for a spec: the player's own mapping first, else the client's
 -- assignment for the spec group mapped to this spec. Returns id, name, origin.
+-- { none = true } (/gg set <spec> none) turns both off.
 function Capture.SetFor(spec)
     local map = GG.charDB and GG.charDB.equipSetMap or {}
     local m = map[spec]
+    if type(m) == "table" and m.none then return nil end
     if type(m) == "table" and m.id then return m.id, m.name, "mapped" end
     for group, key in pairs(GG.charDB and GG.charDB.specMap or {}) do
         if key == spec then
@@ -106,6 +111,29 @@ local function hydrate(e)
     return b, missing
 end
 
+-- The ids of the sets the own specs use, distinct.
+local function setsInUse()
+    local ids, seen = {}, {}
+    if not GG.player then return ids end
+    for _, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
+        local id = Capture.SetFor(s.key)
+        if id and not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+    end
+    table.sort(ids)
+    return ids
+end
+
+-- A set slot resolves to the instance worn or in the bags, so a set piece
+-- moving in or out of the bags changes that set's baseline: answers already
+-- given are invalidated. Nothing happens while no spec uses a set.
+function Capture.CheckSets()
+    local sig = GG.Compat.SetSignature(setsInUse())
+    local changed = setSig ~= nil and sig ~= setSig
+    setSig = sig
+    if changed and GG.player then GG.API._Invalidate("baselines", { GG.player.key }) end
+    return changed
+end
+
 function Capture.BaselineFor(spec, live, now)
     local setID = Capture.SetFor(spec)
     if setID then
@@ -116,7 +144,7 @@ function Capture.BaselineFor(spec, live, now)
         end
     end
     if spec == GG.currentSpec then
-        return GG.Baselines.Choose({ observed = live }), {}
+        return GG.Baselines.Choose({ observed = live }), {}, true
     end
     local e = GG.player and GG.store and GG.store:Get(Capture.ID(GG.player.key, spec))
     if e and not e.deleted and not e.conflict and e.data then
@@ -126,7 +154,7 @@ function Capture.BaselineFor(spec, live, now)
         chosen.stale, chosen.expiresAt = GG.Baselines.Freshness(e.data, now)
         return chosen, {}
     end
-    return GG.Baselines.Choose({ current = live }), {}
+    return GG.Baselines.Choose({ current = live }), {}, true
 end
 
 local function age(seconds)
@@ -142,17 +170,19 @@ function Capture.Status(spec, now)
         return "equipment set " .. (name and ("'" .. name .. "'") or ("#" .. setID))
             .. (origin == "client" and " (assigned in the client)" or "")
     end
-    if spec == GG.currentSpec then return "what you wear now (current spec)" end
+    local m = GG.charDB and GG.charDB.equipSetMap and GG.charDB.equipSetMap[spec]
+    local off = type(m) == "table" and m.none and " (equipment sets off: /gg set " .. spec .. " auto)" or ""
+    if spec == GG.currentSpec then return "what you wear now (current spec)" .. off end
     local e = GG.player and GG.store and GG.store:Get(Capture.ID(GG.player.key, spec))
     if e and not e.deleted and e.data and e.data.capturedAt then
         local stale = GG.Baselines.Freshness(e.data, now)
-        return "recorded " .. age(now - e.data.capturedAt) .. (stale and " (stale: play it again)" or "")
+        return "recorded " .. age(now - e.data.capturedAt) .. (stale and " (stale: play it again)" or "") .. off
     end
     return "none recorded: compared with your current gear (estimate). Play it once, or /gg set "
-        .. spec .. " <set name>"
+        .. spec .. " <set name>" .. off
 end
 
 -- Test seam.
-function Capture._Reset() scheduled, attempts, hydrated = false, 0, {} end
+function Capture._Reset() scheduled, attempts, hydrated, setSig = false, 0, {}, nil end
 
 return Capture

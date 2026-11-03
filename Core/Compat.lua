@@ -259,25 +259,74 @@ function Compat.EquipmentSetForGroup(group)
     if ok and type(id) == "number" and id >= 0 then return id end
 end
 
--- The links of every instance of itemID worn or in the bags, distinct.
-local function instancesOf(itemID)
-    local links, seen = {}, {}
-    local function add(link)
-        if link and not seen[link] then seen[link] = true; links[#links + 1] = link end
+-- itemID -> the distinct links of every instance worn or in the bags, for the
+-- given itemIDs only (one pass over the gear and the bags).
+local function instanceIndex(wanted)
+    local index, seen = {}, {}
+    local function add(itemID, link)
+        if not (itemID and link and wanted[itemID]) or seen[link] then return end
+        seen[link] = true
+        index[itemID] = index[itemID] or {}
+        local l = index[itemID]
+        l[#l + 1] = link
     end
     for _, slot in ipairs(GG.Data.Slots.GEAR) do
         local link = GetInventoryItemLink("player", slot)
-        if link and C_Item.GetItemInfoInstant(link) == itemID then add(link) end
+        if link then add(C_Item.GetItemInfoInstant(link), link) end
     end
     for _, bag in ipairs(Compat.BAGS) do
         for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
-            if C_Container.GetContainerItemID(bag, slot) == itemID then
+            local id = C_Container.GetContainerItemID(bag, slot)
+            if id and wanted[id] then
                 local info = C_Container.GetContainerItemInfo(bag, slot)
-                add(info and info.hyperlink)
+                add(id, info and info.hyperlink)
             end
         end
     end
-    return links
+    return index
+end
+
+-- A set's item IDs and ignored slots, or nil.
+local function setSlots(E, setID)
+    local okI, ids = pcall(E.GetItemIDs, setID)
+    if not okI or type(ids) ~= "table" then return nil end
+    local okG, ignored = pcall(E.GetIgnoredSlots, setID)
+    if not okG or type(ignored) ~= "table" then ignored = {} end
+    return ids, ignored
+end
+
+local function setItemIDs(ids, ignored)
+    local wanted = {}
+    for _, slot in ipairs(GG.Data.Slots.GEAR) do
+        local id = ids[slot]
+        if not ignored[slot] and type(id) == "number" and id > 0 then wanted[id] = true end
+    end
+    return wanted
+end
+
+-- Which instances the sets' items resolve to right now, as one string: it
+-- changes when a set piece enters or leaves the bags (bank, sold, a second
+-- copy), which changes those sets' baselines. Worn gear is covered by
+-- PLAYER_EQUIPMENT_CHANGED. "" without the API or sets.
+function Compat.SetSignature(setIDs)
+    local E = setAPI()
+    if not E then return "" end
+    local parts = {}
+    for _, setID in ipairs(setIDs) do
+        local ids, ignored = setSlots(E, setID)
+        if ids then
+            local index = instanceIndex(setItemIDs(ids, ignored))
+            for _, slot in ipairs(GG.Data.Slots.GEAR) do
+                local id = ids[slot]
+                if not ignored[slot] and type(id) == "number" and id > 0 then
+                    parts[#parts + 1] = setID .. "/" .. slot .. "=" .. table.concat(index[id] or {}, ",")
+                end
+            end
+        else
+            parts[#parts + 1] = setID .. "=?"
+        end
+    end
+    return table.concat(parts, ";")
 end
 
 -- A set as a baseline-shaped table, plus missing itemIDs; nil, reason when
@@ -288,10 +337,9 @@ end
 function Compat.EquipmentSetBaseline(setID, now)
     local E = setAPI()
     if not E then return nil, "no-api" end
-    local okI, ids = pcall(E.GetItemIDs, setID)
-    if not okI or type(ids) ~= "table" then return nil, "unknown-set" end
-    local okG, ignored = pcall(E.GetIgnoredSlots, setID)
-    if not okG or type(ignored) ~= "table" then ignored = {} end
+    local ids, ignored = setSlots(E, setID)
+    if not ids then return nil, "unknown-set" end
+    local index = instanceIndex(setItemIDs(ids, ignored))
     local slots, missing = {}, {}
     for _, slot in ipairs(GG.Data.Slots.GEAR) do
         local id = ids[slot]
@@ -301,7 +349,7 @@ function Compat.EquipmentSetBaseline(setID, now)
         elseif not id or id == 0 then
             slots[slot] = { state = "empty" }
         else
-            local links = instancesOf(id)
+            local links = index[id] or {}
             slots[slot] = #links == 1 and slotFromLink(links[1], missing) or { state = "unknown" }
         end
     end

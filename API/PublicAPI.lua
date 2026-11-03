@@ -135,33 +135,44 @@ local function evaluateOne(request, requestId, fixedSpecs)
     if not facts.ready then waitIDs[#waitIDs + 1] = facts.itemID end
     local now = time()
     local equipped, missing = GG.Compat.EquippedBaseline(now)
-    for _, id in ipairs(missing) do waitIDs[#waitIDs + 1] = id end
-    if #missing > 0 then
-        -- Baseline items still loading: pending, not an "unknown slot" verdict.
-        response.results = rowsFor(specs, "pending", "BASELINE_ITEM_DATA_PENDING")
-        response.status = "pending"
-        return response, waitIDs, specs
+    -- Worn items still loading hold up only the specs that need them (GG-108):
+    -- those compared with the current gear, and a candidate that pairs with a
+    -- worn hand whose data hasn't arrived. Pending, not an "unknown slot" verdict.
+    local liveWaited = false
+    local function waitLive()
+        if liveWaited then return end
+        liveWaited = true
+        for _, id in ipairs(missing) do waitIDs[#waitIDs + 1] = id end
     end
+    local handLoading = #missing > 0
+        and (equipped.slots[16].state == "unknown" or equipped.slots[17].state == "unknown")
     -- What is worn now pairs with a candidate that needs a companion (a 1H
     -- against a spec's 2H): the off-hand or main hand from the current gear.
     local companion = { [16] = equipped.slots[16], [17] = equipped.slots[17] }
     for _, spec in ipairs(specs) do
         -- Each spec's own gear (GG-108): a set, what it wore, or the current gear.
-        local baseline, specMissing = GG.Capture.BaselineFor(spec, equipped, now)
-        if not baseline then
-            for _, id in ipairs(specMissing) do waitIDs[#waitIDs + 1] = id end
-            local row = rowsFor({ spec }, "pending", "BASELINE_ITEM_DATA_PENDING")[1]
-            response.results[#response.results + 1] = row
-        else
-            local r = GG.Engine.Evaluate.One({
+        local baseline, specMissing, fromLive = GG.Capture.BaselineFor(spec, equipped, now)
+        local r
+        if baseline and not (fromLive and #missing > 0) then
+            r = GG.Engine.Evaluate.One({
                 item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
                 profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
                 baseline = baseline, settings = settingsFor(), instance = instance, companion = companion,
                 transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
             })
-            if spec == "UNKNOWN" then r.status = "unknown"; r.reasons = { "UNKNOWN_SPEC" } end
-            response.results[#response.results + 1] = r
+            if handLoading and r.status == "unknown"
+                and (U.contains(r.reasons, "NEEDS_COMPANION") or U.contains(r.reasons, "COMPANION_DATA_MISSING")) then
+                r, fromLive = nil, true      -- the worn hand it would pair with is still loading
+            end
         end
+        if r then
+            if spec == "UNKNOWN" then r.status = "unknown"; r.reasons = { "UNKNOWN_SPEC" } end
+        else
+            if fromLive then waitLive() end
+            for _, id in ipairs(specMissing or {}) do waitIDs[#waitIDs + 1] = id end
+            r = rowsFor({ spec }, "pending", "BASELINE_ITEM_DATA_PENDING")[1]
+        end
+        response.results[#response.results + 1] = r
     end
     response.status = GG.Engine.Evaluate.Aggregate(response.results)
     return response, waitIDs, specs

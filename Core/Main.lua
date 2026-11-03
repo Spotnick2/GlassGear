@@ -57,6 +57,7 @@ function handlers.PLAYER_LOGIN()
     GG.optionsOn, GG.optionsInfo = GG.Options.Register()
     GG.API._SetReady()
     GG.Capture.Request()          -- this spec's gear (GG-108)
+    GG.Capture.CheckSets()        -- where the sets' pieces are now
 end
 
 function handlers.ACTIVE_TALENT_GROUP_CHANGED()
@@ -88,7 +89,16 @@ end
 
 -- A saved set changed: specs that use it compare against its new content.
 function handlers.EQUIPMENT_SETS_CHANGED()
-    if GG.player then GG.API._Invalidate("baselines", { GG.player.key }) end
+    if GG.player then
+        GG.Capture.CheckSets()
+        GG.API._Invalidate("baselines", { GG.player.key })
+    end
+end
+
+-- A set piece moved in or out of the bags (from the bank, sold, a second
+-- copy looted): the sets that use it resolve differently.
+function handlers.BAG_UPDATE_DELAYED()
+    if GG.player then GG.Capture.CheckSets() end
 end
 
 -- Started by the API when an item begins waiting for its data.
