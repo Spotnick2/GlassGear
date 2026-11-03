@@ -198,6 +198,28 @@ local function rowFresh(r, now)
     return not (b and type(b.expiresAt) == "number" and not b.stale and now >= b.expiresAt)
 end
 
+-- "Better gear already owned" (GG-122): the owned items that compete for the
+-- candidate's slots, each evaluated for the same spec and baseline (at most
+-- OWNED_CHECKS of them), then Evaluate.ApplyOwned.
+API.OWNED_CHECKS = 8
+local function ownedCheck(r, input, owned, companionsWithout)
+    local item = input.item
+    local results, n = {}, 0
+    for _, o in ipairs(owned) do
+        if n >= API.OWNED_CHECKS then break end
+        if o.facts.itemString ~= item.itemString and GG.Owned.SameSlots(o.facts.equipLoc, item.equipLoc) then
+            n = n + 1
+            local oi = {}
+            for k, v in pairs(input) do oi[k] = v end
+            oi.item, oi.instance, oi.current = o.facts, nil, false
+            oi.companions = companionsWithout(o.facts.itemString)
+            results[#results + 1] = { item = o.facts, link = o.link, result = GG.Engine.Evaluate.One(oi) }
+        end
+    end
+    local positions = GG.Owned.Positions(item.equipLoc, input.recipient and input.recipient.canDualWield)
+    return GG.Engine.Evaluate.ApplyOwned(r, results, positions)
+end
+
 -- Returns response, rowDeps ([i] = { [itemID] = true }: what a pending row
 -- waits for). A pending request is re-evaluated against the targets captured
 -- when it was made. `prior` (the job's last response, same generation) lends
@@ -222,9 +244,31 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps)
     -- worn hand whose data hasn't arrived. Pending, not an "unknown slot" verdict.
     local handLoading = #missing > 0
         and (equipped.slots[16].state == "unknown" or equipped.slots[17].state == "unknown")
-    -- What is worn now pairs with a candidate that needs a companion (a 1H
-    -- against a spec's 2H): the off-hand or main hand from the current gear.
-    local companion = { [16] = equipped.slots[16], [17] = equipped.slots[17] }
+    -- A candidate that needs a companion (a 1H against a spec's 2H) pairs
+    -- with the best usable hand: the one worn now, or one from the bags
+    -- (GG-122). Never with itself.
+    local owned = GG.Owned and GG.Owned.Items() or {}
+    local function companionsWithout(itemString)
+        local lists = { [16] = {}, [17] = {} }
+        for _, s in ipairs({ 16, 17 }) do
+            local worn = equipped.slots[s]
+            if worn and worn.state == "occupied" and worn.itemString ~= itemString then
+                local c = {}
+                for k, v in pairs(worn) do c[k] = v end
+                c.worn = true
+                lists[s][1] = c
+            end
+        end
+        for _, o in ipairs(owned) do
+            if o.facts.itemString ~= itemString and o.facts.itemString ~= facts.itemString then
+                for _, s in ipairs(GG.Data.Slots.FOR_EQUIP_LOC[o.facts.equipLoc] or {}) do
+                    if s == 16 or s == 17 then lists[s][#lists[s] + 1] = o.slotItem end
+                end
+            end
+        end
+        return lists
+    end
+    local companions = companionsWithout(facts.itemString)
     for i, spec in ipairs(specs) do
         local r
         local deps = {}
@@ -242,12 +286,15 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps)
             -- Each spec's own gear (GG-108): a set, what it wore, or the current gear.
             local baseline, specMissing, fromLive = GG.Capture.BaselineFor(spec, equipped, now)
             if baseline and not (fromLive and #missing > 0) then
-                r = GG.Engine.Evaluate.One({
+                local input = {
                     item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
                     profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
-                    baseline = baseline, settings = settingsFor(), instance = instance, companion = companion,
+                    baseline = baseline, settings = settingsFor(), instance = instance,
+                    companions = companions,
                     transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
-                })
+                }
+                r = GG.Engine.Evaluate.One(input)
+                if r.status == "upgrade" then r = ownedCheck(r, input, owned, companionsWithout) end
                 if handLoading and r.status == "unknown"
                     and (U.contains(r.reasons, "NEEDS_COMPANION") or U.contains(r.reasons, "COMPANION_DATA_MISSING")) then
                     r, fromLive = nil, true      -- the worn hand it would pair with is still loading

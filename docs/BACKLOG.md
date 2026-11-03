@@ -245,8 +245,8 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Equipment-set mapping per spec.
   - Baseline entries in `EntrySync`.
   - Freshness and `expiresAt`.
-  - Companion off-hand from the worn gear (from the bags: GG-122).
-  - Owned better items in bags as an optional source: moved to GG-122.
+  - Companion off-hand from the worn gear (from the bags: GG-122, done).
+  - Owned better items in bags as an optional source: GG-122, done.
 - **Acceptance.**
   - A Holy result uses Holy gear after one Holy session.
   - "No Holy equipment recorded" offers "use current gear (estimate)" or "choose a saved set"

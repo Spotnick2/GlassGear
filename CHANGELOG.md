@@ -46,6 +46,10 @@
   (`/gg set <spec> none` turns sets off for that spec, `auto` back on). A
   spec with nothing recorded still compares with your current gear, labelled. Gear recorded more
   than 14 days ago is flagged in the tooltip and `/gg`.
+- What you carry counts (GG-122): a one-hander compared with a spec that uses a two-hander pairs with
+  the best off-hand in your bags, not only the one you wear; and an item is no longer shown as an
+  upgrade when your bags already hold a better one for that spec (the tooltip says "you own better"
+  and names it; rings and trinkets need two better ones).
 - API runtime (GG-114): answers are cached until something they depend on changes, so redrawing a
   tooltip or a bag costs a lookup; at most 200 comparisons run per frame (the rest finish on the
   next frames); requests for the same item share one computation; bounded queues answer OVERLOADED

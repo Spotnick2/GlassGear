@@ -134,7 +134,9 @@ Baselines are kept per character × spec, with sources in this precedence:
 3. the **current equipment** scored with that spec's profile, labelled `fallback-current`.
 
 A candidate that needs a companion (a one-hander against a spec whose gear has a two-hander) pairs
-with the main hand or off-hand worn now; companions from the bags are GG-122.
+with the best usable main hand or off-hand worn now or in the bags (GG-122), scored with that
+spec's profile: on a tie the worn one; two different bag items tied at the top are never chosen;
+the candidate never pairs with itself.
 
 Each slot records:
 
@@ -158,7 +160,12 @@ holds for `EFFECT_NOT_SCORED`, `SET_BONUS_NOT_SCORED` and `NO_SUPPORTED_STATS`: 
 protection result is `unknown` (keep) unless the supported score alone is already an upgrade, which
 gives `protect`.
 
-## Owned items (later)
+## Owned items (GG-122)
 
-"Better gear already owned or already allocated" (an item in bags that beats the candidate) is a
-GG-108 extension, using bags as a baseline source. M0 compares only against baselines.
+"Better gear already owned": the bag items (bags 0-4) that compete for the candidate's slots are
+evaluated for the same spec and baseline (at most 8). When enough of them are upgrades usable now
+that beat the candidate (one; two for rings, trinkets and one-handers with dual wield, which take
+two positions), the candidate is `no_upgrade` with `OWNED_BETTER`, and `ownedBetter` names the best
+owned one. The owned one keeps its own upgrade answer, so protection keeps it while the candidate
+can go. Owned items still loading are never used; the bag index is rebuilt on a bag change, and
+only a change in the gear carried invalidates answers.

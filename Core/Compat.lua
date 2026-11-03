@@ -232,6 +232,14 @@ local function slotFromLink(link, missing)
     return { state = "unknown" }
 end
 
+-- A baseline-shaped item from a full link, or nil while its data loads.
+function Compat.SlotItem(link)
+    local missing = {}
+    local item = slotFromLink(link, missing)
+    if item.state ~= "occupied" then return nil end
+    return item
+end
+
 function Compat.EquippedBaseline(now)
     local slots, missing = {}, {}
     for _, slot in ipairs(GG.Data.Slots.GEAR) do
