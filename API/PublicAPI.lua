@@ -91,7 +91,7 @@ local function features()
     return {
         evaluate = true, evaluateBatch = true, cancelRequest = true,
         scopes = { current = true, own = true, tracked = false, targets = true },
-        alts = false, sync = false, assessProtection = false, frameBudget = true, resultCache = true,
+        alts = false, roster = true, sync = false, assessProtection = false, frameBudget = true, resultCache = true,
     }
 end
 
@@ -116,13 +116,18 @@ function API.GetCharacters()
     return U.deepCopy(GG.Integrations.RosterProvider.Characters(GG.player))
 end
 
+-- The specs of the current character or one of the player's own others
+-- (GG-201: the class's specs; which one an alt is in isn't known).
 function API.GetSpecs(charKey)
     local p = GG.player
-    if not p or charKey ~= p.key then return {} end
+    if not p then return {} end
+    local c = GG.Integrations.RosterProvider.Find(charKey)
+    if not (c and c.class) then return {} end
+    local me = c.key == p.key
     local out = {}
-    for _, s in ipairs(GG.Data.Classes.Specs(p.class)) do
-        out[#out + 1] = { key = s.key, name = s.name, current = s.key == GG.currentSpec,
-            hasProfile = GG.Profiles.Active(GG.store, p.key, s.key) ~= nil }
+    for _, s in ipairs(GG.Data.Classes.Specs(c.class)) do
+        out[#out + 1] = { key = s.key, name = s.name, current = me and s.key == GG.currentSpec or false,
+            hasProfile = GG.Profiles.Active(GG.store, c.key, s.key) ~= nil }
     end
     return out
 end

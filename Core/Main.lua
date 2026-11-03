@@ -57,6 +57,7 @@ function handlers.PLAYER_LOGIN()
     GG.optionsOn, GG.optionsInfo = GG.Options.Register()
     GG.API._SetReady()
     GG.Capture.Request()          -- this spec's gear (GG-108)
+    GG.Integrations.RosterProvider.Attach()   -- the player's own characters (GG-201)
     GG.Capture.CheckSets()        -- where the sets' pieces are now
 end
 

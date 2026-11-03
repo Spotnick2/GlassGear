@@ -434,6 +434,12 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   - Without AltStable, or with an older one: `/gg` and the API say exactly what is missing.
   - A third-party character is never listed as a recipient.
 - **Validation:** auto (`DetectAltStable` fixtures), game (two accounts).
+- **Done (auto).** `Integrations/RosterProvider.lua`: `Attach` at login follows AltStable's
+  `CharactersChanged` / `ProvenanceChanged` (snapshot rebuilt; `RosterChanged` + an invalidation only
+  when it changed) and `GearChanged` (→ `EquipmentChanged`). Only `self` / `own-account`; the current
+  character from Glass Gear itself. `GetSpecs` answers for an own alt. `/gg` counts them, or says
+  exactly what is missing. `test_roster.lua` (34 checks), against a fake built from AltStable's
+  docs/PUBLIC-API.md.
 
 ### GG-202: Entry sync over the shared library (ES-001) (P0, MVP)
 

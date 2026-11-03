@@ -38,6 +38,9 @@
   (minimum upgrade, level window and look-ahead, spec armor); disenchant protection (tracked specs,
   specs without weights); appearance (Glass UI's decision) with a live preview; Defaults. Every
   change applies at once.
+- Your other characters (GG-201): with AltStable, Glass Gear knows your own characters on this and
+  your other WoW accounts (AltStable's provenance: never a friend's, never by an account label),
+  and `/gg` counts them. Alt upgrades themselves come with GG-203.
 - Spec mapping on the settings page (GG-104): a SPECS section maps each spec group to a spec, or
   Not set, without a slash command; the active group is marked. `/gg spec <group> none` clears one.
 - Per-spec gear (GG-108): each spec compares with its own gear. Glass Gear records what you wear
