@@ -83,6 +83,7 @@ local function row(kind, r)
         limitations = r.limitations or {},
         atLevel = r.eligibility and r.eligibility.atLevel,
         levelsAway = r.eligibility and r.eligibility.levelsAway,
+        ownedBetter = r.ownedBetter,
     }
     for _, reason in ipairs(r.reasons or {}) do
         if reason == "NO_WEIGHTS" then x.noWeights = true; x.label = "no weights" end

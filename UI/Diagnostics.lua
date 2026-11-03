@@ -56,7 +56,8 @@ function Diagnostics.Lines()
         or ("unavailable (" .. tostring(GG.optionsInfo) .. ")")))
     add("weights: /gg profiles (import, edit, export; up to "
         .. GG.Profiles.MAX_PER_SPEC .. " profiles per spec)")
-    add("unavailable in this build: protection (GG-301), bag addons (GG-401)")
+    add("disenchant protection: ready for Shatter (GlassGear.API.AssessProtection, tracked specs)")
+    add("unavailable in this build: bag addons (GG-401)")
     return lines
 end
 
