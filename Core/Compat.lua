@@ -60,6 +60,15 @@ function Compat.ItemLoaded(itemID)
     return type(C_Item.GetItemStats("item:" .. itemID)) == "table"
 end
 
+-- An item's name from a link or item string, or nil while its data loads.
+function Compat.ItemName(item)
+    if type(item) ~= "string" then return nil end
+    local n = item:match("%[(.-)%]")
+    if n then return n end
+    local ok, name = pcall(C_Item.GetItemInfo, item)
+    return ok and name or nil
+end
+
 function Compat.ItemFacts(link)
     if type(link) ~= "string" then return nil, "no-link" end
     local itemID, _, _, equipLoc, _, classID, subclassID = C_Item.GetItemInfoInstant(link)

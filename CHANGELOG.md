@@ -68,3 +68,8 @@
 - Set bonuses (GG-119): the client's item-set data (545 sets, build 1.60.1.70753) is built in, so
   tooltips say "Completes a 2-piece set bonus" / "Breaks a 4-piece set bonus" instead of only "Set
   item: bonus not scored". The bonus itself is still never scored.
+- Detailed comparison (GG-113, `/gg compare`, with an item link or the item last hovered): one item
+  against a spec's gear, with the stats behind the estimate (unweighted ones shown, marked), the
+  item score on the profile's scale, the verdict, how it was made (method, profile, source, the gear
+  compared with and its age) and what it leaves out. A spec with no recorded gear offers your saved
+  equipment sets. Built on the shared window of the profiles page.

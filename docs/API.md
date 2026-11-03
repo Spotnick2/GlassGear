@@ -94,6 +94,8 @@ end
 }
 ```
 
+- **`replaces.companion`** (GG-113): the item string of the main hand or off-hand a one-hander was
+  paired with (against a spec whose gear has a two-hander), or nil.
 - **Order:** current spec, then the character's other specs in tree order, then alts in the owner's
   tracked order.
 - **Aggregate `status`** (display only, never a protection verdict), first match wins:
