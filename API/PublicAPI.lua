@@ -192,51 +192,50 @@ local function spend()
     state.stats.evaluations = state.stats.evaluations + 1
 end
 
--- Returns response, waitIDs (item IDs still missing data), deferred (rows
--- over the frame budget). A pending request is re-evaluated against the
--- targets captured when it was made. `prior` (the job's last response, same
--- generation) lends its finished rows: they aren't computed again, so a job
--- always progresses, whatever the budget.
+-- A finished row still holds while its stored baseline hasn't passed expiresAt.
+local function rowFresh(r, now)
+    local b = r.baseline
+    return not (b and type(b.expiresAt) == "number" and not b.stale and now >= b.expiresAt)
+end
+
+-- Returns response, rowDeps ([i] = { [itemID] = true }: what a pending row
+-- waits for). A pending request is re-evaluated against the targets captured
+-- when it was made. `prior` (the job's last response, same generation) lends
+-- its finished, still fresh rows: they aren't computed again, so a job always
+-- progresses, whatever the budget.
 local function evaluateOne(request, requestId, specs, prior)
     local response = { requestId = requestId, results = {} }
+    local rowDeps = {}
     local link, instance = GG.Compat.ResolveItemRef(request.item)
     local facts = link and GG.Compat.ItemFacts(link)
     if not facts then
         response.results = rowsFor(specs, "unknown", "NO_ITEM")
         response.status = "unknown"
-        return response, {}, false
+        return response, rowDeps
     end
-    local waitIDs = {}
-    if not facts.ready then waitIDs[#waitIDs + 1] = facts.itemID end
     local now = time()
     local equipped, missing = GG.Compat.EquippedBaseline(now)
     -- Worn items still loading hold up only the specs that need them (GG-108):
     -- those compared with the current gear, and a candidate that pairs with a
     -- worn hand whose data hasn't arrived. Pending, not an "unknown slot" verdict.
-    local liveWaited = false
-    local function waitLive()
-        if liveWaited then return end
-        liveWaited = true
-        for _, id in ipairs(missing) do waitIDs[#waitIDs + 1] = id end
-    end
     local handLoading = #missing > 0
         and (equipped.slots[16].state == "unknown" or equipped.slots[17].state == "unknown")
     -- What is worn now pairs with a candidate that needs a companion (a 1H
     -- against a spec's 2H): the off-hand or main hand from the current gear.
     local companion = { [16] = equipped.slots[16], [17] = equipped.slots[17] }
-    local deferred = false
     for i, spec in ipairs(specs) do
         local r
+        local deps = {}
         local done = prior and prior.results[i]
-        if done and done.status ~= "pending" and done.spec == spec then
+        if done and done.status ~= "pending" and done.spec == spec and rowFresh(done, now) then
             r = done
         elseif budgetLeft() <= 0 then
             -- Over this frame's budget: a placeholder, computed on a later frame.
-            deferred = true
             state.stats.deferredRows = state.stats.deferredRows + 1
             r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
         else
             spend()
+            if not facts.ready then deps[facts.itemID] = true end
             -- Each spec's own gear (GG-108): a set, what it wore, or the current gear.
             local baseline, specMissing, fromLive = GG.Capture.BaselineFor(spec, equipped, now)
             if baseline and not (fromLive and #missing > 0) then
@@ -254,15 +253,45 @@ local function evaluateOne(request, requestId, specs, prior)
             if r then
                 if spec == "UNKNOWN" then r.status = "unknown"; r.reasons = { "UNKNOWN_SPEC" } end
             else
-                if fromLive then waitLive() end
-                for _, id in ipairs(specMissing or {}) do waitIDs[#waitIDs + 1] = id end
+                if fromLive then for _, id in ipairs(missing) do deps[id] = true end end
+                for _, id in ipairs(specMissing or {}) do deps[id] = true end
                 r = rowsFor({ spec }, "pending", "BASELINE_ITEM_DATA_PENDING")[1]
             end
         end
+        if r.status == "pending" then rowDeps[i] = deps end
         response.results[#response.results + 1] = r
     end
     response.status = GG.Engine.Evaluate.Aggregate(response.results)
-    return response, waitIDs, deferred
+    return response, rowDeps
+end
+
+-- What a response still needs: the item IDs its pending rows wait for, and
+-- whether any row waits for the frame budget. A row waiting for an item that
+-- gave up (`gaveUp`) becomes unknown, ITEM_DATA_UNAVAILABLE; the other rows
+-- are untouched (a budget placeholder still finishes later).
+local function needs(response, rowDeps, gaveUp)
+    local waits, seen, deferred, changed = {}, {}, false, false
+    for i, r in ipairs(response.results) do
+        if r.status == "pending" then
+            if r.reasons[1] == "FRAME_BUDGET" then
+                deferred = true
+            else
+                local deps = rowDeps[i] or {}
+                local dead = false
+                for id in pairs(deps) do if gaveUp and gaveUp[id] then dead = true end end
+                if dead then
+                    r.status, r.reasons, changed = "unknown", { "ITEM_DATA_UNAVAILABLE" }, true
+                else
+                    for id in pairs(deps) do
+                        if not seen[id] then seen[id] = true; waits[#waits + 1] = id end
+                    end
+                end
+            end
+        end
+    end
+    if changed then response.status = GG.Engine.Evaluate.Aggregate(response.results) end
+    table.sort(waits)
+    return waits, deferred
 end
 
 local function pendingRows(response)
@@ -367,9 +396,10 @@ end
 
 -- After a re-evaluation: finish the job, or keep it waiting for items and/or
 -- the budget. A dependency that can't enter the item queue ends it (every row kept).
-local function settle(key, response, waitIDs, deferred)
+local function settle(key, response, rowDeps)
     local job = state.jobs[key]
     if not job then return end
+    local waitIDs, deferred = needs(response, rowDeps, job.gaveUp)
     local released = {}
     for old in pairs(job.itemIDs) do released[old] = true end
     local deps, full = {}, false
@@ -402,6 +432,25 @@ local function priorOf(job)
     return nil
 end
 
+-- Re-evaluate a job now (its finished, fresh rows kept) and settle it.
+local function refresh(key)
+    local job = state.jobs[key]
+    if not job then return end
+    local response, rowDeps = evaluateOne(job.request, nil, job.specs, priorOf(job))
+    settle(key, response, rowDeps)
+end
+
+-- Is anything in the job's last response from before now: an older
+-- generation, or a finished row whose baseline has since gone stale?
+local function outdated(job)
+    if job.generation ~= state.generation then return true end
+    local now = time()
+    for _, r in ipairs(job.response.results) do
+        if r.status ~= "pending" and not rowFresh(r, now) then return true end
+    end
+    return false
+end
+
 -- A later frame: compute the jobs that were over the budget, oldest first.
 runDeferred = function()
     state.frameTime, state.frameUsed = GetTime(), 0
@@ -410,11 +459,7 @@ runDeferred = function()
     table.sort(list, function(a, b) return a.seq < b.seq end)
     for _, item in ipairs(list) do
         if budgetLeft() <= 0 then scheduleDeferred() return end
-        local job = state.jobs[item.key]
-        if job then
-            local response, waitIDs, deferred = evaluateOne(job.request, nil, job.specs, priorOf(job))
-            settle(item.key, response, waitIDs, deferred)
-        end
+        refresh(item.key)
     end
 end
 
@@ -440,8 +485,9 @@ function API.Evaluate(request)
     local key = keyFor(link, instance, specs, request.context)
 
     -- A cached answer of this generation, still fresh.
-    local hit = cache.get(key)
-    if hit then
+    local function fromCache()
+        local hit = cache.get(key)
+        if not hit then return nil end
         if hit.generation ~= state.generation then
             cache.drop(key)
         elseif hit.expiresAt and time() >= hit.expiresAt then
@@ -452,10 +498,22 @@ function API.Evaluate(request)
             return withId(hit.response, id)
         end
     end
+    local cached = fromCache()
+    if cached then return cached end
     state.stats.misses = state.stats.misses + 1
 
-    -- The same computation already pending: subscribe to it.
+    -- The same computation already pending: subscribe to it. Its rows are
+    -- brought up to date first: a new subscriber never gets an answer from
+    -- before an invalidation, or one whose baseline has gone stale.
     local job = state.jobs[key]
+    if job and outdated(job) then
+        refresh(key)
+        job = state.jobs[key]
+        if not job then
+            cached = fromCache()                     -- it just finished
+            if cached then return cached end
+        end
+    end
     if job then
         if state.requestCount >= API.LIMITS.requests then return overloaded(id, specs) end
         job.subs[id] = true
@@ -464,7 +522,8 @@ function API.Evaluate(request)
         return withId(job.response, id)
     end
 
-    local response, waitIDs, deferred = evaluateOne(request, id, specs)
+    local response, rowDeps = evaluateOne(request, id, specs)
+    local waitIDs, deferred = needs(response, rowDeps)
     if #waitIDs == 0 and not deferred then
         if cacheable(response) then cache.put(key, U.deepCopy(response), expiryOf(response)) end
         return U.deepCopy(response)
@@ -483,7 +542,7 @@ function API.Evaluate(request)
     end
     state.jobSeq = state.jobSeq + 1
     state.jobs[key] = { request = request, specs = specs, itemIDs = ids, deferred = deferred, subs = { [id] = true },
-        rows = rows, response = response, seq = state.jobSeq, generation = state.generation }
+        rows = rows, response = response, seq = state.jobSeq, generation = state.generation, gaveUp = {} }
     state.jobRows = state.jobRows + rows
     state.requests[id] = key
     state.requestCount = state.requestCount + 1
@@ -503,6 +562,13 @@ function API.EvaluateBatch(requests)
     return out
 end
 
+local function jobsWaitingFor(itemID)
+    local keys = {}
+    for key, job in pairs(state.jobs) do if job.itemIDs[itemID] then keys[#keys + 1] = { key = key, seq = job.seq } end end
+    table.sort(keys, function(a, b) return a.seq < b.seq end)
+    return keys
+end
+
 -- GET_ITEM_INFO_RECEIVED / ITEM_DATA_LOAD_RESULT. A failed load leaves the
 -- item waiting: the tick retries it until attempts run out.
 function API._ItemDataArrived(itemID, success)
@@ -510,21 +576,18 @@ function API._ItemDataArrived(itemID, success)
     -- Pass 1: re-evaluate every job that waited on this item. The waiting
     -- record (and its attempt budget) goes only once the data is really usable.
     local affected, stillMissing = {}, false
-    local keys = {}
-    for key, job in pairs(state.jobs) do if job.itemIDs[itemID] then keys[#keys + 1] = { key = key, seq = job.seq } end end
-    table.sort(keys, function(a, b) return a.seq < b.seq end)
-    for _, k in ipairs(keys) do
+    for _, k in ipairs(jobsWaitingFor(itemID)) do
         local job = state.jobs[k.key]
-        local response, waitIDs, deferred = evaluateOne(job.request, nil, job.specs, priorOf(job))
-        affected[#affected + 1] = { key = k.key, response = response, waitIDs = waitIDs, deferred = deferred }
-        for _, w in ipairs(waitIDs) do if w == itemID then stillMissing = true end end
+        local response, rowDeps = evaluateOne(job.request, nil, job.specs, priorOf(job))
+        affected[#affected + 1] = { key = k.key, response = response, rowDeps = rowDeps }
+        for _, deps in pairs(rowDeps) do if deps[itemID] then stillMissing = true end end
     end
     if not stillMissing then
         unwait(itemID)
         GG.Callbacks.Fire("ItemDataReady", { itemIDs = { itemID } })
     end
     -- Pass 2: reconcile each job's dependencies.
-    for _, a in ipairs(affected) do settle(a.key, a.response, a.waitIDs, a.deferred) end
+    for _, a in ipairs(affected) do settle(a.key, a.response, a.rowDeps) end
 end
 
 function API.CancelRequest(requestId)
@@ -545,26 +608,34 @@ function API.CancelRequest(requestId)
     return true
 end
 
--- About once a second while items wait: retry timed-out loads; after the last
--- attempt, resolve their jobs with every target row kept (status unknown).
+-- About once a second while items wait: retry timed-out loads. After the
+-- last attempt the item gave up: only the rows that waited for it become
+-- unknown (ITEM_DATA_UNAVAILABLE); finished rows stay, and a row waiting for
+-- the frame budget or another item still completes.
 function API._Tick(now)
+    local gaveUp = {}
     for itemID, w in pairs(state.waiting) do
         if now - w.since >= API.LIMITS.loadTimeout then
             if w.attempts < API.LIMITS.loadAttempts then
                 w.attempts, w.since = w.attempts + 1, now
                 GG.Compat.RequestItem(itemID)
             else
-                unwait(itemID)
-                for key, job in pairs(state.jobs) do
-                    if job.itemIDs[itemID] then
-                        local response = evaluateOne(job.request, nil, job.specs)
-                        for _, r in ipairs(response.results) do
-                            if r.status == "pending" then r.status = "unknown"; r.reasons = { "ITEM_DATA_UNAVAILABLE" } end
-                        end
-                        response.status = GG.Engine.Evaluate.Aggregate(response.results)
-                        finishJob(key, response)
-                    end
-                end
+                gaveUp[#gaveUp + 1] = itemID
+            end
+        end
+    end
+    -- After the loop: settling a job may queue other items (never add keys
+    -- to a table while pairs() walks it).
+    table.sort(gaveUp)
+    for _, itemID in ipairs(gaveUp) do
+        local keys = jobsWaitingFor(itemID)
+        unwait(itemID)
+        for _, k in ipairs(keys) do
+            local job = state.jobs[k.key]
+            if job then
+                job.gaveUp[itemID] = true
+                job.itemIDs[itemID] = nil
+                refresh(k.key)
             end
         end
     end

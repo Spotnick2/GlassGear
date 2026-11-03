@@ -235,6 +235,85 @@ api.CancelRequest(first.requestId)
 WoW.cacheMiss[73] = nil
 
 ------------------------------------------------------------
+-- A pending job joined after an invalidation: nothing from before it.
+------------------------------------------------------------
+api._cache.clear()
+api.LIMITS.perFrame = 2
+WoW.time = WoW.time + 1
+ready = {}
+local before = api.Evaluate({ item = WoW.link(53), scope = "own" })
+H.eq(before.results[1].status ~= "pending" and before.results[3].status, "pending", "a job half done (budget)")
+local oldDelta = before.results[1].score.delta
+SlashCmdList.GLASSGEAR('import PRIEST.SHADOW ( Pawn: v1: "Shadow3": Class=Priest, Intellect=3 )')
+local joined = api.Evaluate({ item = WoW.link(53), scope = "own" })
+H.check(joined.results[1].status == "pending" or joined.results[1].score.delta ~= oldDelta,
+    "after an invalidation, a new subscriber never gets the old finished row")
+api.LIMITS.perFrame = savedBudget
+for _ = 1, 4 do WoW.time = WoW.time + 1; WoW.flush(1) end
+local outs = {}
+for _, p in ipairs(ready) do outs[p.requestId] = p.response end
+H.eq(outs[joined.requestId] and outs[joined.requestId].results[1].score.delta, 36, "...it completes with the new weights (3 x 22 - 3 x 10)")
+H.eq(outs[before.requestId] and outs[before.requestId].results[1].score.delta, 36, "...and so does the earlier subscriber")
+
+-- A finished row whose baseline went stale while its job waited.
+WoW.specGroup = 2
+WoW.fire("ACTIVE_TALENT_GROUP_CHANGED", 2, 1)
+WoW.equipped = { [3] = 54 }
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
+WoW.flush()
+WoW.specGroup = 1
+WoW.fire("ACTIVE_TALENT_GROUP_CHANGED", 1, 2)
+WoW.equipped = { [3] = 50 }
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
+WoW.flush()
+api._cache.clear()
+api.LIMITS.perFrame = 1
+WoW.time = WoW.time + 1
+local targets = { { char = GG.player.key, spec = "PRIEST.HOLY" }, { char = GG.player.key, spec = "PRIEST.SHADOW" } }
+local hp = api.Evaluate({ item = WoW.link(52), scope = "targets", targets = targets })
+H.eq(hp.results[1].baseline.stale, false, "Holy's row finished against fresh recorded gear")
+H.eq(hp.results[2].status, "pending", "...Shadow waits for the budget")
+WoW.epoch = hp.results[1].baseline.expiresAt + 1
+local hp2 = api.Evaluate({ item = WoW.link(52), scope = "targets", targets = targets })
+H.check(hp2.results[1].status == "pending" or hp2.results[1].baseline.stale == true,
+    "past expiresAt, a new subscriber doesn't get the fresh-looking old row")
+api.LIMITS.perFrame = savedBudget
+for _ = 1, 4 do WoW.time = WoW.time + 1; WoW.flush(1) end
+
+-- A load that gives up ends only the rows that waited for it.
+SlashCmdList.GLASSGEAR("spec 2 PRIEST.HOLY")
+WoW.specGroup = 2
+WoW.fire("ACTIVE_TALENT_GROUP_CHANGED", 2, 1)
+WoW.equipped = { [3] = 54 }
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
+WoW.flush()
+WoW.specGroup = 1
+WoW.fire("ACTIVE_TALENT_GROUP_CHANGED", 1, 2)
+WoW.equipped = { [3] = 50 }
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
+WoW.flush()
+api._cache.clear()
+GG.Capture._Reset()                           -- a new session: Holy's recorded mantle isn't loaded
+WoW.cacheMiss[54] = true
+ready = {}
+api.LIMITS.perFrame = 1
+WoW.time = WoW.time + 1
+local t = api.Evaluate({ item = WoW.link(51), scope = "targets", targets = targets })
+H.eq(t.results[1].reasons[1], "BASELINE_ITEM_DATA_PENDING", "Holy waits for its recorded mantle")
+H.eq(t.results[2].reasons[1], "FRAME_BUDGET", "...Shadow waits for the budget")
+api.LIMITS.perFrame = 0                       -- no budget while the loads time out
+for _ = 1, 3 do WoW.time = WoW.time + 6; api._Tick(WoW.time) end
+H.eq(S.waiting[54], nil, "the mantle gave up after its last attempt")
+api.LIMITS.perFrame = savedBudget
+for _ = 1, 4 do WoW.time = WoW.time + 1; WoW.flush(1) end
+local tr
+for _, p in ipairs(ready) do if p.requestId == t.requestId then tr = p.response end end
+H.eq(tr and tr.results[1].reasons[1], "ITEM_DATA_UNAVAILABLE", "...Holy's row is unavailable")
+H.check(tr and tr.results[2].status ~= "unknown" and tr.results[2].status ~= "pending",
+    "...Shadow's row, only waiting for the budget, still completes")
+WoW.cacheMiss[54] = nil
+
+------------------------------------------------------------
 -- Tooltip redraws: no recomputation, no roster scan.
 ------------------------------------------------------------
 GG.Results.Reset()

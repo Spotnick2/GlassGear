@@ -113,12 +113,15 @@ is over the per-frame budget.
   `{requestId, response}`. The response is a complete deep copy, so you don't need to call again.
 - **Item data.** One load request per itemID (deduplicated), a queue of at most 256 unique ids, and
   each load attempt times out after 5 s.
-  - After 3 attempts the result is `unknown`, with `ITEM_DATA_UNAVAILABLE`.
+  - After 3 attempts, the rows that waited for that item are `unknown`, with `ITEM_DATA_UNAVAILABLE`.
+    Rows already finished stay, and a row waiting for the frame budget or another item still
+    completes.
   - Queue overflow gives `unknown`, with `ITEM_QUEUE_FULL`.
 - **Shared work.** Requests for the same item instance (or link), targets and context while one is
   pending share one computation (a *job*). Each request still gets its own `EvaluationReady`, with its
-  own `requestId`. `CancelRequest` drops a subscription; the job and its item loads go when nobody is
-  subscribed any more.
+  own `requestId`. A request joining a job gets its rows brought up to date first: never a row from
+  before an invalidation, or one whose baseline has since gone stale. `CancelRequest` drops a
+  subscription; the job and its item loads go when nobody is subscribed any more.
 - **Overload.** At most 512 outstanding pending rows across jobs (deduplicated across requests) and at
   most 64 outstanding requests. Beyond that, the call returns immediately with `unknown`, `OVERLOADED`,
   which is terminal for that call: no callback follows, and nothing is cached.
