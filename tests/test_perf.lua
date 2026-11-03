@@ -16,7 +16,7 @@ local LOCS = { "INVTYPE_HEAD", "INVTYPE_SHOULDER", "INVTYPE_CHEST", "INVTYPE_WAI
 WoW.equipped = {}
 for i = 1, 80 do
     local loc = LOCS[(i - 1) % #LOCS + 1]
-    WoW.items[1000 + i] = { name = "Piece " .. i, equipLoc = loc, classID = 4, subclassID = loc == "INVTYPE_CLOAK" and 1 or 1,
+    WoW.items[1000 + i] = { name = "Piece " .. i, equipLoc = loc, classID = 4, subclassID = 1,
         stats = { [INT] = i % 17, [SP] = i % 11, [STA] = i % 7 } }
 end
 WoW.items[900] = { name = "Worn Mantle", equipLoc = "INVTYPE_SHOULDER", classID = 4, subclassID = 1, stats = { [INT] = 5 } }
@@ -57,14 +57,16 @@ H.eq(S.stats.evaluations - e0, 240, "...240 rows computed once each")
 H.check(refreshes <= frames + 1, "...one marker redraw per frame at most (" .. refreshes .. " for " .. frames .. " frames)")
 
 -- Reopening the bags and redrawing tooltips: no recomputation.
-local e1 = S.stats.evaluations
+local e0r = S.stats.evaluations
 bag:Hide()
 WoW.showBag(bag, slots)
+H.eq(S.stats.evaluations - e0r, 0, "reopening the bags recomputes nothing")
+local e1 = S.stats.evaluations
 local tip = WoW.newTooltip("GameTooltip")
 for i = 1, 20 do WoW.showItem(tip, { type = 0, id = 1000 + i, hyperlink = WoW.link(1000 + i) }) end
 for _ = 1, 3 do for i = 1, 20 do WoW.showItem(tip, { type = 0, id = 1000 + i, hyperlink = WoW.link(1000 + i) }) end end
 local tipFirst = S.stats.evaluations - e1
-H.check(tipFirst <= 60, "reopening the bags recomputes nothing; 20 new tooltip links cost 60 rows at most (" .. tipFirst .. ")")
+H.check(tipFirst <= 60, "20 new tooltip links cost 60 rows at most (" .. tipFirst .. ")")
 local e2 = S.stats.evaluations
 for _ = 1, 10 do for i = 1, 20 do WoW.showItem(tip, { type = 0, id = 1000 + i, hyperlink = WoW.link(1000 + i) }) end end
 H.eq(S.stats.evaluations - e2, 0, "200 more tooltip redraws: nothing recomputed")
@@ -78,18 +80,36 @@ H.check((S.stats.maxFrameMs or 0) > 0, "the time spent comparing in the busiest 
     string.format("%.1f", S.stats.maxFrameMs or 0) .. " ms here)")
 H.check(WoW.chat():find("the most time spent comparing in one frame: ", 1, true) ~= nil, "...and /gg stats reports it")
 
+-- The deferred runner starts a new frame window for the time too.
+local Sx = GG.API._state
+Sx.frameMs = 999
+GG.API.LIMITS.perFrame = 1
+WoW.time = WoW.time + 1
+local before = Sx.stats.maxFrameMs
+GG.API._cache.clear()
+GG.API.Evaluate({ item = WoW.link(1033), scope = "own" })   -- 1 row now, 2 put off
+WoW.flush(1)                                                 -- the deferred runner, a later frame
+H.check((Sx.frameMs or 0) < 999, "a deferred frame's time starts from zero, not the frame before's")
+GG.API.LIMITS.perFrame = 200
+for _ = 1, 4 do WoW.time = WoW.time + 1; WoW.flush(1) end
+
+-- /gg stats reset.
+SlashCmdList.GLASSGEAR("stats reset")
+H.eq(Sx.stats.evaluations, 0, "/gg stats reset: counters from zero")
+H.eq(Sx.stats.maxFrameMs, 0, "...the busiest frame too")
+
 -- The cost of one evaluation here (an indication for the docs, not a test of the client).
 local link = WoW.link(1005)
 local facts = GG.Compat.ItemFacts(link)
 local profile = GG.Profiles.Active(GG.store, GG.player.key, "PRIEST.SHADOW")
 local baseline = GG.Compat.EquippedBaseline(time())
 local N = 2000
-local t0 = os.clock()
+local t0 = GG.Compat.Clock()
 for _ = 1, N do
     GG.Engine.Evaluate.One({ item = facts, recipient = GG.player, spec = "PRIEST.SHADOW", current = true,
         profile = profile, baseline = baseline, settings = {}, transfer = { state = "eligible", reasons = {} } })
 end
-local per = (os.clock() - t0) / N * 1e6
+local per = (GG.Compat.Clock() - t0) / N * 1e3
 print(string.format("  info: one Evaluate.One here: %.1f microseconds (%d runs); 200 rows ~ %.2f ms", per, N, per * 200 / 1000))
 H.check(per < 5000, "an evaluation stays well under 5 ms even in a plain interpreter")
 

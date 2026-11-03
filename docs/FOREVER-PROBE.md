@@ -35,7 +35,7 @@ needs to find out, and records the result here with the build once it is run.
 | P13 | Settings page | GG-112 | `gg options` | narrowed |
 | P14 | Equipment sets and per-spec capture | GG-108 | `gg sets2` | queued |
 | P15 | Profiles window | GG-105 | `gg profiles` | queued |
-| P19 | Runtime cost in the client | GG-402 | `gg stats` | queued |
+| P19 | Runtime cost in the client | GG-402 | `gg perf` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -385,5 +385,5 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
     non-empty when nothing is loading.
 - **Why.** `LIMITS.perFrame` (200) was set from the plan, not measured in the client. If a hitch shows,
   lower it (100 halves the worst frame).
-- **Steps.** `/reload`; open all bags with many gear items; `/gg stats`; hover around for a while;
-  `/gg stats` again.
+- **Steps.** `/reload`; open all bags with many gear items; `/gg stats`; `/gg stats reset`; hover
+  around for a while; `/gg stats` again (the second reading is the hovering alone).

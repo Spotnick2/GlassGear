@@ -132,6 +132,13 @@ function Diagnostics.Slash(msg)
         GG.API._Invalidate("baselines", { GG.player.key })
     elseif cmd == "stats" then
         -- GG-402: what the runtime did this session, to measure in game.
+        -- "/gg stats reset" starts the counters again (one reading per phase).
+        if rest == "reset" then
+            local st = GG.API._state.stats
+            for k in pairs(st) do st[k] = 0 end
+            out("stats reset")
+            return
+        end
         for _, line in ipairs(Diagnostics.StatsLines()) do out(line) end
     elseif cmd == "options" or cmd == "config" then
         if not GG.Options.Open() then out("settings: Esc > Options > AddOns > Glass Gear") end

@@ -181,17 +181,23 @@ end
 
 -- The per-frame budget. GetTime() is the frame's time; the deferred runner
 -- always starts a new window (it runs on a later frame).
-local function budgetLeft()
+-- The frame window: everything counted per frame starts again together
+-- (rows spent, time spent). `force`: the deferred runner, on a later frame.
+local function frameWindow(force)
     local now = GetTime()
-    if state.frameTime ~= now then state.frameTime, state.frameUsed, state.frameMs = now, 0, 0 end
+    if force or state.frameTime ~= now then state.frameTime, state.frameUsed, state.frameMs = now, 0, 0 end
+end
+
+local function budgetLeft()
+    frameWindow()
     return API.LIMITS.perFrame - state.frameUsed
 end
 
--- GG-402: the time evaluations take in one frame, the worst one kept
--- (/gg stats), so the budget can be judged in the real client.
+-- GG-402: the time the budgeted work takes in one frame (evaluating, and
+-- settling what it computed), the worst frame kept (/gg stats), so the
+-- budget can be judged in the real client.
 local function noteTime(ms)
-    local now = GetTime()
-    if state.frameTime ~= now then state.frameTime, state.frameUsed, state.frameMs = now, 0, 0 end
+    frameWindow()
     state.frameMs = (state.frameMs or 0) + ms
     if state.frameMs > (state.stats.maxFrameMs or 0) then state.stats.maxFrameMs = state.frameMs end
 end
@@ -413,7 +419,14 @@ end
 
 -- After a re-evaluation: finish the job, or keep it waiting for items and/or
 -- the budget. A dependency that can't enter the item queue ends it (every row kept).
-local function settle(key, response, rowDeps)
+local settleTimed
+local function settle(...)
+    local t0 = GG.Compat.Clock()
+    settleTimed(...)
+    noteTime(GG.Compat.Clock() - t0)
+end
+
+settleTimed = function(key, response, rowDeps)
     local job = state.jobs[key]
     if not job then return end
     job.rowDeps = rowDeps
@@ -482,7 +495,7 @@ end
 
 -- A later frame: compute the jobs that were over the budget, oldest first.
 runDeferred = function()
-    state.frameTime, state.frameUsed = GetTime(), 0
+    frameWindow(true)
     local list = {}
     for key, job in pairs(state.jobs) do if job.deferred then list[#list + 1] = { key = key, seq = job.seq } end end
     table.sort(list, function(a, b) return a.seq < b.seq end)

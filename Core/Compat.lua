@@ -192,10 +192,16 @@ end
 
 -- Milliseconds, for measuring (debugprofilestop, dump :6605; os.clock where
 -- the client's timer is missing, as in the tests).
+-- Resolved once at load (no per-call lookup); without either timer it
+-- reads 0, and measuring simply measures nothing (never an error).
+local clockFn = rawget(_G, "debugprofilestop")
+if type(clockFn) ~= "function" then
+    local os_ = rawget(_G, "os")
+    clockFn = (type(os_) == "table" and type(os_.clock) == "function")
+        and function() return os_.clock() * 1000 end or function() return 0 end
+end
 function Compat.Clock()
-    local f = rawget(_G, "debugprofilestop")
-    if type(f) == "function" then return f() end
-    return os.clock() * 1000
+    return clockFn()
 end
 
 function Compat.ActiveSpecGroup()
