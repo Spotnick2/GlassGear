@@ -46,7 +46,10 @@ function RosterProvider.DetectAltStable(env)
 end
 
 -- Characters Glass Gear may evaluate. M0: the current character only.
+RosterProvider.scans = 0     -- how often the roster was read (GG-114: never on a tooltip redraw)
+
 function RosterProvider.Characters(player)
+    RosterProvider.scans = RosterProvider.scans + 1
     return { player }
 end
 

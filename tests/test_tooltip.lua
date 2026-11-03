@@ -100,7 +100,8 @@ H.eq(ref.lines[3] and ref.lines[3].right, "+50.0%", "chat-link tooltip rows")
 -- Level window: two levels above, default look-ahead 0 -> "at level 62 (in 2)".
 WoW.showItem(ref, { type = 0, id = 62, hyperlink = WoW.link(62) })
 H.eq(ref.lines[3].right, "at level 62 (in 2)", "above the level window: when, not a score")
-GG.db.settings.levelWindow.lookAhead = 2
+GG.Prefs.Set("levelWindow.lookAhead", 2)     -- as the settings page does (invalidates)
+WoW.flush()
 GG.Tooltip.Reset()
 WoW.showItem(ref, { type = 0, id = 62, hyperlink = WoW.link(62) })
 H.eq(ref.lines[3].right, "+200.0% at level 62 (in 2)", "inside the look-ahead: scored, with the level")

@@ -46,6 +46,10 @@
   (`/gg set <spec> none` turns sets off for that spec, `auto` back on). A
   spec with nothing recorded still compares with your current gear, labelled. Gear recorded more
   than 14 days ago is flagged in the tooltip and `/gg`.
+- API runtime (GG-114): answers are cached until something they depend on changes, so redrawing a
+  tooltip or a bag costs a lookup; at most 200 comparisons run per frame (the rest finish on the
+  next frames); requests for the same item share one computation; bounded queues answer OVERLOADED
+  instead of growing.
 - Weight profiles window (GG-105, `/gg profiles`, or the settings page's button): up to 4 profiles
   per spec, one active; paste a Pawn string or a WoWSims Pawn EP export and see at once whether it
   is valid, how many weights it has and what it leaves out; add it as a new profile or replace one;

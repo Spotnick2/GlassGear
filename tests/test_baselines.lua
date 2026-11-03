@@ -45,6 +45,13 @@ local function equip(t)
     WoW.fire("PLAYER_EQUIPMENT_CHANGED", 3, false)
     WoW.fire("PLAYER_EQUIPMENT_CHANGED", 16, false)
 end
+-- The client's events for what the tests change by hand (answers are cached
+-- until an invalidation, GG-114).
+local function bagsChanged() WoW.fire("BAG_UPDATE_DELAYED") end
+local function setsChanged() WoW.fire("EQUIPMENT_SETS_CHANGED") end
+-- Item data that isn't loaded yet exists only in a new session: no answer
+-- from before is cached then.
+local function newSession() GG.API._cache.clear() end
 local function switch(group)
     WoW.specGroup = group
     WoW.fire("ACTIVE_TALENT_GROUP_CHANGED", group, 3 - group)
@@ -140,15 +147,18 @@ local setB = GG.Capture.BaselineFor("PRIEST.HOLY", live, time())
 H.eq(setB.slots[17].itemID, 62, "an ignored set slot keeps what is worn (the orb)")
 H.eq(setB.slots[3].itemID, 55, "...the set's own slots come from the set")
 WoW.bags[0][3] = { itemID = 55, enchant = 1883 }
+bagsChanged()
 h = holy(54)
 H.eq(h.baseline.complete, false, "two different instances of a set item: that slot is unknown, never a guess")
 H.eq(h.status, "unknown", "...so the comparison in that slot is unknown, not a verdict")
 H.check(has(h.reasons, "BASELINE_SLOT_UNKNOWN"), "...reason BASELINE_SLOT_UNKNOWN")
 WoW.bags[0][3] = nil
 WoW.bags[0][1] = nil
+bagsChanged()
 h = holy(54)
 H.eq(h.baseline.complete, false, "a set item no longer worn or in the bags (bank): unknown")
 WoW.bags[0][1] = { itemID = 55, isBound = true }
+bagsChanged()
 SlashCmdList.GLASSGEAR("set PRIEST.HOLY Nope")
 H.check(WoW.chat():find("no equipment set named 'Nope'. Sets: Holy Set", 1, true) ~= nil, "an unknown set name lists the sets")
 
@@ -176,7 +186,9 @@ h = holy(54)
 H.eq(h.baseline.source, "observed", "/gg set none: recorded gear again")
 H.eq(bagChange(function() WoW.bags[0][1] = nil end), false, "no spec uses a set: a set piece moving invalidates nothing")
 WoW.bags[0][1] = { itemID = 55, isBound = true }
+bagsChanged()
 WoW.sets[7].specGroup = 2
+setsChanged()
 h = holy(54)
 H.eq(h.baseline.source, "observed", "...even with a set assigned to Holy's group in the client")
 SlashCmdList.GLASSGEAR("")
@@ -187,6 +199,7 @@ H.eq(h.baseline.source, "equipment-set", "/gg set auto: the set the client assig
 SlashCmdList.GLASSGEAR("")
 H.check(WoW.chat():find("(assigned in the client)", 1, true) ~= nil, "/gg says where the set came from")
 WoW.sets[7].specGroup = nil
+setsChanged()
 
 ------------------------------------------------------------
 -- A stored baseline whose items aren't loaded: that spec is pending, alone.
@@ -194,6 +207,7 @@ WoW.sets[7].specGroup = nil
 local ready = {}
 GG.API.RegisterCallback("EvaluationReady", function(_, payload) ready[#ready + 1] = payload end, "test_baselines")
 GG.Capture._Reset()
+newSession()
 WoW.cacheMiss[52] = true
 local hp, r = holy(54)
 H.eq(hp.status, "pending", "Holy pending while its recorded mantle loads")
@@ -210,6 +224,7 @@ H.eq(doneHoly and doneHoly.baseline.source, "observed", "data arrived: the Holy 
 H.eq(doneHoly and doneHoly.status, "no_upgrade", "...a full comparison, not an unknown slot")
 
 -- A worn item loading holds up only the specs that need it.
+newSession()
 WoW.cacheMiss[50] = true            -- the worn Shadow mantle
 local sp, r2 = result(54, "PRIEST.SHADOW")
 H.eq(sp.status, "pending", "a worn item loading: the current spec, compared with what is worn, is pending")
@@ -224,6 +239,7 @@ for _, p in ipairs(ready) do
     end
 end
 H.eq(doneShadow and doneShadow.status, "no_upgrade", "...data arrived: the Shadow result completes (Shadow has no healing weight)")
+newSession()
 WoW.cacheMiss[62] = true            -- the worn orb, the companion of a 1H for Holy's staff
 H.eq(holy(63).status, "pending", "a mace against Holy's staff while the worn orb loads: pending, not 'needs an off-hand'")
 H.eq(holy(54).status, "no_upgrade", "...a shoulder for Holy needs no companion: not held up")

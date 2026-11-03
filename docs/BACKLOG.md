@@ -342,6 +342,13 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - No roster scan on a tooltip redraw: measured with a redraw counter.
 - **Refs.** API.md.
 - **Validation:** auto.
+- **Done.** `API/PublicAPI.lua`: requests subscribe to deduplicated jobs; LRU cache (2 000) keyed by
+  instance or link, targets and context, stamped with a generation every invalidation advances;
+  freshness checked on every hit; 200 rows per frame with `FRAME_BUDGET` placeholders and a deferred
+  runner that keeps finished rows; 512-row and 64-request bounds. `test_api_runtime.lua` (56 checks:
+  cache, LRU, invalidation, freshness, budget, dedupe, cancel, bounds, 25 tooltip redraws with no
+  recomputation and no roster read). Answers stay correct only if every input change invalidates:
+  P14 asks whether assigning a set to a spec fires `EQUIPMENT_SETS_CHANGED`.
 
 ### GG-115: Glass theme (P2, MVP)
 

@@ -346,7 +346,8 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
     -1/ignored as "keep what is worn".
   - Does `GetEquipmentSetForSpec(group)` return the set assigned to a spec group on Forever (the
     equipment manager's spec checkbox), and nil otherwise?
-  - Does `EQUIPMENT_SETS_CHANGED` fire on saving, renaming and deleting a set?
+  - Does `EQUIPMENT_SETS_CHANGED` fire on saving, renaming and deleting a set, and on assigning a set
+    to a spec in the equipment manager? Glass Gear's cached answers (GG-114) rely on it.
   - Does `BAG_UPDATE_DELAYED` fire after taking a set piece from the bank into the bags and back
     (Glass Gear re-checks the sets' pieces then)?
   - After a dual-spec switch that swaps gear, are the swap's `PLAYER_EQUIPMENT_CHANGED` events done

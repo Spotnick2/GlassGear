@@ -39,6 +39,7 @@ function WoW.reset()
     WoW.numSpecGroups = 2   -- GetNumSpecGroups (1 without dual spec)
     WoW.items = {}        -- [itemID] = { name, equipLoc, classID, subclassID, minLevel, bindType, setID, stats, spell, unique = {cat,max} }
     WoW.cacheMiss = {}    -- [itemID] = true -> GetItemInfo / GetItemStats return nothing
+    WoW.statsMiss = {}    -- [itemID] = true -> only GetItemStats returns nothing (name known, stats not)
     WoW.equipped = {}     -- [slot] = itemID
     WoW.bags = {}         -- [bag] = { [slot] = { itemID, isBound, guid, enchant } }
     WoW.sets = {}         -- [setID] = { name, items = { [slot] = itemID | 0 | -1 }, ignored = { [slot] = true }, specGroup }
@@ -331,7 +332,7 @@ end
 function C_Item.GetItemStats(link)                                                                     -- 2266
     local id = idOf(link)
     local it = id and WoW.items[id]
-    if not it or WoW.cacheMiss[id] then return nil end
+    if not it or WoW.cacheMiss[id] or WoW.statsMiss[id] then return nil end
     local copy = {}
     for k, v in pairs(it.stats or {}) do copy[k] = v end
     return copy
