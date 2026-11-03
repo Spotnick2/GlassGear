@@ -22,6 +22,8 @@ local WoW = WoW
 local OWN_GLOBALS = { GlassGear = true, GlassGearDB = true, GlassGearChar = true,
     SLASH_GLASSGEAR1 = true, SLASH_GLASSGEAR2 = true }
 
+UISpecialFrames = {}      -- Blizzard's Escape list (addons append entries to it)    -- FrameXML
+
 function WoW.reset()
     WoW.time = 1000
     WoW.epoch = 1793500000
@@ -43,6 +45,7 @@ function WoW.reset()
     WoW.postCalls = {}    -- [tooltip data type] = { fn, ... } (TooltipDataProcessor)
     WoW.keys = {}         -- { CTRL = true, ALT = true } held modifiers
     WoW.focus = nil       -- the edit box with keyboard focus
+    for i = #UISpecialFrames, 1, -1 do UISpecialFrames[i] = nil end
     WoW.combat = false
     WoW.atlases = { ["bags-greenarrow"] = true }
     WoW.missingTemplates = {}
@@ -51,6 +54,13 @@ function WoW.reset()
     WoW.rolls = {}        -- [rollID] = itemID
     if WoW.makeBagFrames then WoW.makeBagFrames() end
     if WoW.makeLootFrames then WoW.makeLootFrames() end
+end
+
+-- The player types into an edit box: focus, text (userInput), then Enter.
+function WoW.type(box, text, enter)
+    box:SetFocus()
+    box:SetText(text, true)
+    if enter ~= false and box._scripts.OnEnterPressed then box._scripts.OnEnterPressed(box) end
 end
 
 function WoW.link(itemID, enchant)
@@ -96,6 +106,8 @@ local function newFontString()
     function fs:SetTextColor(r, g, b) self.color = { r, g, b } end
     function fs:Show() self.shown = true end
     function fs:Hide() self.shown = false end
+    function fs:SetShown(v) self.shown = v and true or false end
+    function fs:IsShown() return self.shown end
     return fs
 end
 
@@ -145,7 +157,6 @@ function CreateFrame(kind, name, parent, template)
     end
     function f:CreateTexture() return newTexture() end
     function f:SetSize() end
-    function f:SetPoint() end
     function f:ClearAllPoints() end
     function f:SetParent(p) self.parent = p end
     function f:GetParent() return self.parent end
@@ -207,6 +218,51 @@ function CreateFrame(kind, name, parent, template)
         if self.min then v = math.max(self.min, math.min(self.max, v)) end
         self.value = v
         if self._scripts.OnValueChanged then self._scripts.OnValueChanged(self, v) end
+    end
+    -- Windows (UI/ProfilesWindow.lua).
+    function f:SetPoint(...) self.point = { ... } end
+    function f:GetPoint()
+        local p = self.point or {}
+        return p[1], p[2], p[3], p[4], p[5]
+    end
+    function f:SetFrameStrata() end
+    function f:SetToplevel() end
+    function f:SetClampedToScreen() end
+    function f:SetMovable(v) self.movable = v end
+    function f:RegisterForDrag() end
+    function f:StartMoving() self.moving = true end
+    function f:StopMovingOrSizing() self.moving = false end
+    if template == "BackdropTemplate" then      -- a mixin: only frames made with it have these
+        function f:SetBackdrop(b) self.backdrop = b end
+        function f:SetBackdropColor(r, g, b, a) self.backdropColor = { r, g, b, a } end
+        function f:SetBackdropBorderColor() end
+    end
+    if kind == "EditBox" then
+        function f:SetAutoFocus() end
+        function f:SetFontObject() end
+        function f:SetMultiLine(v) self.multiLine = v end
+        function f:SetMaxLetters(n) self.maxLetters = n end
+        function f:SetTextInsets() end
+        function f:GetText() return self.text or "" end
+        -- SetText fires OnTextChanged (userInput false); WoW.type passes true.
+        function f:SetText(t, userInput)
+            t = tostring(t or "")
+            if self.maxLetters and self.maxLetters > 0 and #t > self.maxLetters then t = t:sub(1, self.maxLetters) end
+            self.text = t
+            if self._scripts.OnTextChanged then self._scripts.OnTextChanged(self, userInput == true) end
+        end
+        function f:HighlightText(from, to) self.highlighted = not (from == 0 and to == 0) end
+        function f:SetFocus()
+            if WoW.focus == self then return end
+            if type(WoW.focus) == "table" and WoW.focus.ClearFocus then WoW.focus:ClearFocus() end
+            WoW.focus = self
+        end
+        function f:ClearFocus()
+            if WoW.focus ~= self then return end
+            WoW.focus = nil
+            if self._scripts.OnEditFocusLost then self._scripts.OnEditFocusLost(self) end
+        end
+        function f:HasFocus() return WoW.focus == self end
     end
     WoW.frames[#WoW.frames + 1] = f
     return f
@@ -580,6 +636,8 @@ function WoW.loadAddon(opts)
 end
 
 WoW.reset()
+UIParent = CreateFrame("Frame", "UIParent")                                               -- FrameXML
+WoW.frames = {}           -- UIParent isn't an addon frame
 
 -- Every global defined above, by identity: test_load fails if the addon
 -- replaces one (assigning an existing key never reaches __newindex).

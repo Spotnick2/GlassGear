@@ -71,7 +71,8 @@ LibGlass r11, not the painted textures.
 - **05 / 05b, profiles and imports.** Weights belong to a character and spec and keep their
   provenance (`imported-pawn`, `wowsims-pawn-ep`, `default`, `manual`). Unknown tokens are reported,
   never silently zero. A SimulationCraft profile or WoWSims character JSON is not a weight set and
-  is refused with an explanation (`docs/FORMATS.md`).
+  is refused with an explanation (`docs/FORMATS.md`). Built (GG-105) as drawn in 05, with the
+  import type detected instead of a dropdown and the Active badge on the chosen profile.
 - **06, characters.** Characters are grouped by account only from AltStable's validated
   provenance, never from the user-typed `account` label. Stale and incomplete data are labelled.
   Pairing and sync stay in AltStable ("Open AltStable"). Without AltStable, current-character

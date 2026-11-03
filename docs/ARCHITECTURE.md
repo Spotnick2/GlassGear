@@ -30,7 +30,7 @@
 ┌──────────────────────────────────────────────────────────────┐
 │ Integrations: RosterProvider (local | AltStable), GlassUI     │
 └──────────────────────────────────────────────────────────────┘
-Profiles/ (storage + PawnString)   Core/DB (schema, migrations)   Core/Prefs (settings model)   Character/Capture (per-spec gear)   UI/Options (settings page), UI/Diagnostics, UI/Results (shared answers), UI/Tooltip, UI/Reveal, UI/Marks (look), UI/BagMarkers, UI/LootMarkers (hooks)
+Profiles/ (storage + PawnString)   Core/DB (schema, migrations)   Core/Prefs (settings model)   Character/Capture (per-spec gear)   Presentation/ProfileView (profile texts)   UI/Options (settings page), UI/ProfilesWindow (weights), UI/Diagnostics, UI/Results (shared answers), UI/Tooltip, UI/Reveal, UI/Marks (look), UI/BagMarkers, UI/LootMarkers (hooks)
 ```
 
 ## Module rules

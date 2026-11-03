@@ -44,3 +44,10 @@
   (`/gg set <spec> none` turns sets off for that spec, `auto` back on). A
   spec with nothing recorded still compares with your current gear, labelled. Gear recorded more
   than 14 days ago is flagged in the tooltip and `/gg`.
+- Weight profiles window (GG-105, `/gg profiles`, or the settings page's button): up to 4 profiles
+  per spec, one active; paste a Pawn string or a WoWSims Pawn EP export and see at once whether it
+  is valid, how many weights it has and what it leaves out; add it as a new profile or replace one;
+  edit each weight (a number, X to ignore the stat, empty to clear), the name and the armor types;
+  export as a Pawn string to copy. Character exports (SimulationCraft, WoWSims JSON) are explained,
+  not imported. A change made elsewhere meanwhile is never overwritten. `/gg import` still replaces
+  the active profile's weights.
