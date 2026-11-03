@@ -275,9 +275,12 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   - Does `C_Item.GetItemSetInfo(setID)` (2262) return the name?
   - Does `C_LootJournal.GetItemSetItems(setID)` (2497) work on Forever?
   - Do these agree with the `ItemSet` column in `forever-itemsparse` (column 78)?
-- **Table status.** `ItemSet` and `ItemSetSpell` are **not** in `References/Forever/db`. GG-119
-  fetches them with the `wago-tools` skill to generate `Data/ItemSets.lua` (pieces, bonus
-  thresholds, bonus spells). Not fetched yet.
+- **Table status.** `ItemSet` and `ItemSetSpell` are in `References/Forever/db` at 1.60.1.70753
+  (fetched 2026-11-03 with the `wago-tools` skill). `Tools/gen_item_sets.py` generates
+  `Data/ItemSets.lua`: 545 sets, 544 with bonus thresholds; no spec- or trait-specific bonus rows.
+  Offline cross-check: every one of the 155 sets that `forever-itemsparse` (70532, column `ItemSet`)
+  points at is in `ItemSet`; the other 390 sets have no item in that build (content Forever doesn't
+  offer). Still to measure in game: that `GetItemInfo`'s `setID` is that same ID.
 - **Why.** Set-bonus awareness: an item that completes or breaks a bonus threshold is flagged with
   its limitation instead of being scored as if the bonus didn't exist.
 - **Steps.** `run` over the owner's equipped and bag set pieces: log `setID`, the set name and
