@@ -29,6 +29,7 @@ Item\ItemContext.lua
 Character\Spec.lua
 Character\Baselines.lua
 Character\Capture.lua
+Character\Owned.lua
 Core\Callbacks.lua
 Core\DB.lua
 Core\Compat.lua
@@ -39,6 +40,7 @@ Presentation\Theme.lua
 Presentation\TooltipView.lua
 Presentation\MarkerView.lua
 Presentation\ProfileView.lua
+Presentation\CompareView.lua
 API\PublicAPI.lua
 UI\Diagnostics.lua
 UI\Results.lua
@@ -48,5 +50,7 @@ UI\Marks.lua
 UI\BagMarkers.lua
 UI\LootMarkers.lua
 UI\Options.lua
+UI\Window.lua
 UI\ProfilesWindow.lua
+UI\CompareWindow.lua
 Core\Main.lua

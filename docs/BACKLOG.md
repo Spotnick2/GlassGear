@@ -245,8 +245,8 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Equipment-set mapping per spec.
   - Baseline entries in `EntrySync`.
   - Freshness and `expiresAt`.
-  - Companion off-hand from the worn gear (from the bags: GG-122).
-  - Owned better items in bags as an optional source: moved to GG-122.
+  - Companion off-hand from the worn gear (from the bags: GG-122, done).
+  - Owned better items in bags as an optional source: GG-122, done.
 - **Acceptance.**
   - A Holy result uses Holy gear after one Holy session.
   - "No Holy equipment recorded" offers "use current gear (estimate)" or "choose a saved set"
@@ -328,6 +328,13 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - "no equipment recorded" choices.
 - **Refs.** mockup 08; adr/0003.
 - **Validation:** game.
+- **Done (auto), game P16.** `/gg compare [link]` (else the item last hovered), `UI/CompareWindow.lua` on
+  the shared `UI/Window.lua` (extracted from the profiles window), `Presentation/CompareView.lua`
+  (pure). Spec tabs; the gear compared with and its age; equipped vs candidate (+ companion); the
+  stat table (unweighted stats shown, marked); item scores and change; the verdict; method,
+  profile, source, baseline; the tooltip's notes; "No <spec> equipment recorded" with the saved
+  sets as buttons (`Capture.MapSet`, also behind `/gg set`); View profile. `test_compare.lua`.
+  Not done: a key binding (a click handler would consume clicks; a binding needs owner approval).
 
 ### GG-114: Public API v1 runtime (P1, MVP)
 
@@ -511,6 +518,13 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   - The token changes when a baseline goes stale without any other event.
 - **Refs.** API.md; mockups 07, G4.
 - **Validation:** auto, game with Shatter (P8).
+- **Done (auto).** `API.AssessProtection`: the tracked specs of the current character, computed fresh
+  on every call (never the result cache, never deferred by the frame budget), with the protection
+  threshold; `Policy.Protection` for the verdict; pending item data loads and then invalidates
+  (`itemData`); the token hashes instance GUID, bind state, `noWeights`, tracked specs and the
+  generation; a baseline passing `expiresAt` advances the freshness generation before the call
+  returns. Errors answer `unknown` (`INTERNAL_ERROR`). `test_protection.lua` (43 checks). Shatter's
+  side is SH-001.
 
 ## M4: Compatibility, performance, localisation, release
 
