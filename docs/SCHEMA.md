@@ -108,8 +108,23 @@ No raw newline is ever emitted.
 **Baseline payload:**
 
 ```
-<specKey>;<source>;<capturedAt base36>;<group>;<slot>:<o|e|u>[:<id>:<enchant>:<suffix>],...
+<specKey>;<source>;<capturedAt base36>;<group>;<slot>:<o|e|u>[:<item string>],...
 ```
+
+- The item string is the **trimmed** form AltStable's `GetCharacterGear` returns
+  (`Compat.GearItemString`; AltStable `Scanner.lua:96-129`), so own and alt baselines compare alike:
+  - On Forever a random suffix is a **bonus ID**; the classic suffix field is always empty
+    (measured by AltStable on 205 links). *Beaded Wraps of the Sorcerer* is
+    `item:14094::::::::::::1:12745`. The bonus and modifier block is kept.
+  - The link level and spec (the scanning character's) are blanked, and everything after the
+    modifiers (a crafter's GUID, relics) is dropped. Trailing empty fields are trimmed: a plain item
+    is `item:<id>`.
+  - At most 64 characters (`Codec.MAX_ITEM`), so the largest legal baseline still fits one entry
+    (fixture: 1837 of 2048 bytes). A longer string is captured as `unknown` for that slot (GG-108).
+    Measured by AltStable on the 205 stored beta links (2026-11-01): longest 40 characters
+    (`item:15304:::::::::::1:1:12728:1:28:5244`: context, one bonus, one modifier), median 22,
+    95th percentile 26. Only an enchant plus gems plus several bonuses could pass 64, and the
+    sample has no gemmed item (no sockets on Forever, `PORTING-TBC-TO-FOREVER.md:2064`).
 
 - The occupancy codes are `o` occupied, `e` empty and `u` unknown.
 - Slots must be gear slots (1–3, 5–18), each listed once.

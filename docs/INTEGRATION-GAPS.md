@@ -15,7 +15,7 @@ silent fallback.
 |---|---|---|---|---|
 | AS-001 | AltStable | Required extension: **done** (AltStable #282, `028cdd1`) | M2 | every alt feature |
 | AS-002 | — | **Moved** to ES-001 (AS-S1 chose extraction, adr/0001 amendment) | — | — |
-| AS-003 | AltStable | Required extension | M2 | GG-201, GG-203 alt baselines |
+| AS-003 | AltStable | Required extension: **done** (AltStable #283, `1b35918`) | M2 | GG-201, GG-203 alt baselines |
 | ASS-001 | AltStableSync | Required: extract Link's entry sync (AS-S1 chose extraction) | M2 | ES-001 |
 | ES-001 | new library (repo and name TBD) | Required: shared entry-sync library | M2 | GG-202 profile/baseline sync |
 | SH-001 | Shatter | Required extension | M3 | Disenchant protection |
@@ -90,6 +90,28 @@ entry-sync service is not built in AltStable: it becomes the shared library **ES
 extracted from AltStableSync Link under ASS-001. AltStable#281's AS-002 section says it moved.
 
 ### AS-003: Public gear read API
+
+**Done** in AltStable #283 (`1b35918`, closes AltStable#281). The contract is AltStable
+`docs/PUBLIC-API.md`; what Glass Gear relies on:
+
+- Flag `AltStable.PUBLIC_API_FEATURES.gear == true` (`PUBLIC_API_VERSION` stays 1);
+  `RosterProvider.DetectAltStable` checks it with the function.
+- `GetCharacterGear(guid)` → a copy, or nil: `{ guid, capturedAt, gearAt, provenance, slots }`.
+  Slots 1–3 and 5–18, each `{ slot, key, state, itemID?, itemLevel?, itemString? }`; `itemString`
+  exactly when `occupied`. `unknown` never guesses (records before #281, or a stale relayed string);
+  `itemID` may still come as a hint. `itemLevel` is nil when the scanner hadn't cached the item.
+- **On Forever a random suffix is a bonus ID**, not link field 7 (always empty). The string keeps the
+  bonus and modifier block, blanks link fields 9–10 and drops the crafter GUID. Glass Gear's baseline
+  codec uses the same form (SCHEMA.md).
+- `capturedAt` = when the scan read the gear (not `lastUpdate`); `gearAt` = when worn items last
+  changed (adr/0003 staleness signal). Both nil on records before #281.
+- `"GearChanged"`: `fn("GearChanged", guids)`, a sorted list per coalesced burst, from a local scan
+  or a landed sync; enchant- or gem-only changes count.
+- Unmeasured until the game is back: whether `GetItemStats`/`GetItemInfo` read the trimmed string
+  like the full link (P4, GG-103), and a remote alt's suffix item arriving `occupied` (two-account
+  check, GG-203).
+
+The original request, kept for reference:
 
 - **Outcome.** Glass Gear can compare an item against an alt's equipped gear without reading
   `AltStableDB`.

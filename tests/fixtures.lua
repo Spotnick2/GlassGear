@@ -10,7 +10,7 @@ function F.item(o)
     local Stats = GlassGear.Data.Stats
     local tokens, unsupported = Stats.FromItemStats(o.stats or {}, o)
     return {
-        ready = o.ready ~= false, itemID = o.itemID or 1, itemString = o.itemString or ((o.itemID or 1) .. ":0:0"),
+        ready = o.ready ~= false, itemID = o.itemID or 1, itemString = o.itemString or ("item:" .. (o.itemID or 1)),
         equipLoc = o.equipLoc, classID = o.classID or 4, subclassID = o.subclassID or 1,
         reqLevel = o.reqLevel or 1, setID = o.setID, hasSpell = o.hasSpell, unique = o.unique,
         tokens = tokens, unsupported = unsupported, bindType = o.bindType,

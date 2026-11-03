@@ -21,7 +21,7 @@ What exists today (verified, see [ECOSYSTEM-FINDINGS.md](../ECOSYSTEM-FINDINGS.m
   - Its public API v1 exposes identity only.
   - Its plugin hooks `OnSerialize(guid)` / `OnDeserialize(guid, blob)` carry **no sender or
     destination**.
-  - Item links are not synced, so random suffixes are lost.
+  - Item links are not synced, so random suffixes are lost. (AS-003 fixed this: AltStable #283.)
   - "Own account" is a session-only check, and `account` is a label the player types in.
 - **LibAccountSync** reaches the same Battle.net account only, which is the same reach as AltStable's
   route.
@@ -37,7 +37,7 @@ What exists today (verified, see [ECOSYSTEM-FINDINGS.md](../ECOSYSTEM-FINDINGS.m
 | Transport for profiles/baselines | AltStable (needs an extension) | Glass Gear's own LAS instance | Whatever the provider gives | The extracted library, on Glass Gear's own LAS instance |
 | Duplicate sync services | No | **Yes**: a second own-account roster sync | No, if the provider is AltStable | No second roster; one entry-sync implementation shared with AltStableSync Link |
 | Works without AltStable | Current character only | Alts too | Current character; future providers possible | Profile/baseline sync yes; alts no |
-| Upstream work | AS-001, AS-002, AS-003 | None upstream, but heavy duplication | As option 1 | AS-001 (done), AS-003, ASS-001 + the library (ES-001) |
+| Upstream work | AS-001, AS-002, AS-003 | None upstream, but heavy duplication | As option 1 | AS-001 (done), AS-003 (done), ASS-001 + the library (ES-001) |
 | Demonstrated need | Fits "AltStable owns roster/distribution" | No requirement today for alts without AltStable | | AS-S1 found the entry-sync machinery belongs in a library, not in AltStable |
 
 ## Decision
@@ -49,7 +49,7 @@ option 3.**
   profiles and baselines** through the shared entry-sync library (ES-001, extracted from AltStableSync
   Link under ASS-001) on **its own LibAccountSync instance**.
 - **AltStable owns** the roster, ownership provenance (AS-001, merged in AltStable #282) and gear
-  (AS-003). Alt features (GG-201, GG-203) still go through AltStable.
+  (AS-003, merged in AltStable #283). Alt features (GG-201, GG-203) still go through AltStable.
 - **Option 2's rejection still stands for the roster:** Glass Gear never builds a second roster or
   its own ownership model. What it runs itself is entry sync only, with code shared with AltStableSync
   Link, not a second implementation.
@@ -59,7 +59,8 @@ option 3.**
 - Glass Gear always has a local provider, which covers the current character and its specs. The
   AltStable provider is added when AltStable offers the required capabilities (AS-001, AS-003).
 
-Until AS-001 and AS-003 are available, alt features are reported **unavailable**; until ES-001
+Both are now in AltStable (#282, #283); until GG-201 and GG-203 use them, alt features are
+reported **unavailable**; until ES-001
 ships, profile sync is. They are not degraded, and Glass Gear never reads `AltStableDB` directly
 (AltStable `docs/PUBLIC-API.md:4-5`).
 
@@ -218,8 +219,8 @@ library pages them, and the receiver shows `maybeBehind` until it has caught up.
   - a profile name is at most 24 characters;
   - a profile has at most 40 tokens;
   - a spec has at most 4 profiles.
-- **Baselines:** at most 19 compact item strings `id:enchant:suffix`, plus per-slot occupancy and
-  `capturedAt`.
+- **Baselines:** at most 17 trimmed item strings (AltStable's `GetCharacterGear` form, at most 64
+  characters; on Forever the random suffix is a bonus ID), plus per-slot occupancy and `capturedAt`.
 - **Targets** (checked by M0 fixtures, not guarantees):
   - at most 2 KB per encoded entry, including 20 ancestors, ids, conflict metadata and escaping;
   - at most 16 KB per batch or manifest page on the wire (was 24 KB before the amendment; see
@@ -241,7 +242,7 @@ library pages them, and the receiver shows `maybeBehind` until it has caught up.
 
 - M0 implements the receive rules, resolution, the manifest inventory, `maybeBehind` and the codec as
   **pure Lua with simulated transport**, fixture-tested (`tests/test_entry_sync.lua`).
-- M2 needs, upstream: AS-001 (merged), AS-003, and the entry-sync library (ES-001, extracted under
+- M2 needs, upstream: AS-001 (merged), AS-003 (merged), and the entry-sync library (ES-001, extracted under
   ASS-001). Glass Gear's adapters (GG-201 for the roster, GG-202 for the library) then only map them
   onto the tested model.
 - **New costs (amendment):**

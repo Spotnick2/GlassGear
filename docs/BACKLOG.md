@@ -54,7 +54,7 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 | GG-404 | [#29](https://github.com/Spotnick2/GlassGear/issues/29) |
 | GG-501 | [#30](https://github.com/Spotnick2/GlassGear/issues/30) |
 | GG-502 | [#31](https://github.com/Spotnick2/GlassGear/issues/31) |
-| AS-001, AS-003 | [AltStable#281](https://github.com/Spotnick2/AltStable/issues/281) (AS-001 done in AltStable #282) |
+| AS-001, AS-003 | [AltStable#281](https://github.com/Spotnick2/AltStable/issues/281), closed: AS-001 in AltStable #282, AS-003 in #283 |
 | AS-002 → ES-001 | moved out of AltStable (#36); the library's repo is TBD, extracted under ASS-001 |
 | ASS-001 | [AltStableSync#101](https://github.com/Spotnick2/AltStableSync/issues/101) |
 | SH-001, SH-002 | [Shatter#52](https://github.com/Spotnick2/Shatter/issues/52) |
@@ -218,8 +218,9 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 - **Outcome.** Each spec compares against its own gear: a mapped equipment set, or gear observed
   while that spec was active.
 - **Scope.**
-  - Capture on login, `PLAYER_EQUIPMENT_CHANGED` and spec change, storing links so the suffix is
-    kept.
+  - Capture on login, `PLAYER_EQUIPMENT_CHANGED` and spec change, storing the trimmed item string
+    (`Compat.GearItemString`, AltStable's form: the bonus ID carries the suffix). A string over
+    `Codec.MAX_ITEM` is captured as `unknown` for that slot.
   - Equipment-set mapping per spec.
   - Baseline entries in `EntrySync`.
   - Freshness and `expiresAt`.
@@ -386,7 +387,7 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 |---|---|---|---|---|
 | AS-001 | P0 | EXT | AltStable | **Done** (AltStable #282): per-character provenance `self` / `own-account` / `third-party`, own-account channel, feature flags |
 | AS-002 | — | — | — | **Moved** to ES-001 |
-| AS-003 | P0 | EXT | AltStable | Public gear read API (item strings with suffix, per-slot completeness), `GearChanged`, gear-change stamp |
+| AS-003 | P0 | EXT | AltStable | **Done** (#283): public gear read API (item strings with suffix, per-slot completeness), `GearChanged`, gear-change stamp |
 | ASS-001 | P0 | EXT | AltStableSync | Extract Link's entry sync into the shared library; Link stays wire-compatible during the migration |
 | ES-001 | P0 | EXT | new library (repo and name TBD) | Shared entry-sync library on LibAccountSync: manifests, pull, own ack/retry, 16 KB batches, byte-sized timeouts, `too-large`, inventory |
 
@@ -395,8 +396,9 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 - **Outcome.** Own characters from both accounts are discoverable, with provenance, level, class,
   realm and faction.
 - **Scope.** `RosterProvider` adapter; version and feature detection (the existing
-  `DetectAltStable`, moved to `AltStable.PUBLIC_API_FEATURES.provenance` and `.gear`, the AS-003 flag).
-- **Deps.** AS-001 (done), AS-003.
+  `DetectAltStable`, which checks `AltStable.PUBLIC_API_FEATURES.provenance` and `.gear` with their
+  functions).
+- **Deps.** AS-001 (done), AS-003 (done).
 - **Acceptance.**
   - Without AltStable, or with an older one: `/gg` and the API say exactly what is missing.
   - A third-party character is never listed as a recipient.
