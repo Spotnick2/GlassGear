@@ -109,7 +109,7 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
     keeps them in step).
   - School-specific spell damage: **answered on 70425** (Wanderful's probe log). `GetItemStats`
     returns it as `ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT` / `ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT`, now
-    mapped and scored; damage-and-healing is `ITEM_MOD_SPELL_POWER_SHORT`; resistance comes under two
+    mapped and scored (the four unsampled schools stay unscored, with their warning, until seen); damage-and-healing is `ITEM_MOD_SPELL_POWER_SHORT`; resistance comes under two
     names (counted once). What remains: Fire/Frost/Nature/Holy confirmed, healing-only, damage-only,
     mp5, hit and crit units, suffix and enchanted links, trimmed strings (FORMATS.md).
 - **Validation:** game, then auto.

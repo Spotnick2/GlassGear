@@ -63,13 +63,12 @@ Stats.ITEM_MOD = {
     -- feeding both (measured 70425: items 11287, 11288).
     ITEM_MOD_SPELL_POWER_SHORT = { "SpellDamage", "Healing" },
     -- School damage has its own key (measured 70425: Shadow on 7001, Arcane on
-    -- 12984; the other schools by the same pattern, not sampled).
+    -- 12984). Fire, Frost, Nature and Holy are NOT mapped until a probe sees
+    -- their keys (GG-103): until then their tokens stay reported-unsupported
+    -- (TOKEN_NOT_SCORED when weighted) and their item keys stay
+    -- UNSUPPORTED_STAT, so protection never clears on a guessed key.
     ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT = { "ShadowSpellDamage" },
     ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT = { "ArcaneSpellDamage" },
-    ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = { "FireSpellDamage" },
-    ITEM_MOD_FROST_DAMAGE_DONE_SHORT = { "FrostSpellDamage" },
-    ITEM_MOD_NATURE_DAMAGE_DONE_SHORT = { "NatureSpellDamage" },
-    ITEM_MOD_HOLY_DAMAGE_DONE_SHORT = { "HolySpellDamage" },
     ITEM_MOD_DEFENSE_SKILL_RATING_SHORT = { "DefenseRating" },
     ITEM_MOD_DODGE_RATING_SHORT = { "DodgeRating" },
     ITEM_MOD_PARRY_RATING_SHORT = { "ParryRating" },

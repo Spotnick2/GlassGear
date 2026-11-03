@@ -101,8 +101,8 @@ SavedVariables; docs/FOREVER-PROBE.md P4), on wands and one mace:
 - "Increases damage and healing done by magical spells by up to N" is **one** key,
   `ITEM_MOD_SPELL_POWER_SHORT`, which feeds both SpellDamage and Healing (items 11287, 11288).
 - School damage has its own key: `ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT` (7001) and
-  `ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT` (12984). Fire, Frost, Nature and Holy follow the same pattern
-  but were not sampled.
+  `ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT` (12984). Fire, Frost, Nature and Holy probably follow the same
+  pattern but were not sampled, so they stay unscored (with their warning) until a probe sees them.
 - Resistance comes back **twice**: `ITEM_MOD_FIRE_RESISTANCE_SHORT=3` and `RESISTANCE2_NAME=3` on
   the same item (279896). It counts once.
 - Spirit is `ITEM_MOD_SPIRIT_SHORT`; DPS is `ITEM_MOD_DAMAGE_PER_SECOND_SHORT` (unrounded, 11.333…).
@@ -148,7 +148,8 @@ Status meanings:
 | SpellDamage | `ITEM_MOD_SPELL_POWER_SHORT` (damage and healing, measured 70425); damage-only expected `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT` | supported |
 | Healing | `ITEM_MOD_SPELL_POWER_SHORT` (with SpellDamage, measured 70425); healing-only expected `ITEM_MOD_SPELL_HEALING_DONE_SHORT` | supported |
 | Fire/Nature/Frost/Shadow/ArcaneResist | `RESISTANCE2_NAME` … `RESISTANCE6_NAME`; the twin `ITEM_MOD_FIRE_RESISTANCE_SHORT` … counts only when the first is absent (both measured 70425) | supported |
-| Fire/Shadow/Nature/Arcane/Frost/HolySpellDamage | `ITEM_MOD_<SCHOOL>_DAMAGE_DONE_SHORT` (Shadow and Arcane measured 70425; the others by pattern) | supported |
+| Shadow/ArcaneSpellDamage | `ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT`, `ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT` (measured 70425) | supported |
+| Fire/Nature/Frost/HolySpellDamage | expected `ITEM_MOD_<SCHOOL>_DAMAGE_DONE_SHORT` (not sampled) | reported-unsupported until GG-103 sees the key |
 
 ### Weapon tokens
 

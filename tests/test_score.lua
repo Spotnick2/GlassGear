@@ -42,8 +42,12 @@ H.eq(unscored[1], "Speed", "weighted but never scored tokens are listed for weap
 H.eq(#Stats.UnscoredTokens({ weights = { Speed = 1 } }, { classID = 4 }), 0, "weapon-only token is irrelevant to armor")
 H.eq(Stats.UnscoredTokens({ weights = {}, ignored = { Speed = true } }, { classID = 2 })[1], "Speed",
     "an X on an unsupported token is also unscored (unresolvable)")
-H.eq(#Stats.UnscoredTokens({ weights = { FireSpellDamage = 1 } }, { classID = 4 }), 0,
-    "school damage is read from its own key now: not listed as unscored")
+H.eq(#Stats.UnscoredTokens({ weights = { ShadowSpellDamage = 1 } }, { classID = 4 }), 0,
+    "measured school damage (Shadow) is read from its own key: not listed as unscored")
+H.eq(Stats.UnscoredTokens({ weights = { FireSpellDamage = 1 } }, { classID = 4 })[1], "FireSpellDamage",
+    "an unsampled school (Fire) keeps its not-scored warning (Codex, PR #45)")
+local _, fireUns = Stats.FromItemStats({ ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = 6 })
+H.eq(fireUns[1], "ITEM_MOD_FIRE_DAMAGE_DONE_SHORT", "...and a guessed Fire key on an item stays unrecognised")
 
 -- Forever's keys as measured on 70425 (docs/FOREVER-PROBE.md P4).
 local t, uns = Stats.FromItemStats({ ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 29, ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT = 6,

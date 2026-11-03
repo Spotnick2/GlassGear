@@ -65,8 +65,8 @@ none of them (their rows read "not measured").
 | P12 | GlassUI hooks `UpdateItems` on `ContainerFrame1..7` and `ContainerFrameCombinedBags`: 4 windows, 34 slots, child frames per button; bags used in combat with the taint log on, nothing blocked | 70450 | `GlassUI/docs/FOREVER-PROBE.md:209-213`, `GlassUI/docs/BAGS.md:127` |
 | P13 | A canvas page created shown is blank on its first visit (hide at creation, build on first show); all 14 templates present, a missing one returns a bare frame; scroll frames work | 70205, 70009 | `PORTING-TBC-TO-FOREVER.md:1953-1960`; `Priestly/docs/FOREVER-PROBE.md:234-250`, `:315-319` |
 
-**What this changed in Glass Gear** (same PR): resistance's twin key is counted once and school
-damage is scored (FORMATS.md); bag hooks cover the `ContainerFrame1..N` globals too; the atlas
+**What this changed in Glass Gear** (same PR): resistance's twin key is counted once and Shadow
+and Arcane damage are scored; the four unsampled schools keep their "not scored" warning (FORMATS.md); bag hooks cover the `ContainerFrame1..N` globals too; the atlas
 check prefers `C_Texture.GetAtlasExists` (porting guide :1609); no restart for a new folder.
 
 **Still to measure on 70532:** P2 after buying dual spec, and whether points per tree can be read;
