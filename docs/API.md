@@ -81,7 +81,7 @@ end
                       -- (BASELINE_ITEM_DATA_PENDING): a stored or set baseline's items, or,
                       -- for a spec compared with the worn gear (or a candidate pairing with
                       -- a worn hand), a worn item. The others aren't held up.
-      replaces    = { slots = { 3 }, items = { "itemString" }, companion = "itemString" | nil },
+      replaces    = { slots = { 3 }, items = { "itemString" } },
       score       = { candidate = 108.6, baseline = 100.0, delta = 8.6, pct = 0.086 },
       method      = "weights-linear",
       eligibility = { equipNow = true, reasons = {} },
@@ -93,6 +93,8 @@ end
 }
 ```
 
+- **`replaces.companion`** (GG-113): the item string of the main hand or off-hand a one-hander was
+  paired with (against a spec whose gear has a two-hander), or nil.
 - **Order:** current spec, then the character's other specs in tree order, then alts in the owner's
   tracked order.
 - **Aggregate `status`** (display only, never a protection verdict), first match wins:
