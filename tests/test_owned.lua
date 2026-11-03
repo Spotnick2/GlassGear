@@ -31,6 +31,11 @@ WoW.items[31] = item("New Ring", "INVTYPE_FINGER", 4, 0, { [INT] = 8 })
 WoW.items[32] = item("Fine Ring", "INVTYPE_FINGER", 4, 0, { [INT] = 10 })
 WoW.items[33] = item("Finer Ring", "INVTYPE_FINGER", 4, 0, { [INT] = 11 })
 WoW.items[40] = item("Junk", "", 15, 0, {})
+WoW.items[16] = item("Big Staff", "INVTYPE_2HWEAPON", 2, 10, { [INT] = 30 })
+WoW.items[17] = item("Mace Two", "INVTYPE_WEAPONMAINHAND", 2, 4, { [INT] = 18 })
+WoW.items[18] = item("Great Orb", "INVTYPE_HOLDABLE", 4, 0, { [INT] = 20 })
+WoW.items[34] = item("Unique Band", "INVTYPE_FINGER", 4, 0, { [INT] = 15 }, { unique = { cat = 7, max = 1 } })
+WoW.items[35] = item("Great Ring", "INVTYPE_FINGER", 4, 0, { [INT] = 100 })
 WoW.equipped = { [3] = 20, [11] = 30, [12] = 30, [16] = 10 }
 WoW.bags[0] = {}
 
@@ -62,6 +67,17 @@ WoW.bags[0][1] = nil
 bagsChanged()
 r = shadow(11)
 H.eq(r.status, "unknown", "two different bag orbs tied at the top: none chosen (no coin toss)")
+WoW.bags[0][2], WoW.bags[0][3] = { itemID = 13, isBound = true }, { itemID = 13, isBound = true }
+bagsChanged()
+H.eq(shadow(11).score and shadow(11).score.candidate, 27, "two copies of the same orb are no tie: either one pairs")
+WoW.bags[0][2], WoW.bags[0][3] = nil, nil
+-- An orb against the staff needs a main hand: a better two-hander in the
+-- bags can't be that partner; the mace can.
+WoW.bags[0][2], WoW.bags[0][3] = { itemID = 16, isBound = true }, { itemID = 11, isBound = true }
+bagsChanged()
+r = shadow(12)
+H.eq(r.status, "upgrade", "an orb pairs with the bag mace, never with a bag two-hander (orb + mace 25 > staff 20)")
+H.eq(r.score and r.score.candidate, 25, "...scored with the mace")
 WoW.bags[0][2], WoW.bags[0][3] = nil, nil
 WoW.bags[0][4] = { itemID = 15, isBound = true }
 bagsChanged()
@@ -116,6 +132,49 @@ H.eq(GG.Owned.Positions("INVTYPE_WEAPON", false), 1, "...without it, one")
 WoW.bags[0][6], WoW.bags[0][7] = nil, nil
 bagsChanged()
 
+-- Different hands don't compete: a better orb owned doesn't stop a better mace.
+WoW.equipped[16], WoW.equipped[17] = 11, 12
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 16, false)
+WoW.bags[0][10] = { itemID = 18, isBound = true }
+bagsChanged()
+r = shadow(17)
+H.eq(r.status, "upgrade", "a better mace stays an upgrade although a much better orb is owned (other hand)")
+WoW.bags[0][10] = nil
+WoW.equipped[16], WoW.equipped[17] = nil, nil
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+bagsChanged()
+
+-- Two copies of a unique ring take one finger only.
+WoW.bags[0][6], WoW.bags[0][7] = { itemID = 34, isBound = true }, { itemID = 34, isBound = true }
+bagsChanged()
+H.eq(shadow(31).status, "upgrade", "two copies of a unique ring owned: the new ring still fills the other finger")
+WoW.bags[0][6], WoW.bags[0][7] = nil, nil
+
+-- A worn ring that beats everything takes its finger: one better owned ring is enough.
+WoW.equipped[12] = 35
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 12, false)
+WoW.bags[0][6] = { itemID = 32, isBound = true }
+bagsChanged()
+r = shadow(31)
+H.eq(r.status, "no_upgrade", "one finger is taken by a far better worn ring: one better owned ring blocks it")
+H.eq(r.ownedBetter and r.ownedBetter.itemID, 32, "...naming the owned ring")
+WoW.bags[0][6] = nil
+WoW.equipped[12] = 30
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 12, false)
+bagsChanged()
+
+-- Owned items are evaluated once per spec and generation, not per candidate.
+WoW.bags[0][5] = { itemID = 22, isBound = true }
+bagsChanged()
+api._cache.clear()
+shadow(21)
+local oe = api._state.stats.ownedEvaluations or 0
+api._cache.clear()
+shadow(21)
+H.eq((api._state.stats.ownedEvaluations or 0) - oe, 0, "the owned mantle's evaluation is reused, not redone")
+WoW.bags[0][5] = nil
+bagsChanged()
+
 ------------------------------------------------------------
 -- The index: once per bag change, only gear changes invalidate.
 ------------------------------------------------------------
@@ -141,6 +200,22 @@ WoW.fire("ITEM_DATA_LOAD_RESULT", 24, true)
 WoW.flush()
 H.check(has(inval, "bags"), "it arrives: the index is rebuilt and answers invalidated")
 H.eq(shadow(21).status, "no_upgrade", "...now it is the better mantle owned")
+
+-- A burst of arrivals: one rebuild now, the rest in one rebuild next frame.
+WoW.items[25] = item("Slow A", "INVTYPE_HEAD", 4, 1, { [INT] = 3 })
+WoW.items[26] = item("Slow B", "INVTYPE_HEAD", 4, 1, { [INT] = 4 })
+WoW.cacheMiss[25], WoW.cacheMiss[26] = true, true
+WoW.bags[0][11], WoW.bags[0][12] = { itemID = 25, isBound = true }, { itemID = 26, isBound = true }
+bagsChanged()
+WoW.time = WoW.time + 1
+local s0 = GG.Owned.scans
+WoW.cacheMiss[25] = nil
+WoW.fire("ITEM_DATA_LOAD_RESULT", 25, true)
+WoW.cacheMiss[26] = nil                       -- arrives after that rebuild, same frame
+WoW.fire("ITEM_DATA_LOAD_RESULT", 26, true)
+H.eq(GG.Owned.scans - s0, 1, "two arrivals in one frame: one rebuild now")
+WoW.flush(1)
+H.eq(GG.Owned.scans - s0, 2, "...and the second coalesced into the next frame")
 
 H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
 H.done("test_owned")

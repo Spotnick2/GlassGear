@@ -112,8 +112,9 @@ end
 
 local function itemArrived(itemID, success)
     if GG.player and itemID then
-        GG.API._ItemDataArrived(itemID, success)
+        -- The bag index first: the jobs re-evaluated next then see the item.
         if success ~= false then GG.Owned.ItemArrived(itemID) end
+        GG.API._ItemDataArrived(itemID, success)
     end
 end
 handlers.GET_ITEM_INFO_RECEIVED = itemArrived

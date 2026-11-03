@@ -232,10 +232,10 @@ local pbudget = api.LIMITS.perFrame
 api.LIMITS.perFrame = 4
 WoW.time = WoW.time + 1
 api._cache.clear()
-api.Evaluate({ item = WoW.link(51), scope = "current" })   -- this frame's first row: 3 left
+api.Evaluate({ item = WoW.link(51), scope = "current" })   -- this frame's budget window started
+local used = S.frameUsed
 api.AssessProtection(bag(1)); api.AssessProtection(bag(2))
-local ev = api.Evaluate({ item = WoW.link(53), scope = "own" })
-H.check(ev.results[3].reasons[1] ~= "FRAME_BUDGET", "after two assessments, Evaluate still has its whole budget")
+H.eq(S.frameUsed, used, "two assessments spend nothing of the Evaluate frame budget")
 api.LIMITS.perFrame = pbudget
 
 ------------------------------------------------------------

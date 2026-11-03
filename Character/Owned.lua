@@ -27,33 +27,17 @@ local pending = {}           -- [itemID] = true: skipped while loading
 
 local function scan()
     Owned.scans = Owned.scans + 1
-    local items, links, waiting = {}, {}, {}
-    for _, bag in ipairs(GG.Compat.BAGS) do
-        for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
-            local info = C_Container.GetContainerItemInfo(bag, slot)
-            local link = info and info.hyperlink
-            if link and #items < Owned.MAX_ITEMS then
-                local _, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
-                if GG.Data.Slots.IsEquippable(equipLoc) then
-                    local facts = GG.Compat.ItemFacts(link)
-                    if facts and facts.ready then
-                        local slotItem = GG.Compat.SlotItem(link)
-                        if slotItem then
-                            items[#items + 1] = { link = link, bag = bag, slot = slot, facts = facts, slotItem = slotItem }
-                            links[#links + 1] = link
-                        end
-                    elseif facts then
-                        waiting[facts.itemID] = true
-                    end
-                end
-            end
-        end
-    end
+    local items, waiting = GG.Compat.BagGear(Owned.MAX_ITEMS)   -- the game calls live in Compat
+    local links = {}
+    for _, it in ipairs(items) do links[#links + 1] = it.link end
     table.sort(links)
     return items, table.concat(links, ";"), waiting
 end
 
+local lastFrame, scheduled
+
 function Owned.Refresh()
+    lastFrame = GetTime()
     local items, sig, waiting = scan()
     local changed = signature ~= nil and sig ~= signature
     index, signature, pending = items, sig, waiting
@@ -67,8 +51,20 @@ function Owned.Items()
     return index
 end
 
+-- An item the index skipped while loading arrived. The first arrival of a
+-- frame rebuilds at once (so the jobs re-evaluated next see it); the rest of
+-- a burst (login: many) coalesce into one rebuild on the next frame.
 function Owned.ItemArrived(itemID)
-    if pending[itemID] then Owned.Refresh() end
+    if not pending[itemID] then return end
+    if lastFrame ~= GetTime() then
+        Owned.Refresh()
+    elseif not scheduled then
+        scheduled = true
+        C_Timer.After(0, function()
+            scheduled = false
+            Owned.Refresh()
+        end)
+    end
 end
 
 -- How many positions an item can take at once (rings, trinkets, and a
@@ -88,6 +84,6 @@ function Owned.SameSlots(a, b)
 end
 
 -- Test seam.
-function Owned._Reset() index, signature, pending = nil, nil, {} end
+function Owned._Reset() index, signature, pending, lastFrame, scheduled = nil, nil, {}, nil, false end
 
 return Owned

@@ -210,22 +210,55 @@ end
 -- candidate's slots, each evaluated for the same spec and baseline (at most
 -- OWNED_CHECKS of them), then Evaluate.ApplyOwned.
 API.OWNED_CHECKS = 8
-local function ownedCheck(r, input, owned, companionsWithout)
+-- An owned item's evaluation depends on the spec, the generation (profiles,
+-- baselines, equipment, bags...) and whether it is for protection: kept
+-- for that generation, so a bag scan evaluates each owned item once per
+-- spec, not once per candidate. Fresh ones are charged to the budget.
+local function ownedResult(o, input, spec, protection, companionsWithout, charge)
+    local memo = state.ownedMemo
+    if not memo or memo.generation ~= state.generation then
+        memo = { generation = state.generation, map = {} }
+        state.ownedMemo = memo
+    end
+    local key = spec .. "\31" .. o.facts.itemString .. (protection and "\31p" or "")
+    local hit = memo.map[key]
+    if hit then return hit end
+    charge()
+    local oi = {}
+    for k, v in pairs(input) do oi[k] = v end
+    oi.item, oi.instance, oi.current = o.facts, nil, false
+    oi.companions = companionsWithout(o.facts.itemString)
+    local res = GG.Engine.Evaluate.One(oi)
+    memo.map[key] = res
+    return res
+end
+
+local function ownedCheck(r, input, owned, companionsWithout, protection, charge)
     local item = input.item
     local results, n = {}, 0
     for _, o in ipairs(owned) do
         if n >= API.OWNED_CHECKS then break end
         if o.facts.itemString ~= item.itemString and GG.Owned.SameSlots(o.facts.equipLoc, item.equipLoc) then
             n = n + 1
-            local oi = {}
-            for k, v in pairs(input) do oi[k] = v end
-            oi.item, oi.instance, oi.current = o.facts, nil, false
-            oi.companions = companionsWithout(o.facts.itemString)
-            results[#results + 1] = { item = o.facts, link = o.link, result = GG.Engine.Evaluate.One(oi) }
+            results[#results + 1] = { item = o.facts, link = o.link,
+                result = ownedResult(o, input, input.spec, protection, companionsWithout, charge) }
         end
     end
     local positions = GG.Owned.Positions(item.equipLoc, input.recipient and input.recipient.canDualWield)
-    return GG.Engine.Evaluate.ApplyOwned(r, results, positions)
+    -- Worn items in the other positions that already beat the candidate take
+    -- those positions (rings, trinkets, dual-wield weapons).
+    local wornBetter = 0
+    if positions > 1 and input.profile then
+        local mine = GG.Engine.Score.Compute(item.tokens or {}, input.profile).score
+        for _, s in ipairs(GG.Data.Slots.FOR_EQUIP_LOC[item.equipLoc] or {}) do
+            local b = input.baseline and input.baseline.slots and input.baseline.slots[s]
+            if b and b.state == "occupied" and b.tokens
+                and GG.Engine.Score.Compute(b.tokens, input.profile).score > mine then
+                wornBetter = wornBetter + 1
+            end
+        end
+    end
+    return GG.Engine.Evaluate.ApplyOwned(r, results, positions, { candidate = item.itemString, wornBetter = wornBetter })
 end
 
 -- Returns response, rowDeps ([i] = { [itemID] = true }: what a pending row
@@ -283,7 +316,7 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
             end
         end
         for _, o in ipairs(owned) do
-            if o.facts.itemString ~= itemString and o.facts.itemString ~= facts.itemString then
+            if o.facts.itemString ~= itemString then
                 for _, s in ipairs(GG.Data.Slots.FOR_EQUIP_LOC[o.facts.equipLoc] or {}) do
                     if s == 16 or s == 17 then lists[s][#lists[s] + 1] = o.slotItem end
                 end
@@ -292,6 +325,12 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
         return lists
     end
     local companions = companionsWithout(facts.itemString)
+    -- The owned checks' cost (GG-122): display rows charge the frame budget,
+    -- protection only counts (it never spends the display budget).
+    local function charge()
+        state.stats.ownedEvaluations = (state.stats.ownedEvaluations or 0) + 1
+        if not opts.protection then state.frameUsed = state.frameUsed + 1 end
+    end
     for i, spec in ipairs(specs) do
         local r
         local deps = {}
@@ -322,7 +361,9 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
                     transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
                 }
                 r = GG.Engine.Evaluate.One(input)
-                if r.status == "upgrade" then r = ownedCheck(r, input, owned, companionsWithout) end
+                if r.status == "upgrade" then
+                    r = ownedCheck(r, input, owned, companionsWithout, opts.protection, charge)
+                end
                 if handLoading and r.status == "unknown"
                     and (U.contains(r.reasons, "NEEDS_COMPANION") or U.contains(r.reasons, "COMPANION_DATA_MISSING")) then
                     r, fromLive = nil, true      -- the worn hand it would pair with is still loading

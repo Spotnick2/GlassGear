@@ -135,8 +135,9 @@ Baselines are kept per character × spec, with sources in this precedence:
 
 A candidate that needs a companion (a one-hander against a spec whose gear has a two-hander) pairs
 with the best usable main hand or off-hand worn now or in the bags (GG-122), scored with that
-spec's profile: on a tie the worn one; two different bag items tied at the top are never chosen;
-the candidate never pairs with itself.
+spec's profile. Only a legal partner counts: that hand, never a two-hander, never the candidate's
+unique category. On a tie the worn one; two different bag items tied at the top are never chosen
+(two copies of one item are no tie); the candidate never pairs with itself.
 
 Each slot records:
 
@@ -163,9 +164,12 @@ gives `protect`.
 ## Owned items (GG-122)
 
 "Better gear already owned": the bag items (bags 0-4) that compete for the candidate's slots are
-evaluated for the same spec and baseline (at most 8). When enough of them are upgrades usable now
-that beat the candidate (one; two for rings, trinkets and one-handers with dual wield, which take
-two positions), the candidate is `no_upgrade` with `OWNED_BETTER`, and `ownedBetter` names the best
-owned one. The owned one keeps its own upgrade answer, so protection keeps it while the candidate
+evaluated for the same spec and baseline (at most 8; each once per spec and generation, charged to
+the frame budget). An owned item competes only when its configuration replaces a slot the
+candidate's does (a better orb doesn't stop a better mace), never when it only wins by pairing with
+the candidate, and a unique item counts at most its unique limit. When the better owned items, plus
+the worn items in the other positions that already beat the candidate, fill the positions (one; two
+for rings, trinkets and one-handers with dual wield), the candidate is `no_upgrade` with
+`OWNED_BETTER`, and `ownedBetter` names the best owned one. The owned one keeps its own upgrade answer, so protection keeps it while the candidate
 can go. Owned items still loading are never used; the bag index is rebuilt on a bag change, and
 only a change in the gear carried invalidates answers.
