@@ -137,7 +137,9 @@ A candidate that needs a companion (a one-hander against a spec whose gear has a
 with the best usable main hand or off-hand worn now or in the bags (GG-122), scored with that
 spec's profile. Only a legal partner counts: that hand, never a two-hander, never the candidate's
 unique category. On a tie the worn one; two different bag items tied at the top are never chosen
-(two copies of one item are no tie); the candidate never pairs with itself.
+(two copies of one item are no tie); the candidate never pairs with itself, but another copy of
+the same item can be its partner (two identical one-handers). The candidate is known by its bag or
+worn slot; for a bare link, one copy is left out, since it may be the one shown.
 
 Each slot records:
 
@@ -165,7 +167,9 @@ gives `protect`.
 
 "Better gear already owned": the bag items (bags 0-4) that compete for the candidate's slots are
 evaluated for the same spec and baseline (at most 8; each once per spec and generation, charged to
-the frame budget). An owned item competes only when its configuration replaces a slot the
+the frame budget: when a display row is an upgrade and the owned checks it still needs don't fit
+what is left of the frame, the row waits whole for a later frame, so no frame goes over its
+budget; the first row of a frame always finishes). An owned item competes only when its configuration replaces a slot the
 candidate's does (a better orb doesn't stop a better mace), never when it only wins by pairing with
 the candidate, and a unique item counts at most its unique limit. When the better owned items, plus
 the worn items in the other positions that already beat the candidate, fill the positions (one; two

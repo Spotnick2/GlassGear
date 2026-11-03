@@ -175,6 +175,70 @@ H.eq((api._state.stats.ownedEvaluations or 0) - oe, 0, "the owned mantle's evalu
 WoW.bags[0][5] = nil
 bagsChanged()
 
+-- Two copies of the same non-unique one-hander, dual wield, a worn staff:
+-- the candidate copy pairs with the other copy (never with itself).
+WoW.items[19] = item("Twin Dagger", "INVTYPE_WEAPON", 2, 15, { [INT] = 12 })
+GG.player.canDualWield = true
+WoW.equipped[16] = 10
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 16, false)
+WoW.bags[0][13] = { itemID = 19, isBound = true }
+bagsChanged()
+local function bagShadow(bag, slot) return api.Evaluate({ item = { bag = bag, slot = slot }, scope = "current" }).results[1] end
+r = bagShadow(0, 13)
+H.check(has(r.reasons, "NEEDS_COMPANION"), "one dagger in the bags, nothing else: it can't pair with itself")
+WoW.bags[0][14] = { itemID = 19, isBound = true }
+bagsChanged()
+r = bagShadow(0, 13)
+H.eq(r.status, "upgrade", "a second copy of the dagger pairs with the first (12 + 12 > staff 20)")
+H.eq(r.score and r.score.candidate, 24, "...scored as the pair")
+H.eq(bagShadow(0, 14).status, "upgrade", "...either copy")
+H.eq(shadow(19).status, "upgrade", "a bare link of the dagger leaves out one copy only")
+WoW.bags[0][13], WoW.bags[0][14] = nil, nil
+GG.player.canDualWield = false
+WoW.equipped[16] = nil
+WoW.fire("PLAYER_EQUIPMENT_CHANGED", 16, true)
+bagsChanged()
+
+-- The budget covers the owned checks: a row starts only when the frame can
+-- pay for it and every owned check it could need, never going over.
+WoW.items[27] = item("Mantle A", "INVTYPE_SHOULDER", 4, 1, { [INT] = 16 })
+WoW.items[28] = item("Mantle B", "INVTYPE_SHOULDER", 4, 1, { [INT] = 17 })
+WoW.items[29] = item("Mantle C", "INVTYPE_SHOULDER", 4, 1, { [INT] = 19 })
+WoW.bags[0][5], WoW.bags[0][13] = { itemID = 22, isBound = true }, { itemID = 27, isBound = true }
+WoW.bags[0][14], WoW.bags[0][15] = { itemID = 28, isBound = true }, { itemID = 29, isBound = true }
+bagsChanged()
+api._Invalidate("test")                           -- a new generation: no owned answer known yet
+local S = api._state
+local savedBudget = api.LIMITS.perFrame
+api.LIMITS.perFrame = 5
+api._cache.clear()
+WoW.time = WoW.time + 1
+shadow(30)                                        -- one row spent this frame (a ring, nothing competes)
+H.eq(S.frameUsed, 1, "(one row spent)")
+r = shadow(21)
+H.eq(r.status, "pending", "the mantle and its four owned checks (5) don't fit the 4 left: put off")
+H.eq(r.reasons[1], "FRAME_BUDGET", "...FRAME_BUDGET")
+H.check(S.frameUsed <= 5, "...the frame never goes over its budget (" .. S.frameUsed .. ")")
+local done
+api.RegisterCallback("EvaluationReady", function(_, p) done = p.response end, "test_owned_budget")
+WoW.time = WoW.time + 1
+WoW.flush(1)                                      -- the deferred runner, a later frame
+local usedThen = S.frameUsed
+WoW.flush()                                       -- EvaluationReady, next frame
+H.check(usedThen <= 5, "the next frame computes it within the budget (" .. usedThen .. ")")
+H.eq(done and done.results[1].status, "no_upgrade", "...and it finishes: better mantles owned")
+H.eq(done and done.results[1].ownedBetter and done.results[1].ownedBetter.itemID, 29, "...the best one named")
+api.UnregisterCallback("EvaluationReady", "test_owned_budget")
+api.LIMITS.perFrame = 1
+api._Invalidate("test")                           -- owned answers unknown again
+api._cache.clear()
+WoW.time = WoW.time + 1
+r = shadow(21)
+H.check(r.status ~= "pending", "a budget smaller than one row's cost: the frame's first row still runs")
+api.LIMITS.perFrame = savedBudget
+WoW.bags[0][5], WoW.bags[0][13], WoW.bags[0][14], WoW.bags[0][15] = nil, nil, nil, nil
+bagsChanged()
+
 ------------------------------------------------------------
 -- The index: once per bag change, only gear changes invalidate.
 ------------------------------------------------------------

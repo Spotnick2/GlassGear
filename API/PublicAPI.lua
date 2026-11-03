@@ -214,35 +214,64 @@ API.OWNED_CHECKS = 8
 -- baselines, equipment, bags...) and whether it is for protection: kept
 -- for that generation, so a bag scan evaluates each owned item once per
 -- spec, not once per candidate. Fresh ones are charged to the budget.
-local function ownedResult(o, input, spec, protection, companionsWithout, charge)
+local function ownedMemoMap()
     local memo = state.ownedMemo
     if not memo or memo.generation ~= state.generation then
         memo = { generation = state.generation, map = {} }
         state.ownedMemo = memo
     end
-    local key = spec .. "\31" .. o.facts.itemString .. (protection and "\31p" or "")
-    local hit = memo.map[key]
+    return memo.map
+end
+
+local function ownedKey(spec, itemString, protection)
+    return spec .. "\31" .. itemString .. (protection and "\31p" or "")
+end
+
+-- The owned items a candidate competes with (at most OWNED_CHECKS).
+local function competing(owned, item)
+    local list = {}
+    for _, o in ipairs(owned) do
+        if #list >= API.OWNED_CHECKS then break end
+        if o.facts.itemString ~= item.itemString and GG.Owned.SameSlots(o.facts.equipLoc, item.equipLoc) then
+            list[#list + 1] = o
+        end
+    end
+    return list
+end
+
+-- What a display row's owned checks could still cost this generation: the
+-- competing items not evaluated yet for that spec (an upper bound: they
+-- run only when the row is an upgrade).
+local function ownedCost(owned, item, spec)
+    local map, n = ownedMemoMap(), 0
+    for _, o in ipairs(competing(owned, item)) do
+        if not map[ownedKey(spec, o.facts.itemString, false)] then n = n + 1 end
+    end
+    return n
+end
+
+local function ownedResult(o, input, spec, protection, companionsWithout, charge)
+    local map = ownedMemoMap()
+    local key = ownedKey(spec, o.facts.itemString, protection)
+    local hit = map[key]
     if hit then return hit end
     charge()
     local oi = {}
     for k, v in pairs(input) do oi[k] = v end
     oi.item, oi.instance, oi.current = o.facts, nil, false
-    oi.companions = companionsWithout(o.facts.itemString)
+    -- Every copy but this one (two identical copies: same answer either way).
+    oi.companions = companionsWithout({ itemString = o.facts.itemString, bag = o.bag, slot = o.slot })
     local res = GG.Engine.Evaluate.One(oi)
-    memo.map[key] = res
+    map[key] = res
     return res
 end
 
 local function ownedCheck(r, input, owned, companionsWithout, protection, charge)
     local item = input.item
-    local results, n = {}, 0
-    for _, o in ipairs(owned) do
-        if n >= API.OWNED_CHECKS then break end
-        if o.facts.itemString ~= item.itemString and GG.Owned.SameSlots(o.facts.equipLoc, item.equipLoc) then
-            n = n + 1
-            results[#results + 1] = { item = o.facts, link = o.link,
-                result = ownedResult(o, input, input.spec, protection, companionsWithout, charge) }
-        end
+    local results = {}
+    for _, o in ipairs(competing(owned, item)) do
+        results[#results + 1] = { item = o.facts, link = o.link,
+            result = ownedResult(o, input, input.spec, protection, companionsWithout, charge) }
     end
     local positions = GG.Owned.Positions(item.equipLoc, input.recipient and input.recipient.canDualWield)
     -- Worn items in the other positions that already beat the candidate take
@@ -302,21 +331,38 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
         and (equipped.slots[16].state == "unknown" or equipped.slots[17].state == "unknown")
     -- A candidate that needs a companion (a 1H against a spec's 2H) pairs
     -- with the best usable hand: the one worn now, or one from the bags
-    -- (GG-122). Never with itself.
+    -- (GG-122). Never with itself, but another copy of the same item is a
+    -- different item (two identical one-handers: one is the other's
+    -- partner). `self` = { itemString, bag, slot, equipSlot }: the copy
+    -- that is the item, by its bag or worn slot; a bare link (no instance)
+    -- leaves out the first copy found, since it may be the one shown.
     local owned = GG.Owned and GG.Owned.Items() or {}
-    local function companionsWithout(itemString)
+    local function companionsWithout(self)
         local lists = { [16] = {}, [17] = {} }
+        local skipped = false
+        local function isSelf(itemString, bag, slot, equipSlot)
+            if skipped or itemString ~= self.itemString then return false end
+            if self.bag then return bag == self.bag and slot == self.slot end
+            if self.equipSlot then return equipSlot == self.equipSlot end
+            return true
+        end
         for _, s in ipairs({ 16, 17 }) do
             local worn = equipped.slots[s]
-            if worn and worn.state == "occupied" and worn.itemString ~= itemString then
-                local c = {}
-                for k, v in pairs(worn) do c[k] = v end
-                c.worn = true
-                lists[s][1] = c
+            if worn and worn.state == "occupied" then
+                if isSelf(worn.itemString, nil, nil, s) then
+                    skipped = true
+                else
+                    local c = {}
+                    for k, v in pairs(worn) do c[k] = v end
+                    c.worn = true
+                    lists[s][1] = c
+                end
             end
         end
         for _, o in ipairs(owned) do
-            if o.facts.itemString ~= itemString then
+            if isSelf(o.facts.itemString, o.bag, o.slot, nil) then
+                skipped = true
+            else
                 for _, s in ipairs(GG.Data.Slots.FOR_EQUIP_LOC[o.facts.equipLoc] or {}) do
                     if s == 16 or s == 17 then lists[s][#lists[s] + 1] = o.slotItem end
                 end
@@ -324,7 +370,9 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
         end
         return lists
     end
-    local companions = companionsWithout(facts.itemString)
+    local companions = companionsWithout({ itemString = facts.itemString,
+        bag = instance and instance.bag, slot = instance and instance.slot,
+        equipSlot = instance and instance.equipSlot })
     -- The owned checks' cost (GG-122): display rows charge the frame budget,
     -- protection only counts (it never spends the display budget).
     local function charge()
@@ -332,7 +380,7 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
         if not opts.protection then state.frameUsed = state.frameUsed + 1 end
     end
     for i, spec in ipairs(specs) do
-        local r
+        local r, putOff
         local deps = {}
         local done = prior and prior.results[i]
         if done and done.status ~= "pending" and done.spec == spec and rowFresh(done, now) then
@@ -343,6 +391,7 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
             r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
             for id in pairs(priorDeps and priorDeps[i] or {}) do deps[id] = true end
         else
+            local firstOfFrame = state.frameUsed == 0
             if opts.protection then
                 -- Protection never spends the display budget (adr/0006).
                 state.stats.evaluations = state.stats.evaluations + 1
@@ -362,14 +411,27 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
                 }
                 r = GG.Engine.Evaluate.One(input)
                 if r.status == "upgrade" then
-                    r = ownedCheck(r, input, owned, companionsWithout, opts.protection, charge)
+                    -- The owned checks are paid from the same budget: when what
+                    -- they could still cost doesn't fit, the row waits whole for
+                    -- a later frame (never over the budget). The first row of a
+                    -- frame always finishes, so a tiny budget still progresses.
+                    if not opts.protection and not firstOfFrame
+                        and budgetLeft() < ownedCost(owned, facts, spec) then
+                        r, putOff = nil, true
+                    else
+                        r = ownedCheck(r, input, owned, companionsWithout, opts.protection, charge)
+                    end
                 end
-                if handLoading and r.status == "unknown"
+                if r and handLoading and r.status == "unknown"
                     and (U.contains(r.reasons, "NEEDS_COMPANION") or U.contains(r.reasons, "COMPANION_DATA_MISSING")) then
                     r, fromLive = nil, true      -- the worn hand it would pair with is still loading
                 end
             end
-            if r then
+            if putOff then
+                state.stats.deferredRows = state.stats.deferredRows + 1
+                r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
+                for id in pairs(priorDeps and priorDeps[i] or {}) do deps[id] = true end
+            elseif r then
                 if spec == "UNKNOWN" then r.status = "unknown"; r.reasons = { "UNKNOWN_SPEC" } end
             else
                 if fromLive then for _, id in ipairs(missing) do deps[id] = true end end
