@@ -38,7 +38,7 @@ function Diagnostics.Lines()
         add("AltStable: present, " .. tostring(alt.reason) .. " - only this character is known")
     else
         add(string.format("AltStable: %d of your other characters (%d on this account, %d on your other accounts)%s",
-            alt.own, math.max(0, alt.self - 1), alt.ownAccount,
+            alt.own, alt.self, alt.ownAccount,
             alt.thirdParty > 0 and (", " .. alt.thirdParty .. " not yours (never used)") or "")
             .. (alt.reason and (" - " .. alt.reason) or ""))
     end

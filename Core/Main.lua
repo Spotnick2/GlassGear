@@ -57,7 +57,10 @@ function handlers.PLAYER_LOGIN()
     GG.optionsOn, GG.optionsInfo = GG.Options.Register()
     GG.API._SetReady()
     GG.Capture.Request()          -- this spec's gear (GG-108)
-    GG.Integrations.RosterProvider.Attach()   -- the player's own characters (GG-201)
+    -- The player's own characters (GG-201). AltStable is optional: nothing
+    -- in it may stop the rest of login.
+    local okR, errR = pcall(GG.Integrations.RosterProvider.Attach)
+    if not okR then geterrorhandler()("GlassGear roster: " .. tostring(errR)) end
     GG.Capture.CheckSets()        -- where the sets' pieces are now
 end
 

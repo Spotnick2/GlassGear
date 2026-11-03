@@ -54,7 +54,8 @@ function RosterProvider.DetectAltStable(env)
         if not flagged or type(rawget(as, need.fn)) ~= "function" then out.missing[#out.missing + 1] = need.id end
     end
     out.usable = #out.missing == 0
-    out.reason = out.usable and nil or ("AltStable lacks " .. table.concat(out.missing, ", "))
+    -- (not `usable and nil or ...`: that always yields the second branch)
+    if not out.usable then out.reason = "AltStable lacks " .. table.concat(out.missing, ", ") end
     return out
 end
 
@@ -62,8 +63,9 @@ RosterProvider.scans = 0     -- how often Characters was read (GG-114: never on 
 RosterProvider.rebuilds = 0  -- how often the AltStable snapshot was rebuilt
 
 local alts = {}              -- the player's own other characters, from AltStable
-local counts = { self = 0, ownAccount = 0, thirdParty = 0 }
-local attached, lastError = false, nil
+local counts = { self = 0, ownAccount = 0, thirdParty = 0 }   -- never counting the current one
+local registered = {}        -- [event] = true once AltStable took our handler
+local attachError, fetchError = nil, nil
 
 local function as() return rawget(_G, "AltStable") end
 
@@ -75,11 +77,14 @@ local function fromAltStable(c)
         hidden = c.hidden == true, current = false }
 end
 
+-- Every field GetCharacters returns that a page shows: a change in any of
+-- them is a roster change.
 local function signature(list)
     local parts = {}
     for _, c in ipairs(list) do
-        parts[#parts + 1] = table.concat({ c.guid, tostring(c.provenance), tostring(c.level),
-            tostring(c.hidden), tostring(c.name), tostring(c.class) }, ",")
+        parts[#parts + 1] = table.concat({ c.guid, tostring(c.provenance), tostring(c.provenanceVia),
+            tostring(c.level), tostring(c.hidden), tostring(c.name), tostring(c.class), tostring(c.realm),
+            tostring(c.faction), tostring(c.account) }, ",")
     end
     return table.concat(parts, ";")
 end
@@ -89,22 +94,22 @@ local lastSignature
 function RosterProvider.Refresh()
     local d = RosterProvider.DetectAltStable()
     local list, c3 = {}, { self = 0, ownAccount = 0, thirdParty = 0 }
-    lastError = nil
+    fetchError = nil
     if d.usable then
         RosterProvider.rebuilds = RosterProvider.rebuilds + 1
         local ok, chars = pcall(as().GetCharacters)
         if not ok or type(chars) ~= "table" then
-            lastError = "AltStable.GetCharacters failed"
+            fetchError = "AltStable.GetCharacters failed"
             if not ok then geterrorhandler()("GlassGear roster: " .. tostring(chars)) end
             chars = {}
         end
         local me = GG.player and GG.player.key
         for _, c in ipairs(chars) do
-            if type(c) == "table" and type(c.guid) == "string" then
+            if type(c) == "table" and type(c.guid) == "string" and c.guid ~= me then
                 if c.provenance == "self" then c3.self = c3.self + 1
                 elseif c.provenance == "own-account" then c3.ownAccount = c3.ownAccount + 1
                 else c3.thirdParty = c3.thirdParty + 1 end
-                if RosterProvider.OWN[c.provenance] and c.guid ~= me then list[#list + 1] = fromAltStable(c) end
+                if RosterProvider.OWN[c.provenance] then list[#list + 1] = fromAltStable(c) end
             end
         end
     end
@@ -112,33 +117,50 @@ function RosterProvider.Refresh()
     local sig = signature(list)
     local changed = lastSignature ~= nil and sig ~= lastSignature
     lastSignature = sig
-    if changed and GG.player then
-        GG.Callbacks.Fire("RosterChanged")
-        GG.API._Invalidate("roster", { GG.player.key })
-    end
+    -- No invalidation: no answer depends on the alts yet (features.alts is
+    -- false; alt rows are GG-203, which invalidates for its own charKeys).
+    if changed and GG.player then GG.Callbacks.Fire("RosterChanged") end
     return changed
 end
 
 -- At login (AltStable is an OptionalDep, so it loaded first): follow its
 -- callbacks. Its data right after login may be last session's; a
 -- CharactersChanged follows its rescan.
+local function onRoster() RosterProvider.Refresh() end
+
+-- An own alt's worn gear changed (its own scan or a sync): consumers re-read.
+-- Only own alts are named: never a third-party character, and never the
+-- current one (Glass Gear reports its own gear changes).
+local function onGear(_, guids)
+    if type(guids) ~= "table" then return end
+    local me = GG.player and GG.player.key
+    local keys = {}
+    for _, guid in ipairs(guids) do
+        if guid ~= me and RosterProvider.Find(guid) then keys[#keys + 1] = guid end
+    end
+    if #keys > 0 then GG.Callbacks.Fire("EquipmentChanged", { charKeys = keys }) end
+end
+
+local HANDLERS = { CharactersChanged = onRoster, ProvenanceChanged = onRoster, GearChanged = onGear }
+local EVENTS = { "CharactersChanged", "ProvenanceChanged", "GearChanged" }
+
 function RosterProvider.Attach()
     local d = RosterProvider.DetectAltStable()
     RosterProvider.Refresh()
-    if not d.usable or attached then return d.usable, d.reason end
+    if not d.usable then return false, d.reason end
     local A = as()
-    local function onRoster() RosterProvider.Refresh() end
-    local ok = pcall(A.RegisterCallback, "CharactersChanged", onRoster)
-    ok = pcall(A.RegisterCallback, "ProvenanceChanged", onRoster) and ok
-    -- An alt's worn gear changed (its own scan or a sync): consumers re-read.
-    ok = pcall(A.RegisterCallback, "GearChanged", function(_, guids)
-        if type(guids) == "table" and #guids > 0 then
-            GG.Callbacks.Fire("EquipmentChanged", { charKeys = guids })
+    attachError = nil
+    -- Each handler once: a retry registers only what is missing.
+    for _, event in ipairs(EVENTS) do
+        if not registered[event] then
+            if pcall(A.RegisterCallback, event, HANDLERS[event]) then
+                registered[event] = true
+            else
+                attachError = "AltStable callbacks unavailable (" .. event .. ")"
+            end
         end
-    end) and ok
-    attached = ok
-    if not ok then lastError = "AltStable callbacks unavailable" end
-    return ok, lastError
+    end
+    return attachError == nil, attachError
 end
 
 function RosterProvider.Characters(player)
@@ -156,13 +178,16 @@ end
 -- { present, usable, missing, reason, own, self, ownAccount, thirdParty }
 function RosterProvider.Status()
     local d = RosterProvider.DetectAltStable()
-    d.reason = lastError or d.reason
+    d.reason = fetchError or attachError or d.reason
     d.own = #alts
     d.self, d.ownAccount, d.thirdParty = counts.self, counts.ownAccount, counts.thirdParty
     return d
 end
 
 -- Test seam.
-function RosterProvider._Reset() alts, counts, attached, lastError, lastSignature = {}, { self = 0, ownAccount = 0, thirdParty = 0 }, false, nil, nil end
+function RosterProvider._Reset()
+    alts, counts, lastSignature = {}, { self = 0, ownAccount = 0, thirdParty = 0 }, nil
+    registered, attachError, fetchError = {}, nil, nil
+end
 
 return RosterProvider
