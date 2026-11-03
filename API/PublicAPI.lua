@@ -413,11 +413,13 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
                 if r.status == "upgrade" then
                     -- The owned checks are paid from the same budget: when what
                     -- they could still cost doesn't fit, the row waits whole for
-                    -- a later frame (never over the budget). The first row of a
-                    -- frame always finishes, so a tiny budget still progresses.
+                    -- a later frame (never over the budget), and the frame closes,
+                    -- so at most one row a frame is computed twice. The first row
+                    -- of a frame always finishes, so a tiny budget still progresses.
                     if not opts.protection and not firstOfFrame
                         and budgetLeft() < ownedCost(owned, facts, spec) then
                         r, putOff = nil, true
+                        state.frameUsed = API.LIMITS.perFrame
                     else
                         r = ownedCheck(r, input, owned, companionsWithout, opts.protection, charge)
                     end

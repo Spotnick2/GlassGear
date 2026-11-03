@@ -219,6 +219,9 @@ r = shadow(21)
 H.eq(r.status, "pending", "the mantle and its four owned checks (5) don't fit the 4 left: put off")
 H.eq(r.reasons[1], "FRAME_BUDGET", "...FRAME_BUDGET")
 H.check(S.frameUsed <= 5, "...the frame never goes over its budget (" .. S.frameUsed .. ")")
+local e5 = S.stats.evaluations
+shadow(31)
+H.eq(S.stats.evaluations - e5, 0, "...and the frame is closed: the next row waits too (no more work redone)")
 local done
 api.RegisterCallback("EvaluationReady", function(_, p) done = p.response end, "test_owned_budget")
 WoW.time = WoW.time + 1
