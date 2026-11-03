@@ -167,6 +167,14 @@ function CreateFrame(kind, name, parent, template)
     function f:SetID(id) self._id = id end
     function f:GetID() return self._id end
     function f:IsShown() return self.shown end
+    function f:IsVisible()
+        local p = self
+        while type(p) == "table" do
+            if p.shown == false then return false end
+            p = p.parent
+        end
+        return true
+    end
     function f:Show()
         local was = self.shown
         self.shown = true

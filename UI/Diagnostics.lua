@@ -47,7 +47,7 @@ function Diagnostics.Lines()
         or ("unavailable (" .. tostring(GG.optionsInfo) .. ")")))
     add("weights: /gg profiles (import, edit, export; up to "
         .. GG.Profiles.MAX_PER_SPEC .. " profiles per spec)")
-    add("unavailable in this build: protection (GG-301), markers on Baganator, AdiBags, ArkInventory, BetterBags")
+    add("unavailable in this build: protection (GG-301), markers on " .. table.concat(GG.BagAddons.UNSUPPORTED, ", "))
     return lines
 end
 

@@ -23,7 +23,10 @@ local Item = {}
 function Item.Update(self, info) self.info = info or {} end
 local ContainerItem = {}
 function ContainerItem.Update(self, ...) Item.Update(self, ...); self.cooldownUpdated = true end
-rawset(_G, "BagBrother", { Item = Item, ContainerItem = ContainerItem })
+local GuildItem = {}                          -- a guild-bank button: its "bag" is a tab
+function GuildItem.Update(self, ...) Item.Update(self, ...) end
+rawset(_G, "BagBrother", { Item = Item, ContainerItem = ContainerItem, GuildItem = GuildItem })
+WoW.loadedAddOns.Bagnon = true
 local bagFrame = CreateFrame("Frame")
 local function button(bag, slot, cached)
     local b = CreateFrame("Button", nil, bagFrame)
@@ -50,8 +53,15 @@ SlashCmdList.GLASSGEAR("")
 H.check(WoW.chat():find("bag addon: Bagnon (markers on its buttons)", 1, true) ~= nil, "/gg names it")
 
 local up, off = button(0, 1), button(0, 2)
+local contexts = 0
+local realContext = GG.BagMarkers.Context
+GG.BagMarkers.Context = function(...) contexts = contexts + 1; return realContext(...) end
+WoW.time = WoW.time + 1
 ContainerItem.Update(up)
 ContainerItem.Update(off)
+H.eq(contexts, 1, "two buttons updated in one frame: one context")
+GG.BagMarkers.Context = realContext
+WoW.flush(1)                                  -- the window becomes a reveal surface on the next frame
 H.eq(mark(up), "green", "a Bagnon button with a current-spec upgrade: green")
 H.eq(off.cooldownUpdated, true, "...Bagnon's own update still runs")
 H.eq(mark(off), nil, "a soulbound off-spec upgrade: quiet, as on Blizzard's bags")
@@ -75,6 +85,40 @@ H.eq(mark(off), nil, "...released: gone")
 local other = button(0, 1, true)
 ContainerItem.Update(other)
 H.eq(mark(other), nil, "a cached inventory (another character): no mark")
+local switching = button(0, 1)
+ContainerItem.Update(switching)
+H.eq(mark(switching), "green", "(a marked button)")
+function switching:IsCached() return true end   -- the player picked another character in Bagnon
+ContainerItem.Update(switching)
+H.eq(mark(switching), nil, "...switched to a cached view: its mark is cleared")
+
+-- Guild-bank buttons are never hooked (their bag is a tab, not the player's bag).
+WoW.bags[2] = { [1] = { itemID = 60, isBound = true } }   -- the player's own bag 2 holds an upgrade
+local guild = button(2, 1)
+GuildItem.Update(guild)
+H.eq(GG.BagMarkers._marks[guild], nil, "a guild-bank button: no mark from the player's bags")
+
+-- A button first met in combat is marked after it, from its own bag and slot.
+WoW.combat = true
+local fought = button(0, 1)
+fought.GetBagID = function() return 3 end      -- Blizzard's template reader would say bag 3
+ContainerItem.Update(fought)
+H.eq(GG.BagMarkers._marks[fought], nil, "in combat: no frame made")
+WoW.combat = false
+WoW.fire("PLAYER_REGEN_ENABLED")
+H.eq(mark(fought), "green", "after combat: marked from Bagnon's bag and slot (0, 1), not GetBagID")
+
+-- A closed Bagnon window isn't redrawn.
+local decorations = 0
+local realDecorate = GG.BagMarkers.Decorate
+GG.BagMarkers.Decorate = function(...) decorations = decorations + 1; return realDecorate(...) end
+bagFrame:Hide()
+GG.BagAddons.Refresh()
+H.eq(decorations, 0, "a closed window: its buttons aren't redrawn")
+bagFrame:Show()
+GG.BagAddons.Refresh()
+H.check(decorations > 0, "...open again: they are")
+GG.BagMarkers.Decorate = realDecorate
 
 -- Item data arriving redraws.
 WoW.items[80] = shoulder("Late Mantle", { [INT] = 40 })
@@ -93,6 +137,14 @@ WoW.bags[0][4] = { itemID = 50, isBound = true }
 up:SetID(4)
 ContainerItem.Update(up)
 H.eq(mark(up), nil, "a button reused for a slot with no upgrade: cleared")
+
+-- A hook that failed is never reported as working.
+GG.BagAddons.active = nil
+H.check(GG.BagAddons.Status():find("hook failed", 1, true) ~= nil, "a failed hook: /gg says the markers are unavailable")
+GG.BagAddons.active = "Bagnon"
+WoW.loadedAddOns.Bagnon = nil
+H.eq(GG.BagAddons.Detect(), "BagBrother", "BagBrother with another frontend: named as BagBrother, not Bagnon")
+WoW.loadedAddOns.Bagnon = true
 
 -- Unsupported bag addons are reported.
 rawset(_G, "BagBrother", nil)

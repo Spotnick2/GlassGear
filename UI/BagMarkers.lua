@@ -57,8 +57,9 @@ local function context()
 end
 
 -- Decorate any button: Blizzard's (bag/slot read here) or a bag addon's
--- (bag/slot given; nil bag clears its mark).
-local function decorate(button, ctx, bag, slot, given)
+-- (bag/slot given; nil bag clears its mark). `rewhere` is the adapter's
+-- own reader, used again for a button first met in combat.
+local function decorate(button, ctx, bag, slot, given, rewhere)
     local kind
     if ctx then
         if not given then bag, slot = where(button) end
@@ -68,7 +69,7 @@ local function decorate(button, ctx, bag, slot, given)
     if not m then
         if not kind then return end
         if GG.Compat.InCombat() then
-            pending[button] = true
+            pending[button] = rewhere or true
             events:RegisterEvent("PLAYER_REGEN_ENABLED")
             return
         end
@@ -114,9 +115,15 @@ end
 local function afterCombat()
     events:UnregisterEvent("PLAYER_REGEN_ENABLED")
     local ctx = context()
-    for button in pairs(pending) do
+    for button, how in pairs(pending) do
         pending[button] = nil
-        decorate(button, ctx)
+        if type(how) == "function" then
+            -- A bag addon's button: its own reader, never Blizzard's GetBagID.
+            local bag, slot = how(button)
+            decorate(button, ctx, bag, slot, true, how)
+        else
+            decorate(button, ctx)
+        end
     end
 end
 
@@ -160,7 +167,7 @@ function Markers.Initialize()
 end
 
 Markers.Context = context
-function Markers.Decorate(button, ctx, bag, slot) decorate(button, ctx, bag, slot, true) end
+function Markers.Decorate(button, ctx, bag, slot, rewhere) decorate(button, ctx, bag, slot, true, rewhere) end
 
 -- Test seams.
 Markers._marks = marks
