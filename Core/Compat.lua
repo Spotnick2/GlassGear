@@ -60,6 +60,15 @@ function Compat.ItemLoaded(itemID)
     return type(C_Item.GetItemStats("item:" .. itemID)) == "table"
 end
 
+-- An item's name from a link or item string, or nil while its data loads.
+function Compat.ItemName(item)
+    if type(item) ~= "string" then return nil end
+    local n = item:match("%[(.-)%]")
+    if n then return n end
+    local ok, name = pcall(C_Item.GetItemInfo, item)
+    return ok and name or nil
+end
+
 function Compat.ItemFacts(link)
     if type(link) ~= "string" then return nil, "no-link" end
     local itemID, _, _, equipLoc, _, classID, subclassID = C_Item.GetItemInfoInstant(link)
@@ -227,17 +236,53 @@ end
 -- the itemIDs whose data isn't loaded yet (their slots are "unknown").
 -- One slot from a full item link (the measured path: suffix kept, link-level
 -- fields present). Appends to `missing` when the item's data isn't loaded.
+-- A baseline-shaped item from facts already read (no second read).
+local function slotFromFacts(f, link)
+    return { state = "occupied", itemID = f.itemID, equipLoc = f.equipLoc,
+        classID = f.classID, subclassID = f.subclassID,
+        itemString = f.itemString, item = Compat.GearItemString(link), tokens = f.tokens,
+        unique = f.unique, setID = f.setID, hasSpell = f.hasSpell, unsupported = f.unsupported,
+        reqLevel = f.reqLevel }
+end
+
 local function slotFromLink(link, missing)
     local f = Compat.ItemFacts(link)
-    if f and f.ready then
-        return { state = "occupied", itemID = f.itemID, equipLoc = f.equipLoc,
-            classID = f.classID, subclassID = f.subclassID,
-            itemString = f.itemString, item = Compat.GearItemString(link), tokens = f.tokens,
-            unique = f.unique, setID = f.setID, hasSpell = f.hasSpell, unsupported = f.unsupported,
-            reqLevel = f.reqLevel }
-    end
+    if f and f.ready then return slotFromFacts(f, link) end
     if f then missing[#missing + 1] = f.itemID end
     return { state = "unknown" }
+end
+
+-- The usable gear in bags 0-4 (GG-122): { { link, bag, slot, facts, slotItem } },
+-- plus the itemIDs of gear still loading. At most `max` items.
+function Compat.BagGear(max)
+    local items, waiting = {}, {}
+    for _, bag in ipairs(Compat.BAGS) do
+        for slot = 1, C_Container.GetContainerNumSlots(bag) or 0 do
+            local info = C_Container.GetContainerItemInfo(bag, slot)
+            local link = info and info.hyperlink
+            if link and #items < (max or 120) then
+                local _, _, _, equipLoc = C_Item.GetItemInfoInstant(link)
+                if GG.Data.Slots.IsEquippable(equipLoc) then
+                    local facts = Compat.ItemFacts(link)
+                    if facts and facts.ready then
+                        items[#items + 1] = { link = link, bag = bag, slot = slot, facts = facts,
+                            slotItem = slotFromFacts(facts, link) }
+                    elseif facts then
+                        waiting[facts.itemID] = true
+                    end
+                end
+            end
+        end
+    end
+    return items, waiting
+end
+
+-- A baseline-shaped item from a full link, or nil while its data loads.
+function Compat.SlotItem(link)
+    local missing = {}
+    local item = slotFromLink(link, missing)
+    if item.state ~= "occupied" then return nil end
+    return item
 end
 
 function Compat.EquippedBaseline(now)

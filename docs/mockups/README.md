@@ -73,7 +73,9 @@ LibGlass r11, not the painted textures.
   never silently zero. A SimulationCraft profile or WoWSims character JSON is not a weight set and
   is refused with an explanation (`docs/FORMATS.md`). Built (GG-105) as drawn in 05, with the
   import type detected instead of a dropdown and the Active badge on the chosen profile.
-- **06, characters.** Characters are grouped by account only from AltStable's validated
+- **06, characters.** Built (GG-204): groups by AltStable's account label for display (ownership is
+  the provenance); freshness from AltStable's `capturedAt` (stale after 14 days); "maybe behind" waits
+  for sync (GG-202). Characters are grouped by account only from AltStable's validated
   provenance, never from the user-typed `account` label. Stale and incomplete data are labelled.
   Pairing and sync stay in AltStable ("Open AltStable"). Without AltStable, current-character
   comparisons still work and alt suggestions are reported unavailable.
@@ -83,7 +85,8 @@ LibGlass r11, not the painted textures.
   "Disenchant anyway" records `{guid, token}` for this one item and this session. It bypasses only
   Glass Gear's veto and expires on any token or GUID change. Mail Mode items belong to their
   senders, so no upgrade check applies to them. The secure one-click button is unchanged.
-- **08, comparison.** Shows the baseline source (saved set → gear seen in that spec → current gear
+- **08, comparison.** Built (GG-113): spec tabs replace the character dropdown (one character until
+  GG-201; no dropdowns), and "No equipment recorded" offers the saved sets by name. Shows the baseline source (saved set → gear seen in that spec → current gear
   labelled `fallback-current`), the replaced item(s) from the chosen legal configuration, and
   limitations such as `EFFECT_NOT_SCORED`. "Item score" and percentages are item-score estimates,
   never DPS or healing.

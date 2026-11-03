@@ -49,26 +49,26 @@ H.check(WoW.chat():find("reveal: hold CTRL", 1, true) ~= nil, "/gg reports the r
 
 -- PRD matrix rows 2 and 3.
 WoW.showBag(bag, { { 0, 1 }, { 0, 2 }, { 0, 3 }, { 0, 4 }, { 0, 5 } })
-H.eq(mark(1), "green", "current-spec upgrade: green")
+H.eq(mark(1), nil, "a Shadow upgrade, but the Big Mantle in the same bags is better: no arrow (owned better, GG-122)")
 H.eq(mark(2), nil, "soulbound off-spec upgrade: quiet")
 H.eq(mark(3), "amber", "transferable off-spec upgrade: amber by default (row 3)")
 H.eq(mark(4), nil, "not equippable: nothing")
 H.eq(GG.BagMarkers._marks[bag.Items[4]], nil, "...and no frame made for it")
 H.eq(mark(5), "green", "an upgrade for every spec is green (green wins)")
-local m1 = GG.BagMarkers._marks[bag.Items[1]]
+local m1 = GG.BagMarkers._marks[bag.Items[5]]
 H.eq(m1.fill.atlas, "bags-greenarrow", "green uses Blizzard's upgrade arrow")
 H.eq(m1.inner.shown, false, "green is filled")
 local m3 = GG.BagMarkers._marks[bag.Items[3]]
 H.eq(m3.fill.desaturated, true, "amber is the arrow recoloured...")
 H.eq(m3.inner.shown, true, "...with an inner cut-out: an outline, a different shape")
-H.eq(m1.parent, bag.Items[1], "marks are our own child frames")
+H.eq(m1.parent, bag.Items[5], "marks are our own child frames")
 H.eq(bag.Items[1].kind, "Button", "nothing written on Blizzard's button")
 
 -- Reveal: press and release.
 press("CTRL", true)
 H.eq(GG.Reveal.Active(), true, "Ctrl down: reveal on")
 H.eq(mark(2), "amber", "revealed: soulbound off-spec upgrade amber")
-H.eq(mark(1), "green", "green stays green while revealed")
+H.eq(mark(5), "green", "green stays green while revealed")
 press("CTRL", false)
 H.eq(GG.Reveal.Active(), false, "Ctrl up: reveal off")
 H.eq(mark(2), nil, "released: soulbound off-spec quiet again at once")
@@ -151,7 +151,7 @@ H.eq(mark(6), "green", "data arrived: marked without reopening the bag")
 -- Combat: no frame is created in combat; the button is marked afterwards.
 local bag2 = ContainerFrameContainer.ContainerFrames[2]
 WoW.combat = true
-WoW.bags[1] = { [1] = { itemID = 60, isBound = true } }
+WoW.bags[1] = { [1] = { itemID = 73, isBound = true } }   -- the best mantle owned (GG-122)
 WoW.showBag(bag2, { { 1, 1 } })
 H.eq(GG.BagMarkers._marks[bag2.Items[1]], nil, "in combat: no mark frame created")
 press("CTRL", true)
@@ -167,7 +167,7 @@ H.eq(late and late.inCombatCreate, false, "...with a frame made out of combat")
 SlashCmdList.GLASSGEAR('import PRIEST.HOLY ( Pawn: v1: "Holy2": Class=Priest, Intellect=1 )')
 WoW.flush()
 H.eq(mark(3), nil, "after an import, the BoE is no longer an upgrade")
-H.eq(mark(1), "green", "...and the Shadow upgrade stays green")
+H.eq(mark(5), "green", "...and the Shadow upgrade stays green")
 
 -- No click handlers anywhere: Ctrl-click still reaches Blizzard (dressing room).
 for _, b in ipairs(bag.Items) do

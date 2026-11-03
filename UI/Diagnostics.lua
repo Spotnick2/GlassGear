@@ -30,9 +30,19 @@ function Diagnostics.Lines()
             add("    gear: " .. GG.Capture.Status(s.key, time()))
         end
     end
-    local alt = GG.Integrations.RosterProvider.DetectAltStable()
-    add("AltStable: " .. (alt.present and ("present, " .. (alt.usable and "usable" or alt.reason)) or "absent")
-        .. " - alt upgrades unavailable")
+    -- The roster (GG-201): what AltStable gives, or exactly what is missing.
+    local alt = GG.Integrations.RosterProvider.Status()
+    if not alt.present then
+        add("AltStable: absent - only this character is known")
+    elseif not alt.usable then
+        add("AltStable: present, " .. tostring(alt.reason) .. " - only this character is known")
+    else
+        add(string.format("AltStable: %d of your other characters (%d on this account, %d on your other accounts)%s",
+            alt.own, alt.self, alt.ownAccount,
+            alt.thirdParty > 0 and (", " .. alt.thirdParty .. " not yours (never used)") or "")
+            .. (alt.reason and (" - " .. alt.reason) or ""))
+    end
+    add("alt upgrades: GG-203 (needs the entry-sync library and the transfer-rule probe)")
     add("profile sync: unavailable (entry-sync library ES-001, GG-202)")
     add("theme: " .. tostring(GG.themeName) .. (GG.themeInfo and GG.themeInfo.reason and (" (" .. GG.themeInfo.reason .. ")") or ""))
     add("tooltip rows: " .. (GG.tooltipHooked and "on" or ("unavailable (" .. tostring(GG.tooltipReason) .. ")")))
@@ -47,7 +57,8 @@ function Diagnostics.Lines()
         or ("unavailable (" .. tostring(GG.optionsInfo) .. ")")))
     add("weights: /gg profiles (import, edit, export; up to "
         .. GG.Profiles.MAX_PER_SPEC .. " profiles per spec)")
-    add("unavailable in this build: protection (GG-301), markers on " .. table.concat(GG.BagAddons.UNSUPPORTED, ", "))
+    add("disenchant protection: ready for Shatter (GlassGear.API.AssessProtection, tracked specs)")
+    add("unavailable in this build: markers on " .. table.concat(GG.BagAddons.UNSUPPORTED, ", "))
     return lines
 end
 
@@ -91,28 +102,21 @@ function Diagnostics.Slash(msg)
                 tostring(GG.player.class)))
             return
         end
-        if name:lower() == "none" then
-            GG.charDB.equipSetMap[spec] = { none = true }
-            out(spec .. ": no equipment set, not even one assigned in the client; compared with the gear it wore")
-        elseif name:lower() == "auto" then
-            GG.charDB.equipSetMap[spec] = nil
-            out(spec .. ": the equipment set assigned to it in the client, if any; else the gear it wore")
-        else
-            local sets = GG.Compat.EquipmentSets()
-            if not sets then out("equipment sets are not available") return end
-            local found
-            for _, s in ipairs(sets) do if s.name:lower() == name:lower() then found = s end end
-            if not found then
-                local names = {}
-                for _, s in ipairs(sets) do names[#names + 1] = s.name end
-                out("no equipment set named '" .. name .. "'" .. (#names > 0 and (". Sets: " .. table.concat(names, ", ")) or ""))
-                return
-            end
-            GG.charDB.equipSetMap[spec] = { id = found.id, name = found.name }
-            out(spec .. " -> equipment set '" .. found.name .. "'")
+        local _, msg = GG.Capture.MapSet(spec, name)
+        out(msg)
+    elseif cmd == "characters" or cmd == "chars" then
+        local ok, why = GG.CharactersWindow.Open()
+        if not ok then out("characters page unavailable: " .. tostring(why)) end
+    elseif cmd == "compare" then
+        -- /gg compare [item link]: a pasted link (Shift-click), else the item
+        -- last shown in a tooltip.
+        local ref = rest:find("|Hitem:", 1, true) and rest or GG.Tooltip.lastRef
+        if not ref then
+            out("usage: /gg compare [item link]  (hover an item first, or Shift-click one into the command)")
+            return
         end
-        GG.Capture.CheckSets()
-        GG.API._Invalidate("baselines", { GG.player.key })
+        local ok, why = GG.CompareWindow.Open(ref)
+        if not ok then out("comparison unavailable: " .. tostring(why)) end
     elseif cmd == "options" or cmd == "config" then
         if not GG.Options.Open() then out("settings: Esc > Options > AddOns > Glass Gear") end
     elseif cmd == "profiles" or cmd == "weights" then

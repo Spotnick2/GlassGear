@@ -7,7 +7,8 @@ It replaces a Pawn workflow.
 
 **Status:** foundation (M0). The scoring engine, policies, sync model and API contract are built and
 tested. Tooltip rows, bag and loot arrows, the reveal key, the settings page (`/gg options`) and
-the weight profiles window (`/gg profiles`) are built and wait for the in-game pass; alts and Shatter protection are the next milestones:
+the weight profiles window (`/gg profiles`) are built and wait for the in-game pass. Disenchant protection for Shatter is ready on Glass Gear's
+side (`AssessProtection`; Shatter's part is SH-001); alts are the next milestone:
 see [docs/BACKLOG.md](docs/BACKLOG.md).
 
 ## What it will do
@@ -40,6 +41,8 @@ see [docs/BACKLOG.md](docs/BACKLOG.md).
 | `/gg import <SPEC.KEY> ( Pawn: v1: ... )` | Import a Pawn scale string for a spec |
 | `/gg options` | Open the settings page (Esc > Options > AddOns > Glass Gear) |
 | `/gg profiles [SPEC.KEY]` | Open the weight profiles window: up to 4 profiles per spec, import (Pawn, WoWSims Pawn EP), edit, export |
+| `/gg compare [item link]` | Open the detailed comparison for a Shift-clicked item, or the item last hovered |
+| `/gg characters` | Open the characters page: your characters across accounts (AltStable), the specs protection tracks, gear freshness |
 | `/gg set <SPEC.KEY> <set name\|none\|auto>` | Compare a spec with a saved equipment set instead of the gear it last wore. `none`: never a set, not even one assigned in the client; `auto` (default): the set assigned in the client, if any |
 
 ## Requirements

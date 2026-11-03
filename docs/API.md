@@ -40,8 +40,8 @@ end
 |---|---|---|
 | `GetCapabilities()` | `{apiVersion, build, features = {evaluate, evaluateBatch, assessProtection, alts, sync, frameBudget, resultCache, ...}, limits = {perFrame, jobs, requests, cache, ...}, unavailable = {[feature] = reason}}` | yes |
 | `IsReady()` | boolean | yes |
-| `GetCharacters()` | list of `{key, guid, name, realm, class, level, provenance, current}`. Current character only without AS-001 | yes (local) |
-| `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order | yes |
+| `GetCharacters()` | list of `{key, guid, name, realm, faction, class, level, provenance, current, hidden, account, provenanceVia}`: the current character first, then the player's own others from AltStable (GG-201; `provenance` `self` or `own-account`, never `third-party`). The current character only without AltStable AS-001 + AS-003 (`features.roster`) | yes (local) |
+| `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order, for the current character or an own alt (an alt's `current` is always false: its spec isn't known) | yes |
 | `GetProfile(charKey, specKey)` | The spec's **active** profile (of up to 4; SCHEMA, latest `activeAt`): `{id, specKey, name, source, origin, version, updatedAt, weights = {[token] = n}}` or `nil, reason` | yes (local) |
 | `Evaluate(request)` | response (below) | yes (current character, local baselines) |
 | `EvaluateBatch(requests)` | list of responses (at most 64 items) | yes |
@@ -82,6 +82,7 @@ end
                       -- for a spec compared with the worn gear (or a candidate pairing with
                       -- a worn hand), a worn item. The others aren't held up.
       replaces    = { slots = { 3 }, items = { "itemString" } },
+      ownedBetter = { itemID, itemString, link, delta, pct } | nil,   -- GG-122, with OWNED_BETTER
       score       = { candidate = 108.6, baseline = 100.0, delta = 8.6, pct = 0.086 },
       method      = "weights-linear",
       eligibility = { equipNow = true, reasons = {} },
@@ -93,6 +94,8 @@ end
 }
 ```
 
+- **`replaces.companion`** (GG-113): the item string of the main hand or off-hand a one-hander was
+  paired with (against a spec whose gear has a two-hander), or nil.
 - **Order:** current spec, then the character's other specs in tree order, then alts in the owner's
   tracked order.
 - **Aggregate `status`** (display only, never a protection verdict), first match wins:
@@ -134,8 +137,11 @@ is over the per-frame budget.
 
 ### Protection
 
+Implemented by GG-301 (`features.assessProtection = true`). The protection scope is the current
+character's tracked specs (settings, DISENCHANT PROTECTION); tracked alts join with GG-203.
+
 ```lua
-local p = api.AssessProtection({ bag = 0, slot = 3 }, { scope = "tracked" })
+local p = api.AssessProtection({ bag = 0, slot = 3 }, { noWeights = "ignore" })   -- opts optional
 -- p = { verdict = "protect" | "clear" | "unknown" | "pending" | "unsupported",
 --       token = "opaque", expiresAt = 1793500000,
 --       recipients = { { character = {...}, spec = "PRIEST.HOLY", pct = 0.086 }, ... },
@@ -160,8 +166,18 @@ local p = api.AssessProtection({ bag = 0, slot = 3 }, { scope = "tracked" })
   - If no spec in scope has weights, the verdict is `unknown`, never `clear`.
 
   Without this rule, every item would stay blocked until every tracked spec had weights.
-- **`token`** hashes the instance GUID and the generation counters, including a **freshness
-  generation**. `expiresAt` is the earliest baseline staleness time. Each call re-checks expiry
+- **Options:** `noWeights` (`"ignore"` | `"keep"`; default: the setting; any other value keeps the
+  item) and `scope` (only `"tracked"`; anything else answers `unsupported`, `SCOPE_UNSUPPORTED`).
+- **Other reasons for `unknown`:** `NOT_READY`, `NO_ITEM` (nothing at that slot),
+  `NO_PROTECTION_TARGETS` (no spec tracked), `ITEM_QUEUE_FULL`, `ITEM_DATA_UNAVAILABLE` (its load
+  gave up), `INTERNAL_ERROR` (an error inside: reported to the error handler, the item is kept).
+- **Pending:** the item data it needs is requested. When it arrives, or its load gives up,
+  `EvaluationInvalidated` (`itemData`, with `itemIDs`) tells the consumer to ask again; it is
+  coalesced per frame and does not drop cached answers. A verdict is never delivered later by itself.
+- **Budget:** protection rows never spend the per-frame Evaluate budget.
+- **`instance`** (`{guid, bound}`) echoes what the verdict was computed for.
+- **`token`** hashes the instance GUID, its bind state, the `noWeights` mode, the tracked specs and
+  the generation counters, including a **freshness generation**. `expiresAt` is the earliest baseline staleness time. Each call re-checks expiry
   synchronously: when a baseline crosses into staleness, the freshness generation advances before the
   call returns, so the token changes. `EvaluationInvalidated` is queued after that.
 
