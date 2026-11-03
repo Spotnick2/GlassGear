@@ -82,6 +82,7 @@ end
                       -- for a spec compared with the worn gear (or a candidate pairing with
                       -- a worn hand), a worn item. The others aren't held up.
       replaces    = { slots = { 3 }, items = { "itemString" } },
+      ownedBetter = { itemID, itemString, link, delta, pct } | nil,   -- GG-122, with OWNED_BETTER
       score       = { candidate = 108.6, baseline = 100.0, delta = 8.6, pct = 0.086 },
       method      = "weights-linear",
       eligibility = { equipNow = true, reasons = {} },

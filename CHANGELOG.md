@@ -46,6 +46,10 @@
   (`/gg set <spec> none` turns sets off for that spec, `auto` back on). A
   spec with nothing recorded still compares with your current gear, labelled. Gear recorded more
   than 14 days ago is flagged in the tooltip and `/gg`.
+- What you carry counts (GG-122): a one-hander compared with a spec that uses a two-hander pairs with
+  the best off-hand in your bags, not only the one you wear; and an item is no longer shown as an
+  upgrade when your bags already hold a better one for that spec (the tooltip says "you own better"
+  and names it; rings and trinkets need two better ones).
 - Disenchant protection for Shatter (GG-301): `GlassGear.API.AssessProtection` says whether a bag
   item is an upgrade for one of your tracked specs (keep it), safe to disenchant, or not certain yet
   (keep it). Recorded gear that is stale, or a spec compared with your current gear, is never called

@@ -12,7 +12,8 @@
 --   baseline  = { source, capturedAt, complete, stale, maybeBehind,
 --                 slots = { [slot] = { state, itemID, itemString, equipLoc, tokens, unique, setID } } } | nil,
 --   settings  = { threshold = 0.005, levelWindow = { enabled = true, lookAhead = 0 }, specArmor = true },
---   companion = { [16|17] = baseline-shaped item } | nil,
+--   companion = { [16|17] = baseline-shaped item } | nil,      (one candidate per slot)
+--   companions = { [16|17] = { item, ... } } | nil,           (several; `worn` marks the worn one)
 --   setThresholds = Data.ItemSets,
 -- }
 ------------------------------------------------------------
@@ -183,23 +184,63 @@ function Evaluate.One(input)
     end
     local candidate = { itemID = item.itemID, equipLoc = item.equipLoc, score = cand.score,
         unique = item.unique, setID = item.setID, itemString = item.itemString }
+    -- Companions (a 1H against a 2H): each hand slot's candidates, the worn
+    -- one marked `worn` (GG-122 adds the bags). The highest-scoring usable
+    -- one wins; on a tie the worn one; two bag items tied at the top are
+    -- never chosen (no coin toss).
+    local lists = input.companions
+    if not lists and input.companion then
+        lists = {}
+        for s, c in pairs(input.companion) do lists[s] = { c } end
+    end
     local companion
-    if input.companion then
+    if lists then
         companion = {}
         local r = input.recipient or {}
-        for s, c in pairs(input.companion) do
-            -- A companion counts only if it is fully known and wearable now under
-            -- this profile: class gate, required level, no Pawn X on it.
-            local okUse, why = false, nil
-            if c.classID and c.tokens and type(c.reqLevel) == "number" then
-                okUse, why = Classes.CanUse(r.class, r.level, c, r.knownArmor)
-                okUse = okUse and why == nil and c.reqLevel <= (r.level or 0)
+        for s, list in pairs(lists) do
+            local best, bestScore, tie = nil, nil, false
+            local wornAny
+            for _, c in ipairs(list) do
+                if c.worn then wornAny = c end
+                -- A companion counts only if it is fully known and wearable now under
+                -- this profile: class gate, required level, no Pawn X on it; and a
+                -- legal partner for the candidate: that hand, never a two-hander,
+                -- never the candidate's unique category.
+                local okUse, why = false, nil
+                if c.classID and c.tokens and type(c.reqLevel) == "number" then
+                    okUse, why = Classes.CanUse(r.class, r.level, c, r.knownArmor)
+                    okUse = okUse and why == nil and c.reqLevel <= (r.level or 0)
+                end
+                okUse = okUse and not GG.Data.Slots.TWO_HAND[c.equipLoc or ""]
+                    and SlotCompare.HandLegal(c, s, r.canDualWield)
+                    and not (item.unique and c.unique and c.unique.key == item.unique.key)
+                local scored = okUse and Score.Compute(c.tokens, profile)
+                if scored and not scored.ignoredHit then
+                    if not best or scored.score > bestScore then
+                        best, bestScore, tie = c, scored.score, false
+                    elseif scored.score == bestScore then
+                        if c.worn then best, tie = c, false
+                        elseif not best.worn and c.itemString ~= best.itemString then tie = true end
+                    end
+                end
             end
-            local scored = okUse and Score.Compute(c.tokens, profile)
-            if scored and not scored.ignoredHit then
+            -- Nothing legal: the worn one still goes to SlotCompare, which
+            -- reports why it can't pair (COMPANION_NOT_LEGAL / _DATA_MISSING).
+            if not best and wornAny then
+                local okUse = false
+                if wornAny.classID and wornAny.tokens and type(wornAny.reqLevel) == "number" then
+                    local why
+                    okUse, why = Classes.CanUse(r.class, r.level, wornAny, r.knownArmor)
+                    okUse = okUse and why == nil and wornAny.reqLevel <= (r.level or 0)
+                end
+                local scored = okUse and Score.Compute(wornAny.tokens, profile)
+                if scored and not scored.ignoredHit then best, bestScore = wornAny, scored.score end
+            end
+            if best and not tie then
                 local copy = {}
-                for k, v in pairs(c) do copy[k] = v end
-                copy.score = scored.score
+                for k, v in pairs(best) do copy[k] = v end
+                copy.score = bestScore
+                copy.worn = nil
                 companion[s] = copy
             end
         end
@@ -271,6 +312,47 @@ function Evaluate.One(input)
     if not res.baseline.complete then add(res.reasons, "BASELINE_INCOMPLETE") end
     if res.baseline.source == "fallback-current" then add(res.reasons, "BASELINE_FALLBACK") end
     if res.baseline.maybeBehind then add(res.reasons, "MAYBE_BEHIND") end
+    return res
+end
+
+-- "Better gear already owned" (GG-122): `owned` = { { item, link, result }, ... },
+-- each an owned item's own evaluation for the same spec and baseline. An
+-- owned item competes only when its configuration replaces a slot the
+-- candidate's does, and never when it only wins by pairing with the
+-- candidate itself. A unique item counts at most its unique limit. When the
+-- better owned items plus `opts.wornBetter` (worn items in the other
+-- positions that already beat the candidate) fill `positions` (2 for rings,
+-- trinkets and dual-wield one-handers), the candidate isn't presented as an
+-- upgrade: no_upgrade, OWNED_BETTER, with the best owned one named.
+local function overlaps(a, b)
+    for _, x in ipairs(a or {}) do for _, y in ipairs(b or {}) do if x == y then return true end end end
+    return false
+end
+
+function Evaluate.ApplyOwned(res, owned, positions, opts)
+    opts = opts or {}
+    if res.status ~= "upgrade" or not res.score or type(res.score.delta) ~= "number" then return res end
+    if res.eligibility and res.eligibility.equipNow == false then return res end
+    local better, perUnique = {}, {}
+    for _, o in ipairs(owned or {}) do
+        local r = o.result
+        if r and r.status == "upgrade" and r.score and type(r.score.delta) == "number"
+            and not (r.eligibility and r.eligibility.equipNow == false) and r.score.delta > res.score.delta
+            and overlaps(r.replaces and r.replaces.slots, res.replaces and res.replaces.slots)
+            and not (opts.candidate and r.replaces and r.replaces.companion == opts.candidate) then
+            local u = o.item.unique
+            local key = u and u.key
+            if key then perUnique[key] = (perUnique[key] or 0) + 1 end
+            if not key or perUnique[key] <= (u.max or 1) then better[#better + 1] = o end
+        end
+    end
+    if #better == 0 or #better + (opts.wornBetter or 0) < (positions or 1) then return res end
+    table.sort(better, function(x, y) return x.result.score.delta > y.result.score.delta end)
+    local top = better[1]
+    res.status = "no_upgrade"
+    add(res.reasons, "OWNED_BETTER")
+    res.ownedBetter = { itemID = top.item.itemID, itemString = top.item.itemString, link = top.link,
+        delta = top.result.score.delta, pct = top.result.score.pct }
     return res
 end
 
