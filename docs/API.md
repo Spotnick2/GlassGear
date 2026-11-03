@@ -134,6 +134,9 @@ is over the per-frame budget.
 
 ### Protection
 
+Implemented by GG-301 (`features.assessProtection = true`). The protection scope is the current
+character's tracked specs (settings, DISENCHANT PROTECTION); tracked alts join with GG-203.
+
 ```lua
 local p = api.AssessProtection({ bag = 0, slot = 3 }, { scope = "tracked" })
 -- p = { verdict = "protect" | "clear" | "unknown" | "pending" | "unsupported",
@@ -160,8 +163,14 @@ local p = api.AssessProtection({ bag = 0, slot = 3 }, { scope = "tracked" })
   - If no spec in scope has weights, the verdict is `unknown`, never `clear`.
 
   Without this rule, every item would stay blocked until every tracked spec had weights.
-- **`token`** hashes the instance GUID and the generation counters, including a **freshness
-  generation**. `expiresAt` is the earliest baseline staleness time. Each call re-checks expiry
+- **Other reasons for `unknown`:** `NOT_READY`, `NO_ITEM` (nothing at that slot),
+  `NO_PROTECTION_TARGETS` (no spec tracked), `ITEM_QUEUE_FULL`, `INTERNAL_ERROR` (an error inside:
+  reported to the error handler, the item is kept).
+- **Pending:** the item data it needs is requested. When it arrives, `EvaluationInvalidated`
+  (`itemData`) tells the consumer to ask again; a verdict is never delivered later by itself.
+- **`instance`** (`{guid, bound}`) echoes what the verdict was computed for.
+- **`token`** hashes the instance GUID, its bind state, the `noWeights` mode, the tracked specs and
+  the generation counters, including a **freshness generation**. `expiresAt` is the earliest baseline staleness time. Each call re-checks expiry
   synchronously: when a baseline crosses into staleness, the freshness generation advances before the
   call returns, so the token changes. `EvaluationInvalidated` is queued after that.
 

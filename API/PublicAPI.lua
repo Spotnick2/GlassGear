@@ -1,9 +1,10 @@
 ------------------------------------------------------------
 -- API/PublicAPI.lua - GlassGear.API v1 (docs/API.md).
 --
--- Discovery, readiness, characters/specs/profiles and Evaluate for the
--- current character. Alts, the "tracked" scope and AssessProtection report
--- "unsupported" until GG-201/GG-301. Everything returned is a deep copy.
+-- Discovery, readiness, characters/specs/profiles, Evaluate and
+-- AssessProtection (GG-301) for the current character. Alts and the
+-- "tracked" Evaluate scope report "unsupported" until GG-201/GG-203.
+-- Everything returned is a deep copy.
 --
 -- The runtime (GG-114):
 --   * A request subscribes to a job. Requests for the same item instance (or
@@ -38,7 +39,9 @@ API.LIMITS = { targets = 32, batch = 64, perFrame = 200, jobs = 512, requests = 
 local state = { ready = false, nextId = 0, requests = {}, requestCount = 0, jobs = {}, jobRows = 0, jobSeq = 0,
     waiting = {}, waitingCount = 0, generation = 0, gens = {}, frameTime = nil, frameUsed = 0,
     deferredScheduled = false,
-    stats = { evaluations = 0, hits = 0, misses = 0, deferredRows = 0 } }
+    protectionWaits = {},     -- [itemID] = true: an AssessProtection waits for this item's data
+    nextExpiry = nil,         -- earliest baseline expiresAt a protection answer depended on
+    stats = { evaluations = 0, hits = 0, misses = 0, deferredRows = 0, protections = 0 } }
 API._state = state   -- test seam
 
 ------------------------------------------------------------
@@ -91,7 +94,7 @@ local function features()
     return {
         evaluate = true, evaluateBatch = true, cancelRequest = true,
         scopes = { current = true, own = true, tracked = false, targets = true },
-        alts = false, sync = false, assessProtection = false, frameBudget = true, resultCache = true,
+        alts = false, sync = false, assessProtection = true, frameBudget = true, resultCache = true,
     }
 end
 
@@ -103,7 +106,6 @@ function API.GetCapabilities()
         unavailable = {
             alts = alt.reason or "GG-201 not implemented",
             sync = "needs the entry-sync library (ES-001, GG-202)",
-            assessProtection = "GG-301 not implemented",
             ["scope:tracked"] = "needs alts (GG-201)",
         },
     })
@@ -174,9 +176,12 @@ local function rowsFor(specs, status, reason)
     return rows
 end
 
-local function settingsFor()
+-- Evaluation settings. Protection uses its own threshold (adr/0006: the
+-- three scopes are independent; Prefs keeps the two values equal today).
+local function settingsFor(forProtection)
     local s = GG.db and GG.db.settings or GG.DB.DEFAULTS.settings
-    return { threshold = s.markers.threshold, levelWindow = s.levelWindow, specArmor = s.specArmor }
+    local threshold = forProtection and s.protection.threshold or s.markers.threshold
+    return { threshold = threshold, levelWindow = s.levelWindow, specArmor = s.specArmor }
 end
 
 -- The per-frame budget. GetTime() is the frame's time; the deferred runner
@@ -205,7 +210,11 @@ end
 -- progresses, whatever the budget. A row put off by the budget keeps what it
 -- waited for before (`priorDeps`): the job keeps those item loads, with their
 -- attempts, until the row is computed again.
-local function evaluateOne(request, requestId, specs, prior, priorDeps)
+-- `opts.protection`: a protection assessment, synchronous and bounded: every
+-- row is computed now (never put off by the frame budget), with the
+-- protection threshold.
+local function evaluateOne(request, requestId, specs, prior, priorDeps, opts)
+    opts = opts or {}
     local response = { requestId = requestId, results = {} }
     local rowDeps = {}
     local link, instance = GG.Compat.ResolveItemRef(request.item)
@@ -231,7 +240,7 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps)
         local done = prior and prior.results[i]
         if done and done.status ~= "pending" and done.spec == spec and rowFresh(done, now) then
             r = done
-        elseif budgetLeft() <= 0 then
+        elseif not opts.protection and budgetLeft() <= 0 then
             -- Over this frame's budget: a placeholder, computed on a later frame.
             state.stats.deferredRows = state.stats.deferredRows + 1
             r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
@@ -245,7 +254,7 @@ local function evaluateOne(request, requestId, specs, prior, priorDeps)
                 r = GG.Engine.Evaluate.One({
                     item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
                     profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
-                    baseline = baseline, settings = settingsFor(), instance = instance, companion = companion,
+                    baseline = baseline, settings = settingsFor(opts.protection), instance = instance, companion = companion,
                     transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
                 })
                 if handLoading and r.status == "unknown"
@@ -351,7 +360,7 @@ end
 -- Release items no pending job depends on any more.
 local function releaseUnneeded(candidates)
     for itemID in pairs(candidates) do
-        local needed = false
+        local needed = state.protectionWaits[itemID] == true
         for _, job in pairs(state.jobs) do if job.itemIDs[itemID] then needed = true end end
         if not needed then unwait(itemID) end
     end
@@ -604,6 +613,12 @@ function API._ItemDataArrived(itemID, success)
         end
     end
     local w = state.waiting[itemID]
+    if state.protectionWaits[itemID] and GG.Compat.ItemLoaded(itemID) then
+        -- A protection answer was pending on it: consumers (Shatter) re-ask.
+        state.protectionWaits[itemID] = nil
+        API._Invalidate("itemData", GG.player and { GG.player.key } or nil)
+        if not next(jobsWaitingFor(itemID)) then unwait(itemID) end
+    end
     if GG.Compat.ItemLoaded(itemID) and not computedMissing and not w.ready then
         w.ready = true               -- no more retries; released once no row waits for it
         GG.Callbacks.Fire("ItemDataReady", { itemIDs = { itemID } })
@@ -652,6 +667,7 @@ function API._Tick(now)
     table.sort(gaveUp)
     for _, itemID in ipairs(gaveUp) do
         local keys = jobsWaitingFor(itemID)
+        state.protectionWaits[itemID] = nil      -- the next assessment asks again
         unwait(itemID)
         for _, k in ipairs(keys) do
             local job = state.jobs[k.key]
@@ -665,10 +681,86 @@ function API._Tick(now)
     return state.waitingCount > 0
 end
 
--- Protection: unsupported until GG-301 (consumers fail closed).
+------------------------------------------------------------
+-- Protection (GG-301, API.md "Protection", adr/0003, adr/0006)
+------------------------------------------------------------
+
+-- The protection scope: the tracked specs of the current character (alts:
+-- GG-203). Read from the protection settings only, never from the tooltip
+-- or marker scopes.
+local function protectionTargets()
+    local out = {}
+    if not GG.player then return out end
+    -- API order: the current spec first, then the others in tree order.
+    local cur = GG.currentSpec
+    if cur and GG.Prefs.IsTracked(GG.player.key, cur) then out[1] = cur end
+    for _, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
+        if s.key ~= cur and GG.Prefs.IsTracked(GG.player.key, s.key) then out[#out + 1] = s.key end
+    end
+    return out
+end
+
+-- A short opaque hash (djb2) so consumers compare tokens, never parse them.
+local function hash(s)
+    local h = 5381
+    for i = 1, #s do h = (h * 33 + s:byte(i)) % 4294967296 end
+    return string.format("%08x", h)
+end
+
+local function verdictOf(verdict, reasons, extra)
+    local out = { verdict = verdict, token = nil, expiresAt = nil, recipients = {}, unchecked = {}, reasons = reasons }
+    for k, v in pairs(extra or {}) do out[k] = v end
+    return out
+end
+
+local function assess(itemRef, opts)
+    if not state.ready then return verdictOf("unknown", { "NOT_READY" }) end
+    -- A baseline a previous answer depended on went stale meanwhile: the
+    -- freshness generation advances first, so this token differs.
+    if state.nextExpiry and time() >= state.nextExpiry then
+        state.nextExpiry = nil
+        API._Invalidate("freshness", GG.player and { GG.player.key } or nil)
+    end
+    local specs = protectionTargets()
+    if #specs == 0 then return verdictOf("unknown", { "NO_PROTECTION_TARGETS" }) end
+    local link, instance = GG.Compat.ResolveItemRef(itemRef)
+    if not link then return verdictOf("unknown", { "NO_ITEM" }) end
+    state.stats.protections = state.stats.protections + 1
+    -- Computed now, every time: protection never reads a cached answer
+    -- (instance bind state, GUID and expiry are re-read on every call).
+    local response, rowDeps = evaluateOne({ item = itemRef }, nil, specs, nil, nil, { protection = true })
+    local s = GG.db and GG.db.settings.protection or GG.DB.DEFAULTS.settings.protection
+    local noWeights = (opts and opts.noWeights) or s.noWeights
+    local out = GG.Engine.Policy.Protection(response.results, { noWeights = noWeights })
+    if out.verdict == "pending" then
+        -- Load what it needs; when the data arrives, EvaluationInvalidated
+        -- tells the consumer to ask again (no deferred verdict, ever).
+        for _, deps in pairs(rowDeps) do
+            for itemID in pairs(deps) do
+                if wait(itemID) then state.protectionWaits[itemID] = true
+                else out.verdict = "unknown"; out.reasons[#out.reasons + 1] = "ITEM_QUEUE_FULL" end
+            end
+        end
+    end
+    local expiresAt = expiryOf(response)
+    if expiresAt and (not state.nextExpiry or expiresAt < state.nextExpiry) then state.nextExpiry = expiresAt end
+    out.expiresAt = expiresAt
+    local guid = instance and instance.guid
+    out.token = hash(table.concat({ tostring(guid or link), tostring(instance and instance.bound and 1 or 0),
+        tostring(state.generation), noWeights, table.concat(specs, ",") }, "|"))
+    out.instance = instance and { guid = guid, bound = instance.bound } or nil
+    return out
+end
+
+-- Synchronous and bounded (the protection targets only, never deferred).
+-- Any failure answers "unknown": consumers keep the item (fail-closed).
 function API.AssessProtection(itemRef, opts)
-    return { verdict = "unsupported", token = nil, expiresAt = nil, recipients = {}, unchecked = {},
-        reasons = { "NOT_IMPLEMENTED:GG-301" } }
+    local ok, out = pcall(assess, itemRef, opts)
+    if not ok then
+        geterrorhandler()("GlassGear AssessProtection: " .. tostring(out))
+        return verdictOf("unknown", { "INTERNAL_ERROR" })
+    end
+    return U.deepCopy(out)
 end
 
 function API.RegisterCallback(event, fn, owner) GG.Callbacks.Register(event, fn, owner) end
