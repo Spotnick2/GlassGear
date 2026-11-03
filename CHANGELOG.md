@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Baganator (GG-401): the upgrade arrows show in Baganator too, as an icon-corner widget ("Glass
+  Gear upgrades", top left by default; move or remove it in Baganator's corner settings), with the
+  same rules and the reveal key; never on another character's bags. `/gg` says where it is, or how
+  to bring it back.
 - Performance, measured (GG-402): a full bag stays within the per-frame budget and finishes over
   the next frames; tooltip redraws recompute nothing. `/gg stats` shows what the runtime did,
   including the most time spent comparing in one frame.
@@ -71,7 +75,7 @@
   instead of growing.
 - Bagnon (GG-401): the upgrade arrows also show on Bagnon's bag buttons, with the same rules and the
   reveal key; never on a cached view of another character's bags. `/gg` names the bag addon; on
-  Baganator, AdiBags, ArkInventory, BetterBags and EllesmereUIBags it says the arrows aren't there yet
+  AdiBags, ArkInventory, BetterBags and EllesmereUIBags it says the arrows aren't there yet
   (tooltips are).
 - Weight profiles window (GG-105, `/gg profiles`, or the settings page's button): up to 4 profiles
   per spec, one active; paste a Pawn string or a WoWSims Pawn EP export and see at once whether it

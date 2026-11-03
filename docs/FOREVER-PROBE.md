@@ -39,6 +39,7 @@ needs to find out, and records the result here with the build once it is run.
 | P17 | Characters page and AltStable roster | GG-201, GG-204 | `gg characters` | queued |
 | P18 | Bagnon markers | GG-401 | `gg bagnon` | queued |
 | P19 | Runtime cost in the client | GG-402 | `gg perf` | queued |
+| P20 | Baganator markers | GG-401 | `gg baganator` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -428,3 +429,18 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   lower it (100 halves the worst frame).
 - **Steps.** `/reload`; open all bags with many gear items; `/gg stats`; `/gg stats reset`; hover
   around for a while; `/gg stats` again (the second reading is the hovering alone).
+
+## P20: Baganator markers (GG-401)
+
+- **Question.**
+  - With Baganator (839-1, Forever build) on Forever, does "Glass Gear upgrades" appear in its icon
+    corner settings, placed top left on first load, and does our arrow show there on an upgrade?
+  - Does `details.itemLocation` hold `{bagID, slotIndex}` for the live bags (single and category
+    views, the bank), so the arrows follow sorting?
+  - On another character's bags (Baganator's character picker), does no arrow show?
+  - Does holding Ctrl show the amber arrows (the window as a reveal surface, widgets refreshed)?
+  - Does Baganator on Forever need Syndicator, and does the widget work without the Pawn arrow?
+- **Why.** The adapter is built from the reference copy's API, not measured.
+- **Steps.** Install Baganator; `/gg` (bag addon line); open the bags with an upgrade inside; sort;
+  switch to the category view; hold Ctrl; pick another character; remove the widget in Baganator's
+  corner settings and `/gg` again.

@@ -148,9 +148,9 @@ WoW.loadedAddOns.Bagnon = true
 
 -- Unsupported bag addons are reported.
 rawset(_G, "BagBrother", nil)
-WoW.loadedAddOns.Baganator = true
-H.eq(GG.BagAddons.Status(), "bag addon: Baganator - markers unavailable there (tooltips work)", "Baganator: reported, not hooked")
-WoW.loadedAddOns.Baganator = nil
+WoW.loadedAddOns.AdiBags = true
+H.eq(GG.BagAddons.Status(), "bag addon: AdiBags - markers unavailable there (tooltips work)", "AdiBags: reported, not hooked")
+WoW.loadedAddOns.AdiBags = nil
 H.eq(GG.BagAddons.Status(), "bag addon: none (Blizzard's bags)", "none: Blizzard's bags")
 
 H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
