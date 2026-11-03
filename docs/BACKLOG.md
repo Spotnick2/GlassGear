@@ -539,7 +539,7 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 |---|---|---|---|---|
 | GUI-001 | P1 | EXT | GlassUI | GlassGear added to `Suite.ROSTER` as `dynamic`. Its card appears only while it is loaded |
 | GG-401 | P2 | MVP | GlassGear | Baganator/Bagnon marker adapters; until then `/gg` reports "bag replacement: markers unavailable". **Bagnon done** (`UI/BagAddons.lua`: one hook on BagBrother's `Item:Update`, cached views skipped; `test_bag_addons.lua`, game P18). Baganator waits for its reference copy (CurseForge serves it by hand only) |
-| GG-402 | P1 | MVP | GlassGear | Performance: tooltip redraw does no recomputation (cache hit). Bag refresh stays within the per-frame budget. Measured |
+| GG-402 | P1 | MVP | GlassGear | Performance: tooltip redraw does no recomputation (cache hit). Bag refresh stays within the per-frame budget. Measured. **Done (auto), game P19**: `test_perf.lua` (a full bag of 80 pieces x 3 specs = 240 rows: at most 200 at once, the rest over the next frames, one marker redraw per frame; reopening and 200 tooltip redraws recompute nothing); one evaluation ~22-24 us in plain Lua 5.1, so a full 200-row frame ~4.5-5 ms there; `/gg stats` reports evaluations, cache hits, deferred rows, queues and the busiest frame's time (`debugprofilestop`) to measure in game. If P19 shows hitches, lower `LIMITS.perFrame` (e.g. 100) |
 | GG-403 | P2 | MVP | GlassGear | Localisation: move strings to an `L` table. All comparisons are already locale-independent |
 | GG-404 | P1 | MVP | GlassGear | Release: CurseForge and Wago projects; `X-Curse-Project-ID` / `X-Wago-ID` in the TOC (the CI `wago` job needs it); `WAGO_API_TOKEN` secret; first `v0.1.0-alpha1` per RELEASING.md |
 

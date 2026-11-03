@@ -38,6 +38,7 @@ needs to find out, and records the result here with the build once it is run.
 | P16 | Comparison window | GG-113 | `gg compare` | queued |
 | P17 | Characters page and AltStable roster | GG-201, GG-204 | `gg characters` | queued |
 | P18 | Bagnon markers | GG-401 | `gg bagnon` | queued |
+| P19 | Runtime cost in the client | GG-402 | `gg perf` | queued |
 
 Status "narrowed": part of the check is already measured elsewhere (sweep below); what remains is
 a re-confirm on 70532 plus the open questions.
@@ -414,3 +415,16 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Why.** The adapter is built from the reference copy's classes, not measured.
 - **Steps.** Install Bagnon; `/gg` (bag addon line); open the bags with an upgrade inside; sort; hold
   Ctrl; switch Bagnon to another character's bags.
+
+## P19: Runtime cost in the client (GG-402)
+
+- **Question.**
+  - Opening full bags (and the bank) with gear: what does `/gg stats` report as the most time spent
+    comparing in one frame? The test interpreter measures ~4.5-5 ms for a full 200-row frame; is the
+    client faster, and is there a visible hitch?
+  - After a session of normal play: the cache hit rate, rows put off, and whether any queue stays
+    non-empty when nothing is loading.
+- **Why.** `LIMITS.perFrame` (200) was set from the plan, not measured in the client. If a hitch shows,
+  lower it (100 halves the worst frame).
+- **Steps.** `/reload`; open all bags with many gear items; `/gg stats`; `/gg stats reset`; hover
+  around for a while; `/gg stats` again (the second reading is the hovering alone).
