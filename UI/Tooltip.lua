@@ -81,7 +81,9 @@ local function onItemTooltip(tooltip, data)
         { currentSpec = GG.currentSpec })
     if not lines then return end
     shown[tooltip] = { key = key, itemID = itemID }
-    Tooltip.lastRef = ref          -- /gg compare with nothing pasted compares this one (GG-113)
+    -- /gg compare with nothing pasted compares this one (GG-113): the item's
+    -- link, not its bag position (a sort would move another item there).
+    Tooltip.lastRef = (type(ref) == "string") and ref or GG.Compat.ResolveItemRef(ref)
     Tooltip.Render(tooltip, lines)
 end
 Tooltip._OnItemTooltip = onItemTooltip   -- test seam

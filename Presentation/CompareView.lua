@@ -6,7 +6,9 @@
 --   CompareView.Build(result, data) -> view
 --     data = { specKey, specName, current, candidate = { name, tokens },
 --              companion = { name, tokens } | nil, replaced = { { name, tokens }, ... },
---              profile = profile shape | nil, baselineText }
+--              profile = profile shape | nil, setWarnings = bool }
+--     an item whose data is still loading has tokens = nil: the view says
+--     "loading", never zeros (view.loading)
 --     view = { equipped, candidate, rows = { { label, equipped, candidate, change, level } },
 --              score = { equipped, candidate, change, level } | nil,
 --              status = { text, level }, info = { { label, text } }, warnings = { text },
@@ -51,13 +53,37 @@ local function weightOf(profile, token)
     return profile.weights and profile.weights[token]
 end
 
--- The stat table: every stat on either side, in the token order; stats the
--- profile doesn't weigh are shown muted ("not weighted"), never hidden.
+-- Weapon details and type flags (Is*, speeds, min/max damage) mean nothing
+-- summed over two items and crowd the table: shown only when weighted.
+local function detail(token)
+    return token:match("^Is") or token:match("Speed$") or token:match("MinDamage$")
+        or token:match("MaxDamage$") or token == "SpeedBaseline"
+        or (token:match("Dps$") and token ~= "Dps")
+end
+
+-- The stat table: the weighted stats first, then the others (muted, "not
+-- weighted"), in the token order. Rows past MAX_ROWS are counted, never
+-- silently dropped (view.moreRows).
 local function statRows(cand, repl, profile)
-    local rows = {}
+    local weighted, others = {}, {}
     for _, token in ipairs(GG.Data.Stats.ORDER) do
         local a, b = repl[token], cand[token]
-        if (a and a ~= 0) or (b and b ~= 0) then
+        local w = weightOf(profile, token)
+        local isWeighted = w == "X" or (type(w) == "number" and w ~= 0)
+        if ((a and a ~= 0) or (b and b ~= 0)) and (isWeighted or not detail(token)) then
+            local list = isWeighted and weighted or others
+            list[#list + 1] = token
+        end
+    end
+    local ordered = {}
+    for _, t in ipairs(weighted) do ordered[#ordered + 1] = t end
+    for _, t in ipairs(others) do ordered[#ordered + 1] = t end
+    local rows, more = {}, 0
+    for _, token in ipairs(ordered) do
+        local a, b = repl[token], cand[token]
+        if #rows >= View.MAX_ROWS then
+            more = more + 1
+        else
             local delta = (b or 0) - (a or 0)
             local w = weightOf(profile, token)
             local level = "muted"
@@ -72,10 +98,9 @@ local function statRows(cand, repl, profile)
             end
             rows[#rows + 1] = { label = label, equipped = num(a or 0), candidate = num(b or 0),
                 change = signed(delta), level = level }
-            if #rows >= View.MAX_ROWS then break end
         end
     end
-    return rows
+    return rows, more
 end
 
 local BASELINE = {
@@ -96,7 +121,12 @@ function View.Build(result, data)
         view.status = { text = "Checking...", level = "muted" }
         return view
     end
-    view.rows = statRows(sum(candItems, {}), sum(data.replaced or {}, {}), data.profile)
+    -- An item still loading: say so, never show its stats as zeros.
+    for _, it in ipairs(candItems) do if it.tokens == nil then view.loading = true end end
+    for _, it in ipairs(data.replaced or {}) do if it.tokens == nil then view.loading = true end end
+    if not view.loading then
+        view.rows, view.moreRows = statRows(sum(candItems, {}), sum(data.replaced or {}, {}), data.profile)
+    end
 
     local s = result.score
     if s and type(s.candidate) == "number" then
@@ -105,7 +135,7 @@ function View.Build(result, data)
             change = string.format("%+.1f%%", s.pct * 100)
             level = s.pct > 0 and "ok" or s.pct < 0 and "error" or "muted"
         elseif s.delta then
-            change, level = signed(s.delta), s.delta > 0 and "ok" or "muted"
+            change, level = signed(s.delta), s.delta > 0 and "ok" or s.delta < 0 and "error" or "muted"
         end
         view.score = { equipped = string.format("%.1f", s.baseline or 0),
             candidate = string.format("%.1f", s.candidate), change = change, level = level }
@@ -128,11 +158,14 @@ function View.Build(result, data)
     local b = result.baseline
     local base = b and (BASELINE[b.source] or tostring(b.source)) or "none"
     if b and b.source == "observed" then base = base:format(spec) end
-    if data.baselineText and data.baselineText ~= "" then base = base .. " (" .. data.baselineText .. ")" end
     view.info[#view.info + 1] = { label = "Baseline", text = base }
 
     local rows = GG.Engine.Policy.TooltipRows({ current = result, own = {} }, { specs = "current" }, false)
-    for _, n in ipairs(GG.TooltipView.Notes(rows, true)) do view.warnings[#view.warnings + 1] = n end
+    for _, n in ipairs(GG.TooltipView.Notes(rows, data.setWarnings ~= false)) do view.warnings[#view.warnings + 1] = n end
+    if view.loading then table.insert(view.warnings, 1, "Item data still loading: stats shown once it arrives") end
+    if view.moreRows and view.moreRows > 0 then
+        view.warnings[#view.warnings + 1] = view.moreRows .. " more unweighted stat" .. (view.moreRows == 1 and "" or "s") .. " not shown"
+    end
     if b and b.stale then view.warnings[#view.warnings + 1] = "The saved " .. spec .. " gear is over 14 days old" end
     view.noBaseline = b ~= nil and b.source == "fallback-current" and not data.current
     return view

@@ -71,6 +71,39 @@ local pend = CV.Build({ status = "pending", reasons = {}, limitations = {} }, { 
     candidate = { name = "X", tokens = {} }, replaced = {} })
 H.eq(pend.status.text, "Checking...", "pending: checking")
 
+-- Weapon details and type flags only when weighted; weighted stats first.
+local function rowsOf(view) local t = {} for _, x in ipairs(view.rows) do t[#t + 1] = x.label end return table.concat(t, ",") end
+local wv = CV.Build({ status = "no_upgrade", reasons = {}, limitations = {}, score = { candidate = 1, baseline = 1, delta = 0 } },
+    { specName = "S", candidate = { name = "A", tokens = { Intellect = 5, IsCloth = 1, Speed = 2.6, MinDamage = 10, MeleeDps = 40 } },
+      replaced = { { name = "B", tokens = { Intellect = 4, IsCloth = 1, Speed = 2.4 } } }, profile = { name = "P", weights = {} } })
+H.eq(rowsOf(wv), "Intellect (not weighted)", "type flags, speeds, damage ranges and DPS variants hidden when unweighted")
+wv = CV.Build({ status = "no_upgrade", reasons = {}, limitations = {}, score = { candidate = 1, baseline = 1, delta = 0 } },
+    { specName = "S", candidate = { name = "A", tokens = { Intellect = 5, Speed = 2.6 } },
+      replaced = { { name = "B", tokens = { Intellect = 4, Speed = 2.4 } } }, profile = { name = "P", weights = { Speed = 1 } } })
+H.eq(rowsOf(wv), "Weapon Speed,Intellect (not weighted)", "...shown when weighted, and weighted stats come first")
+local many = {}
+for i, t in ipairs({ "Strength", "Agility", "Stamina", "Intellect", "Spirit", "Armor", "HitRating", "CritRating",
+    "HasteRating", "ExpertiseRating", "SpellPenetration", "Ap", "Rap", "Mp5" }) do many[t] = i end
+wv = CV.Build({ status = "no_upgrade", reasons = {}, limitations = {}, score = { candidate = 1, baseline = 1, delta = 0 } },
+    { specName = "S", candidate = { name = "A", tokens = many }, replaced = {}, profile = { name = "P", weights = { Mp5 = 1 } } })
+H.eq(wv.rows[1].label, "Mana per 5 sec", "a weighted stat is never cut by the row limit")
+H.eq(wv.moreRows, 2, "...rows past the limit are counted")
+H.check(wv.warnings[#wv.warnings]:find("2 more unweighted stats not shown", 1, true) ~= nil, "...and said")
+local neg = CV.Build({ status = "no_upgrade", reasons = {}, limitations = {}, score = { candidate = 5, baseline = 8, delta = -3 } },
+    { specName = "S", candidate = { name = "A", tokens = {} }, replaced = {} })
+H.eq(neg.score.level, "error", "a negative change without a percentage is red")
+local setv = function(on) return CV.Build({ status = "upgrade", reasons = {}, limitations = { "SET_BONUS_GAINED:1:2" },
+    score = { candidate = 2, baseline = 1, delta = 1, pct = 1 }, baseline = { source = "observed" } },
+    { specName = "S", candidate = { name = "A", tokens = {} }, replaced = {}, setWarnings = on }) end
+local function anyWarning(view, needle) for _, w in ipairs(view.warnings) do if w:find(needle, 1, true) then return true end end return false end
+H.eq(anyWarning(setv(true), "Completes a 2-piece"), true, "set-bonus warnings on: named")
+H.eq(anyWarning(setv(false), "Completes a 2-piece"), false, "...off (the setting): not named")
+local lv = CV.Build({ status = "upgrade", reasons = {}, limitations = {}, score = { candidate = 2, baseline = 1, delta = 1, pct = 1 } },
+    { specName = "S", candidate = { name = "A", tokens = { Intellect = 1 } }, replaced = { { name = "B", tokens = nil } } })
+H.eq(lv.loading, true, "a replaced item still loading: loading")
+H.eq(#lv.rows, 0, "...no stat rows (never zeros)")
+H.check(anyWarning(lv, "still loading"), "...and said")
+
 ------------------------------------------------------------
 -- The window.
 ------------------------------------------------------------
@@ -86,12 +119,15 @@ H.eq(Wd.equipped:GetText(), "Frostweave Shoulders", "...what it replaces")
 H.eq(Wd.score[4]:GetText(), "+50.0%", "...the score change")
 H.eq(Wd.status:GetText(), "Potential upgrade for Shadow", "...the verdict")
 H.check(H.has(UISpecialFrames, Win.NAME), "Escape closes it")
+H.eq(frame.titleText:GetText(), "Glass Gear \194\183 Compare", "the title (a middle dot)")
+H.check(Wd.info[4][2]:GetText() == "saved Shadow equipment", "the baseline line is short (no repeated status)")
 
 -- Holy: no recorded gear -> choose a saved set.
 WoW.sets[3] = { name = "Holy Set", items = { [3] = 53 }, ignored = {} }
 Wd.specs[2]:Click()
 H.eq(Win._state.spec, "PRIEST.HOLY", "the Holy tab")
 H.eq(Wd.noBase.shown, true, "no Holy equipment recorded: said so")
+H.eq(Wd.baseline:GetText(), "Holy gear: none recorded (compared with your current gear)", "...the gear line short")
 H.check(Wd.noBase:GetText():find("No Holy equipment recorded", 1, true) ~= nil, "...in words")
 H.eq(Wd.sets[1].label_text, "Holy Set", "...with the saved sets offered")
 H.eq(Wd.sets[2].shown, false, "...one button per set")
@@ -137,12 +173,57 @@ WoW.fire("ITEM_DATA_LOAD_RESULT", 60, true)
 WoW.flush()
 H.eq(Wd.status:GetText(), "Potential upgrade for Shadow", "...then the verdict, without asking again")
 
+-- A hovered bag item is remembered by its link, not its bag position.
+WoW.bags[0][9] = { itemID = 51, isBound = true }
+local btip = WoW.newTooltip("GameTooltip")
+btip.GetOwner = function() return { GetBagID = function() return 0 end, GetID = function() return 9 end } end
+GG.Tooltip._OnItemTooltip(btip, { type = 0, id = 51 })
+H.eq(type(GG.Tooltip.lastRef), "string", "the hovered bag item is kept as its link")
+WoW.bags[0][9] = { itemID = 50, isBound = true }   -- the bags were sorted
+SlashCmdList.GLASSGEAR("compare")
+H.eq(Wd.candidate:GetText(), "Moonwoven Mantle", "...so a sort doesn't change what /gg compare compares")
+WoW.bags[0][9] = nil
+
+-- A replaced item still loading, then shown.
+WoW.items[54] = shoulder("Slow Mantle", { [INT] = 1 })
+GG.API._cache.clear()
+WoW.sets[3].items[3] = 54
+WoW.bags[0][1] = { itemID = 54, isBound = true }
+WoW.cacheMiss[54] = true
+WoW.fire("EQUIPMENT_SETS_CHANGED")
+WoW.flush()
+Wd.specs[2]:Click()
+WoW.flush()
+H.check(Wd.warnings:GetText():find("still loading", 1, true) ~= nil or Wd.status:GetText() == "Checking...",
+    "a set item still loading: never shown as zeros")
+
+-- Closing leaves nothing running.
+WoW.items[61] = shoulder("Pending Mantle", { [INT] = 50 })
+WoW.cacheMiss[61] = true
+SlashCmdList.GLASSGEAR("compare " .. WoW.link(61))
+local reqs = GG.API._state.requestCount
+H.check(reqs > 0, "a pending comparison holds a request")
+frame:Hide()
+H.eq(GG.API._state.requestCount, reqs - 1, "closing the window cancels it")
+WoW.cacheMiss[61], WoW.cacheMiss[54] = nil, nil
+
 -- View profile.
 Wd.viewProfile:Click()
 H.check(GG.ProfilesWindow._Frame() and GG.ProfilesWindow._Frame():IsShown(), "View profile opens the profiles window")
 H.eq(GG.ProfilesWindow._state.spec, "PRIEST.SHADOW", "...on the compared spec")
+H.eq(GG.ProfilesWindow._Frame().titleText:GetText(), "Glass Gear \194\183 Profiles", "the profiles window title (a middle dot)")
 Wd.close:Click()
 H.eq(frame:IsShown(), false, "Close closes")
+
+-- A class with four specs: every tab inside the window.
+Win._Reset()
+GG.player.class = "DRUID"
+SlashCmdList.GLASSGEAR("compare " .. WoW.link(51))
+local tabs = Win._W.specs
+H.eq(#tabs, 4, "a Druid gets four tabs")
+H.check(tabs[4].x ~= nil and tabs[4].x + 100 <= Win.W, "...the fourth inside the window")
+GG.player.class = "PRIEST"
+Win._Reset()
 
 H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
 for name in pairs(WoW.globalWrites) do H.check(false, "undeclared global written: " .. name) end

@@ -28,17 +28,19 @@ local function at(region, x, y, parent)
     return region
 end
 
-local function nameOf(link)
-    if type(link) ~= "string" then return nil end
-    local n = link:match("%[(.-)%]")
-    if n then return n end
-    local ok, name = pcall(C_Item.GetItemInfo, link)
-    return ok and name or nil
-end
+local waiting = {}            -- [itemID] = true: shown items still loading
 
+-- An item for the view; tokens = nil while its data loads (never zeros),
+-- and its load is requested so the window can show it on arrival.
 local function itemData(itemString)
     local f = itemString and GG.Compat.ItemFacts(itemString)
-    return { name = nameOf(itemString) or ("item " .. tostring(f and f.itemID or "?")), tokens = f and f.tokens or {} }
+    local ready = f and f.ready
+    if f and not ready then
+        waiting[f.itemID] = true
+        GG.Compat.RequestItem(f.itemID)
+    end
+    return { name = GG.Compat.ItemName(itemString) or ("item " .. tostring(f and f.itemID or "?")),
+        tokens = ready and f.tokens or nil }
 end
 
 local function resultFor(spec)
@@ -57,10 +59,15 @@ end
 
 local function specButtons()
     W.specs = {}
-    for i, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
+    local list = GG.Data.Classes.Specs(GG.player.class)
+    -- Every tab inside the window, whatever the number of specs (a Druid has four).
+    local gap = 6
+    local width = math.floor((Win.W - 24 - gap * (#list - 1)) / math.max(1, #list))
+    for i, s in ipairs(list) do
         local b = CreateFrame("Button", nil, frame)
-        b:SetSize(140, 22)
-        at(b, 12 + (i - 1) * 146, -34)
+        b:SetSize(width, 22)
+        b.x = 12 + (i - 1) * (width + gap)
+        at(b, b.x, -34)
         b.text = label(b, s.name, "GameFontNormal")
         b.text:SetPoint("CENTER", b, "CENTER", 0, 0)
         b.specKey = s.key
@@ -71,7 +78,21 @@ end
 
 local function build()
     frame = UIW.New({ name = Win.NAME, key = "compare", width = Win.W, height = Win.H,
-        title = "Glass Gear \194\183 Compare", onShow = function() Win.Render() end, offsetX = 300 })
+        title = "Glass Gear \194\183 Compare", onShow = function() Win.Render() end, offsetX = 300,
+        onHide = function()
+            -- Nothing left running for a closed window.
+            if state.requestId then GG.API.CancelRequest(state.requestId); state.requestId = nil end
+        end })
+    -- Shown items whose data was loading: draw them once it arrives.
+    local events = CreateFrame("Frame", nil, frame)
+    events:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+    events:RegisterEvent("ITEM_DATA_LOAD_RESULT")
+    events:SetScript("OnEvent", function(_, _, itemID)
+        if itemID and waiting[itemID] and frame:IsShown() then
+            waiting[itemID] = nil
+            Win.Render()
+        end
+    end)
     specButtons()
     W.baseline = at(label(frame, "", "GameFontHighlightSmall"), 14, -62)
     W.baseline:SetWidth(440)
@@ -152,19 +173,23 @@ function Win.Render()
     end
     local r = resultFor(spec) or { status = "unknown", reasons = { "NO_RESULT" }, limitations = {} }
     local link = GG.Compat.ResolveItemRef(state.ref)
-    local facts = link and GG.Compat.ItemFacts(link)
     local replaced = {}
     for _, s in ipairs(r.replaces and r.replaces.items or {}) do replaced[#replaced + 1] = itemData(s) end
     local s = GG.Data.Classes.Spec(spec)
+    local cand = itemData(link)
+    cand.name = GG.Compat.ItemName(link) or "?"
     local view = GG.CompareView.Build(r, {
         specKey = spec, specName = s and s.name or spec, current = spec == GG.currentSpec,
-        candidate = { name = nameOf(link) or "?", tokens = facts and facts.tokens or {} },
+        candidate = cand,
         companion = r.replaces and r.replaces.companion and itemData(r.replaces.companion) or nil,
         replaced = replaced,
         profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
-        baselineText = GG.Capture.Status(spec, time()),
+        setWarnings = GG.db.settings.setBonusWarnings ~= false,
     })
-    W.baseline:SetText((s and s.name or spec) .. " gear: " .. GG.Capture.Status(spec, time()))
+    -- The gear line: short (the long hint is /gg's).
+    local status = GG.Capture.Status(spec, time())
+    if status:find("^none recorded") then status = "none recorded (compared with your current gear)" end
+    W.baseline:SetText((s and s.name or spec) .. " gear: " .. status)
     W.equipped:SetText(view.equipped)
     W.candidate:SetText(view.candidate)
     for i, row in ipairs(W.rows) do
@@ -223,6 +248,11 @@ end
 
 -- Test seams.
 function Win._Frame() return frame end
+function Win._Reset()
+    if frame then frame:Hide() end
+    frame = nil
+    for k in pairs(W) do W[k] = nil end
+end
 Win._W = W
 Win._state = state
 

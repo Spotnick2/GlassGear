@@ -169,6 +169,7 @@ function Window.New(opts)
         end
     end)
     if opts.onShow then frame:SetScript("OnShow", opts.onShow) end
+    if opts.onHide then frame:SetScript("OnHide", opts.onHide) end
 
     local bar = CreateFrame("Frame", nil, frame)
     bar:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)

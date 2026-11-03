@@ -215,7 +215,7 @@ end
 
 local function build()
     frame = UIW.New({ name = Win.NAME, key = "profiles", width = Win.W, height = Win.H,
-        title = "Glass Gear 9483 Profiles", onShow = function() Win.Refresh() end })
+        title = "Glass Gear \194\183 Profiles", onShow = function() Win.Refresh() end })
     W.who = at(label(frame, "", "GameFontHighlightLarge"), 14, -32)
 
     -- Specs (left)
