@@ -90,10 +90,10 @@ not as a default.
 
 | Source | Covers | Licence and source | Ship derived numbers? |
 |---|---|---|---|
-| Pawn 2.14.0 built-in ("Classic", HawsJon) | Every class tree; TBC-designed, ratings ×1 on Forever | CC BY-NC-ND 3.0 (above); HawsJon's terms unknown | **No.** Paste or runtime import only |
+| Pawn built-in ("Classic", HawsJon) | Every class tree; TBC-designed, ratings ×1 on Forever | CC BY-NC-ND 3.0 (above); HawsJon's terms unknown | **No.** Paste or runtime import only |
 | WoWSims `tbc-new` (`C:\Projects\WoW\wowsims\tbc-new`, `8aa378b36`) | TBC, level 70 (`ui/core/constants/mechanics.ts:1`); "Pawn EP" export | MIT (`LICENSE`, "Copyright (c) 2022 wowsims team") | The code is MIT. **Wrong game version**: level 70 weights would mislead at 60. |
 | WoWSims `sod` ([github.com/wowsims/sod](https://github.com/wowsims/sod)) | Season of Discovery, level-60 era, same framework | MIT ([pkg.go.dev](https://pkg.go.dev/github.com/wowsims/sod@v0.0.89)); a fork asks for a visible link back | Sims the owner runs produce the owner's own output, so they're clean. SoD runes and mechanics differ from Forever, so those weights would need judgement. **The route to real defaults**, via GG-502 / ASC-001 once a Forever-capable sim exists. A local Classic or Forever WoWSims checkout doesn't exist (ECOSYSTEM-FINDINGS.md "Not present"). |
-| SimulationCraft engine | Retail-first; the addon (12.1.5-03) exports Forever profiles with `spec=unknown` | GPL-3.0 ([github.com/simulationcraft/simc](https://github.com/simulationcraft/simc)). GPL covers the program, not the user's output | Scale factors the owner computes would be the owner's own. No local engine understands Forever profiles (ECOSYSTEM-FINDINGS.md). Not now. |
+| SimulationCraft engine | Retail-first; the addon exports Forever profiles with `spec=unknown` | GPL-3.0 ([github.com/simulationcraft/simc](https://github.com/simulationcraft/simc)). GPL covers the program, not the user's output | Scale factors the owner computes would be the owner's own. No local engine understands Forever profiles (ECOSYSTEM-FINDINGS.md). Not now. |
 | Community guides (class Discords, guide sites, Wowhead Classic guides) | Varies; often level 60 Classic Era, often per phase | Usually all rights reserved site content. Not fetched (Wowhead only through the shared tool). | **No** without explicit permission. Users can paste such weights themselves as Pawn strings. |
 | **Our own table** | What we write | Ours, MIT | **Yes.** The recommended stopgap. |
 

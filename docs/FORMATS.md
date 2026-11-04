@@ -22,7 +22,7 @@ with scale factors, then import the Pawn string it produces." It never says only
 
 ## Pawn scale string v1
 
-The reference is Pawn 2.14.0 (the Forever release), used for behaviour
+The reference is Pawn's Forever release, used for behaviour
 only (CC BY-NC-ND, so no code is copied).
 
 ### From Pawn's own scales
@@ -58,7 +58,7 @@ A one-click "Import from Pawn" is GG-121, later.
 - **`Class=`** is a class name or Pawn class id. Glass Gear keeps it as a check: if it doesn't match
   the target character's class, import warns (`CLASS_MISMATCH`). It still allows the import, because
   WoWSims writes friendly class names.
-- **`Spec=`** is ignored on Forever, as Pawn does: there are no spec IDs here (`VgerCore.lua:49`).
+- **`Spec=`** is ignored on Forever, as Pawn does: there are no spec IDs here.
   The target spec is the one the player picks in Glass Gear.
 - **`X`** means "never an upgrade for this stat or type". Pawn stores it as `-1000000`
   (as Pawn does). Glass Gear stores `X` as its own marker, never as a large negative number:
@@ -214,11 +214,11 @@ This is a character: `version`, `level`, `class`, `race`, `professions`, `talent
 
 A `/simc` profile starts with `<class>="Name"`, then `level=`, `race=`, `spec=`, `talents=`, and
 gear lines `slot=,id=…`. On Forever it has some differences:
-- `spec=unknown` (`core.lua:1223`);
-- talents come from `C_Traits` (`:413`, `:466`), with an extra `legacy_talents=` line (`:480`);
+- `spec=unknown`;
+- talents come from `C_Traits`, with an extra `legacy_talents=` line;
 - `forever/` adds stats and pet lines.
 
-The profile requires "SimulationCraft 1000-01 or newer" (`core.lua:1114`). There is no local
+The profile requires "SimulationCraft 1000-01 or newer". There is no local
 simc that understands Forever profiles.
 
 Import recognises a `/simc` profile by a class line plus `spec=` and `talents=`, and refuses it
@@ -240,7 +240,7 @@ of the item(s) the candidate replaces for that character and spec, as in Pawn.
 It is not the character's total.
 
 - `delta` is always returned with it.
-- It counts as an upgrade from 0.5% by default (Pawn `:3760`).
+- It counts as an upgrade from 0.5% by default (as Pawn).
 - An empty slot has no percentage and reason `EMPTY_SLOT`.
 - The result is labelled an **item-score estimate**, never a DPS or healing percentage.
 - Results from different characters are never ranked against each other by percentage.

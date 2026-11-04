@@ -20,9 +20,9 @@ API dump doesn't prove it works (`References/Docs/PORTING-TBC-TO-FOREVER.md:1064
 | GlassPearls | `250a17e` (2026-11-01) | v0.1.0-alpha1 |
 | wow-ui-source (branch `forever`) | `ca8368f2f` (2026-10-22) | 1.60.1, build 70532 |
 | API dump | `References/Forever/api/forever-api-1.60.1.70532.md` (the newest) | Interface 16001, `WOW_PROJECT_ID` 18 (line 4) |
-| Pawn | the Forever release | 2.14.0, Interface 16001; CC BY-NC-ND: behaviour reference only, no code copied |
+| Pawn | its Forever release | Interface 16001; CC BY-NC-ND: behaviour reference only, no code copied |
 | WoWSims | `wowsims/tbc-new` `8aa378b36` (2026-07-25) | v0.0.101 |
-| SimulationCraft addon | the current release | 12.1.5-03, `## Interface: 120100, 120105, 16001` |
+| SimulationCraft addon | its current release | `## Interface: 120100, 120105, 16001` |
 
 Glass Gear records `MEASURED_ON_BUILD = "70532"`.
 

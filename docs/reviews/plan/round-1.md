@@ -41,7 +41,7 @@
    **Fix:** Define baseline sources and precedence, per-slot completeness/occupancy, capture revision/time, and staleness rules. Require the AltStable extension to transport sufficient item-string data, with old records remaining incomplete. Permit explicitly labelled display estimates, but do not let an incomplete or unsuitable fallback establish `clear` for disenchant protection. Add saved off-spec equipment and unavailable-baseline fixtures to M0 and acceptance cases to M1/M2.
 
 7. **MAJOR — Q3: The scoring contract omits enchant treatment and unsupported-effect completeness.**  
-   **Evidence:** ADR-0003 and the proposed `Score`/`SlotCompare` modules do not choose an enchant policy. In the supplied Pawn ZIP, Pawn normalizes the candidate to its unenchanted form; lines `3687–3694` do likewise for equipped comparisons. Its normalization preserves the remaining item-string fields, including suffix information, at `3024–3045`. Pawn also explicitly skips score-based trinket upgrades at `3597`.
+   **Evidence:** ADR-0003 and the proposed `Score`/`SlotCompare` modules do not choose an enchant policy. In the supplied Pawn ZIP, Pawn normalizes the candidate to its unenchanted form, and does likewise for equipped comparisons. Its normalization preserves the remaining item-string fields, including suffix information. Pawn also explicitly skips score-based trinket upgrades.
 
    Glass Gear intentionally goes beyond Pawn for trinkets, but neither `GetItemStats` availability nor “linear estimate” establishes that proc/use effects are represented. Missing effects must not silently become a complete zero score.
 
