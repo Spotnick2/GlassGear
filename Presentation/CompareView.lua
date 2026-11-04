@@ -170,7 +170,10 @@ function View.Build(result, data)
     local p = data.profile
     view.info[#view.info + 1] = { label = L["Method"], text = L["stat weights (item score estimate)"] }
     view.info[#view.info + 1] = { label = L["Profile"], text = p and (spec .. " \226\128\148 " .. p.name) or L["no weights"] }
-    view.info[#view.info + 1] = { label = L["Source"], text = p and GG.ProfileView.SourceLabel(p.source) or "\226\128\148" }
+    -- Glass Gear's defaults (GG-120) say what they are not.
+    local source = p and (p.source == "default" and L["default weights (not tuned to your gear)"]
+        or GG.ProfileView.SourceLabel(p.source))
+    view.info[#view.info + 1] = { label = L["Source"], text = source or "\226\128\148" }
     local b = result.baseline
     local base = b and (BASELINE[b.source] or tostring(b.source)) or L["none"]
     if b and b.source == "observed" then base = base:format(spec) end

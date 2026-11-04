@@ -196,6 +196,14 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   only default or no-weight specs relevant → `unknown`, also beside an ineligible spec; rows carry
   the tag; markers draw normally.
 - **Validation:** auto, game (P6).
+- **Done (auto), table empty.** `Data/Defaults.lua` (`For`, `Any`, `REVISION`, `SOURCE`), shipped
+  with **no numbers**: the owner's decision was measured numbers only, and the source is now the
+  owner's own MythicSim stat-weight sims (run by hand), after GG-103. `Profiles.Effective` (import,
+  else default, else nil) feeds Evaluate, `GetProfile`, the comparison and `/gg`; `Profiles.Active`
+  stays the import. Limitation `DEFAULT_WEIGHTS`; soft protection; the "default weights" tag and the
+  tooltip line; the comparison's Source; the settings switch (shown once the table has specs);
+  `features.defaultWeights`. `test_defaults.lua` (42 checks, with a test table). **Left:** the
+  numbers (fill SPECS, bump REVISION, set SOURCE).
 
 ### GG-121: Import from Pawn (P3, Future: not in the MVP)
 

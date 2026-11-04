@@ -31,7 +31,7 @@ function Diagnostics.Lines()
                 tostring(GG.specReason)))
         end
         for _, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
-            local p = GG.store and GG.Profiles.Active(GG.store, GG.player.key, s.key)
+            local p = GG.store and GG.Profiles.Effective(GG.store, GG.player.key, s.key)
             add(string.format("  %s: %s", s.key, p and (p.name .. " [" .. tostring(p.source) .. "]") or L["no weights"]))
             add("    " .. L["gear: %s"]:format((GG.Capture.Status(s.key, time()))))
         end

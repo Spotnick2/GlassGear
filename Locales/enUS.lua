@@ -50,6 +50,8 @@ return {
     "Balance",
     "Feral (tank)",
     "Feral (cat)",
+    -- Data/Defaults.lua
+    "Glass Gear default weights",
     -- Engine/Policy.lua
     "no weights",
     "empty slot",
@@ -95,6 +97,7 @@ return {
     "not following Glass UI",
     -- Presentation/TooltipView.lua
     "CURRENT",
+    "default weights",
     "spec not set",
     "not for this spec",
     "can't use",
@@ -126,6 +129,7 @@ return {
     "You own better for %s: %s",
     "Gear recorded over 14 days ago: %s",
     "Alts: compared with the gear AltStable last saw them wear",
+    "Default weights: import your own for better advice (/gg profiles)",
     "Current spec not set: /gg options",
     "Weighted item score \194\183 estimates \194\183 other specs vs current gear",
     "Weighted item score \194\183 estimates",
@@ -269,6 +273,7 @@ return {
     "Method",
     "stat weights (item score estimate)",
     "Profile",
+    "default weights (not tuned to your gear)",
     "Source",
     "none",
     "Baseline",
@@ -387,6 +392,8 @@ return {
     "%d levels",
     "Spec armor rules",
     "Each spec gets its armor types: a Holy Paladin can use cloth, Protection can't.",
+    "Default weights for specs without an import",
+    "Glass Gear's own starting weights. Any profile you import replaces them; disenchant protection never clears an item on them alone.",
     "DISENCHANT PROTECTION",
     "Specs Shatter keeps upgrades for (Shatter's integration: GG-301, SH-001).",
     "All characters...",

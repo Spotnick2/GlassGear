@@ -45,6 +45,7 @@ local RULES = {
     ["specArmor"] = bool,
     ["setBonusWarnings"] = bool,
     ["protection.noWeights"] = oneOf("ignore", "keep"),
+    ["defaults.enabled"] = bool,
 }
 Prefs.SHIFT_REASON = L["Shift is used by item comparison"]   -- shown by the options page
 

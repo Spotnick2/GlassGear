@@ -187,7 +187,7 @@ function Win.Render()
         candidate = cand,
         companion = r.replaces and r.replaces.companion and itemData(r.replaces.companion) or nil,
         replaced = replaced,
-        profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
+        profile = GG.Profiles.Effective(GG.store, GG.player.key, spec),
         setWarnings = GG.db.settings.setBonusWarnings ~= false,
     })
     -- The gear line: short (the long hint is /gg's).

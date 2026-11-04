@@ -85,7 +85,11 @@ local function row(kind, r)
         atLevel = r.eligibility and r.eligibility.atLevel,
         levelsAway = r.eligibility and r.eligibility.levelsAway,
         ownedBetter = r.ownedBetter,
+        defaultWeights = false,
     }
+    for _, l in ipairs(r.limitations or {}) do
+        if l == "DEFAULT_WEIGHTS" then x.defaultWeights = true end   -- GG-120: tagged on the row
+    end
     for _, reason in ipairs(r.reasons or {}) do
         if reason == "NO_WEIGHTS" then x.noWeights = true; x.label = L["no weights"] end
         if reason == "EMPTY_SLOT" then x.label = L["empty slot"] end
@@ -137,6 +141,9 @@ end
 -- Returns { verdict, recipients, reasons, unchecked }.
 -- `clear` only when every checked recipient is a trustworthy no_upgrade or
 -- a hard ineligible; anything uncertain keeps the item.
+-- Default weights (GG-120, soft): a default-based upgrade protects; a
+-- default-based no_upgrade is unchecked like a spec without weights (it
+-- follows opts.noWeights), never a reason for clear.
 ------------------------------------------------------------
 local UNSAFE_LIMITS = { EFFECT_NOT_SCORED = true, NO_SUPPORTED_STATS = true, SET_BONUS_NOT_SCORED = true }
 local UNSAFE_PREFIX = { "SET_BONUS_GAINED", "SET_BONUS_LOST", "TOKEN_NOT_SCORED", "UNSUPPORTED_STAT",
@@ -172,6 +179,8 @@ function Policy.Protection(results, opts)
     for _, r in ipairs(results) do
         local who = { character = r.character, spec = r.spec }
         local alt = r.character and r.character.current == false
+        local default = has(r.limitations, "DEFAULT_WEIGHTS")
+        if default then who.defaultWeights = true end
         if r.status ~= "ineligible" then relevant = relevant + 1 end
         if r.status == "upgrade" and alt and not (r.transfer and r.transfer.state == "eligible") then
             -- An upgrade for an alt the item may not reach (an account-bound
@@ -194,6 +203,13 @@ function Policy.Protection(results, opts)
             else
                 unknown = true
                 out.reasons[#out.reasons + 1] = (r.reasons and r.reasons[1]) or "UNKNOWN"
+            end
+        elseif r.status == "no_upgrade" and default then
+            if opts.noWeights ~= "keep" then
+                out.unchecked[#out.unchecked + 1] = who
+            else
+                unknown = true
+                out.reasons[#out.reasons + 1] = "DEFAULT_WEIGHTS"
             end
         elseif r.status == "no_upgrade" then
             local why = unsafe(r)

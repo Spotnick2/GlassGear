@@ -1,7 +1,8 @@
 # Default weights (GG-106)
 
 - Status: decided by the owner (2026-11-01, [below](#owner-decisions-2026-11-01)); code in GG-120
-  ([#40](https://github.com/Spotnick2/GlassGear/issues/40)), after GG-103
+  ([#40](https://github.com/Spotnick2/GlassGear/issues/40)), with an empty table. The numbers are
+  to come from the owner's own MythicSim stat-weight sims (2026-11-03), after GG-103
 - Issue: [#7](https://github.com/Spotnick2/GlassGear/issues/7)
 - Not legal advice. Every licence reading here is the conservative one.
 

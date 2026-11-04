@@ -55,7 +55,8 @@ local function newResult(input)
         eligibility = { equipNow = true, reasons = {} },
         transfer = input.transfer or { state = "unknown", reasons = {} },
         reasons = {},
-        limitations = {},
+        -- Scored with Glass Gear's default weights (GG-120): said, and soft in protection.
+        limitations = (p and p.source == "default") and { "DEFAULT_WEIGHTS" } or {},
     }
 end
 

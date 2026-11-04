@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Default weights (GG-120): Glass Gear can give specs you haven't imported its own starting weights,
+  tagged "default weights" on the tooltip; any import replaces them, and disenchant protection never
+  clears an item on them alone. None ship yet: the numbers come from measured sims.
 - Alts (GG-203, this WoW account): tick an alt's specs on the Characters page (needs AltStable).
   An unbound item it can use better shows "Name · Spec +x%" on the tooltip, an amber bag arrow, and
   Shatter keeps it. Only items you can mail it count (same realm and faction; to be checked in

@@ -100,6 +100,7 @@ local function features()
         evaluate = true, evaluateBatch = true, cancelRequest = true,
         scopes = { current = true, own = true, tracked = true, ["own+tracked"] = true, targets = true },
         alts = roster, sync = false, assessProtection = true, frameBudget = true, resultCache = true,
+        defaultWeights = GG.Data.Defaults.Any(),      -- GG-120: specs without an import score with a default
     }
 end
 
@@ -141,7 +142,8 @@ end
 
 function API.GetProfile(charKey, specKey)
     if not GG.store then return nil, "not-ready" end
-    local p = GG.Profiles.Active(GG.store, charKey, specKey)
+    -- What the spec scores with: the player's import, or a default (source "default", GG-120).
+    local p = GG.Profiles.Effective(GG.store, charKey, specKey)
     if not p then return nil, "NO_WEIGHTS" end
     return U.deepCopy(p)
 end
@@ -479,7 +481,7 @@ evaluateOneTimed = function(request, requestId, targets, prior, priorDeps, opts)
             if baseline then
                 r = GG.Engine.Evaluate.One({
                     item = facts, recipient = GG.Alts.Recipient(alt, baseline), spec = spec, current = false,
-                    profile = GG.Profiles.Active(GG.store, alt.key, spec),
+                    profile = GG.Profiles.Effective(GG.store, alt.key, spec),
                     baseline = baseline, settings = settings, instance = instance,
                     companions = GG.Alts.Companions(baseline), transfer = transfer or nil,
                 })
@@ -503,7 +505,7 @@ evaluateOneTimed = function(request, requestId, targets, prior, priorDeps, opts)
             if baseline and not (fromLive and #missing > 0) then
                 local input = {
                     item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
-                    profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
+                    profile = GG.Profiles.Effective(GG.store, GG.player.key, spec),
                     baseline = baseline, settings = settings, instance = instance,
                     companions = companions,
                     transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
