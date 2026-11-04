@@ -96,7 +96,7 @@ Rules that apply everywhere:
 | Marker scope | Current spec | Options: current spec, + selected own specs, or all my specs |
 | Mark transferable upgrades | On | Amber for transferable items (matrix row 3) |
 | Reveal modifier | Ctrl | Ctrl / Alt / None |
-| Minimum upgrade | 0.5 % | Same threshold as Pawn (`Pawn.lua:3760`). It applies to markers and protection, not to the rows themselves |
+| Minimum upgrade | 0.5 % | Same threshold as Pawn. It applies to markers and protection, not to the rows themselves |
 | Protection scope | All tracked specs (mine + selected alts) | Independent of what the markers show |
 | Level-appropriate upgrades only | On, look-ahead 0 levels | Look-ahead N (0–10). Within the window the row reads "+6.2 % at level 42 (in 2 levels)", with no marker by default. Above the window, the item is not presented as an upgrade (the row says "requires level N"). Applies per recipient: an alt uses its own level (GG-117) |
 | Spec armor rules | On | Two layers. **Class gate:** a class that can't wear or wield an item never sees it as an upgrade; this is not a setting, and it reads known skills (Forever plate and mail come at 40). **Spec rule:** each spec has its allowed armor types, editable per profile. A Protection Paladin gets plate, while a Holy Paladin gets cloth to plate, so a cloth spell-power item can be a Holy upgrade and is ineligible for Protection (GG-118; defaults in [adr/0003](adr/0003-upgrade-metric.md)) |

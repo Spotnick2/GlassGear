@@ -1,9 +1,8 @@
 ------------------------------------------------------------
 -- test_baganator.lua - GG-401: markers in Baganator. A fake Baganator
--- shaped like the reference (Baganator 839-1, API/Main.lua:
--- RegisterCornerWidget, IsCornerWidgetActive, RequestItemButtonsRefresh;
--- ItemViewCommon/ItemButton.lua: onInit once per button, the widget hidden
--- on every redraw, onUpdate(widget, details) -> shown). Green / amber /
+-- shaped like its public API (RegisterCornerWidget, IsCornerWidgetActive,
+-- RequestItemButtonsRefresh; onInit once per button, the widget hidden on
+-- every redraw, onUpdate(widget, details) -> shown). Green / amber /
 -- nothing as on Blizzard's bags, never on another character's view, the
 -- reveal key and arriving data ask Baganator for a widget refresh, and /gg
 -- says where the mark is (or that the player removed it).

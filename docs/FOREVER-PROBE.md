@@ -159,8 +159,7 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   - Do `GetItemStats` and `GetItemInfo` read the **trimmed** string baselines store
     (`item:14094::::::::::::1:12745`: level and spec blanked, crafter dropped) the same as the full
     link? Alt baselines from AltStable come only in that form (AS-003).
-  - Does an enchanted link include the enchant? SimC's Forever code says it doesn't:
-    `forever/stats.lua:70`.
+  - Does an enchanted link include the enchant? SimC's Forever code says it doesn't.
   - How long after `C_Item.RequestLoadItemDataByID` does `ITEM_DATA_LOAD_RESULT` or
     `GET_ITEM_INFO_RECEIVED` fire for an uncached item?
   - Does `GetItemStats` then return data? It returns nothing on a miss:
@@ -409,7 +408,7 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 ## P18: Bagnon markers (GG-401)
 
 - **Question.**
-  - With Bagnon (12.1.7, Forever build) on Forever, is `BagBrother.Item.Update` called for every item
+  - With Bagnon (its Forever build) on Forever, is `BagBrother.Item.Update` called for every item
     button on open, sort and bag change, and does our mark sit on the button (our child frame)?
   - Does `IsCached()` say true when Bagnon shows another character's bags (its character dropdown),
     so no mark shows there?
@@ -434,7 +433,7 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 ## P20: Baganator markers (GG-401)
 
 - **Question.**
-  - With Baganator (839-1, Forever build) on Forever, does "Glass Gear upgrades" appear in its icon
+  - With Baganator (its Forever build) on Forever, does "Glass Gear upgrades" appear in its icon
     corner settings, placed top left on first load, and does our arrow show there on an upgrade?
   - Does `details.itemLocation` hold `{bagID, slotIndex}` for the live bags (single and category
     views, the bank), so the arrows follow sorting?

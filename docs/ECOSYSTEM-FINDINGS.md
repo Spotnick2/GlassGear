@@ -20,9 +20,9 @@ API dump doesn't prove it works (`References/Docs/PORTING-TBC-TO-FOREVER.md:1064
 | GlassPearls | `250a17e` (2026-11-01) | v0.1.0-alpha1 |
 | wow-ui-source (branch `forever`) | `ca8368f2f` (2026-10-22) | 1.60.1, build 70532 |
 | API dump | `References/Forever/api/forever-api-1.60.1.70532.md` (the newest) | Interface 16001, `WOW_PROJECT_ID` 18 (line 4) |
-| Pawn | `References/Addons/BagsInventory/Pawn/Pawn` | 2.14.0, Interface 16001 (`Pawn.toc:1,3`); CC BY-NC-ND: behaviour reference only, no code copied |
+| Pawn | its Forever release | Interface 16001; CC BY-NC-ND: behaviour reference only, no code copied |
 | WoWSims | `wowsims/tbc-new` `8aa378b36` (2026-07-25) | v0.0.101 |
-| SimulationCraft addon | `References/Addons/DataExport/SimulationCraft/Simulationcraft` | 12.1.5-03, `## Interface: 120100, 120105, 16001` (`Simulationcraft.toc:1,6`) |
+| SimulationCraft addon | its current release | `## Interface: 120100, 120105, 16001` |
 
 Glass Gear records `MEASURED_ON_BUILD = "70532"`.
 
@@ -346,27 +346,27 @@ GlassGear on the roster (GUI-001).
   - the Glass look is optional via `useGlassUI` (`Options.lua:301`), reported as declined (`Theme.lua:13`);
   - `## Category: |cff7fd4ffGlass|r` (`GlassPearls.toc:4`).
 
-## Pawn 2.14.0 (behaviour reference)
+## Pawn (behaviour reference)
 
 ### Verified
 - **Forever flags**
-  - `VgerCore.IsForever` (`VgerCore/VgerCore.lua:25`).
-  - `SpecsExist` is false on Forever (`:49`), `EquipmentSetsExist` is false (`:52`) and
-    `RangedSlotExists` is true (`:50`).
+  - `VgerCore.IsForever`.
+  - `SpecsExist` is false on Forever, `EquipmentSetsExist` is false and
+    `RangedSlotExists` is true.
 - **Scale string**
-  - parsed by `PawnParseScaleTag` (`Pawn.lua:3103`): header pattern `:3105`, pair pattern `:3114`;
-  - `PawnIgnoreStatValue = -1000000` for `X` (`:84`);
-  - written by `PawnGetScaleTag` (`:5307`), imported by `PawnImportScale` (`:5364`).
-- **Upgrade %:** `PercentUpgrade = Difference / (BestValue + PawnEpsilon)` (`:3770`).
-  - Only upgrades more than 0.5% better count (`ThisValue > BestValue * 1.005`, `:3760`).
-  - An empty second slot shows as `PawnBigUpgradeThreshold = 100` (`:85`, `:3759`).
-- **Trinkets** are skipped for score-based upgrades (`:3597`).
-- **Enchants:** the candidate is unenchanted before comparison (`:3598`).
-- **Unique-equipped:** not handled ("Pawn currently can't determine that", `:3747`).
-- **2H / 1H:** handled with `DoNotShow1HUpgrades` (`:3636`) and `PawnAssignOneHandedBestItems` (`:4066`).
-- **Stat tokens flagged for Forever:** `UIStrings.lua:35-130` (`PawnStatForever`).
-- **Gems:** `PawnMinimumItemLevelToConsiderGems = 10000` (`GemsClassic.lua:14`), so gems are off.
-- **Spec code:** `GetSpecialization and GetSpecialization() or GetPrimaryTalentTree()` (`Pawn.lua:4517`).
+  - parsed by Pawn's `PawnParseScaleTag`: a header pattern, then a pair pattern;
+  - `PawnIgnoreStatValue = -1000000` for `X`;
+  - written by `PawnGetScaleTag`, imported by `PawnImportScale`.
+- **Upgrade %:** `PercentUpgrade = Difference / (BestValue + PawnEpsilon)`.
+  - Only upgrades more than 0.5% better count (`ThisValue > BestValue * 1.005`).
+  - An empty second slot shows as `PawnBigUpgradeThreshold = 100`.
+- **Trinkets** are skipped for score-based upgrades.
+- **Enchants:** the candidate is unenchanted before comparison.
+- **Unique-equipped:** not handled ("Pawn currently can't determine that").
+- **2H / 1H:** handled with `DoNotShow1HUpgrades` and `PawnAssignOneHandedBestItems`.
+- **Stat tokens flagged for Forever:** Pawn's `PawnStatForever` flags.
+- **Gems:** `PawnMinimumItemLevelToConsiderGems = 10000`, so gems are off.
+- **Spec code:** `GetSpecialization and GetSpecialization() or GetPrimaryTalentTree()`.
   Both functions are absent on Forever.
 
 ## WoWSims (`tbc-new`)
@@ -384,17 +384,17 @@ GlassGear on the roster (GUI-001).
 ### Not present
 A Forever (Vanilla, level 60) sim in the local checkout.
 
-## SimulationCraft addon 12.1.5-03
+## SimulationCraft addon
 
 ### Verified
-- **Forever detection:** `IS_FOREVER = WOW_PROJECT_ID == (WOW_PROJECT_CAMELOT or 18)` (`extras.lua:6`).
-  Forever-only exports (`core.lua:100`); a `forever/` folder (`stats.lua`, `legacytalents.lua`, `pet.lua`).
-- **Profile header:** "Requires SimulationCraft 1000-01 or newer" (`core.lua:1114`).
+- **Forever detection:** `IS_FOREVER = WOW_PROJECT_ID == (WOW_PROJECT_CAMELOT or 18)`.
+  Forever-only exports; a `forever/` folder (`stats.lua`, `legacytalents.lua`, `pet.lua`).
+- **Profile header:** "Requires SimulationCraft 1000-01 or newer".
 - **Spec and talents**
-  - `spec=unknown` on Forever (`core.lua:1223`);
-  - `legacy_talents=` (`:480`);
-  - talents from `GenerateImportString` (`:413`, `:466`).
-- **Stats:** `forever/stats.lua:70-73` sums gear stats with `GetItemStats` ("does not include enchants").
+  - `spec=unknown` on Forever;
+  - `legacy_talents=`;
+  - talents from `GenerateImportString`.
+- **Stats:** its `forever/stats.lua` sums gear stats with `GetItemStats` ("does not include enchants").
 
 ### Not present
 - Stat weights. A profile is a character.

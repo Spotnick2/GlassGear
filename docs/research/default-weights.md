@@ -33,12 +33,12 @@ wowsims". Here is what the licence allows.
 
 | Fact | Source |
 |---|---|
-| The whole addon is CC BY-NC-ND 3.0 | `References/Addons/BagsInventory/Pawn/Pawn/Readme.md:104`; the header of every Lua file, e.g. `ClassicHawsJon.lua:3` |
-| On Forever (`camelot`) Pawn loads `ClassicHawsJon.lua`, not the Ask Mr. Robot file | `Pawn.toc:52-53` |
-| Those scales are "sourced from HawsJon" (`http://tbcwowaddons.weebly.com/pawn.html`), a third party | `ClassicHawsJon.lua:6-7` |
-| They were "originally designed for Burning Crusade". On Forever every rating multiplier is 1, so they are applied as TBC values | `ClassicHawsJon.lua:21-57` |
-| 127 scale-template calls, one per class tree, each a full stat table | `ClassicHawsJon.lua:59…` |
-| Caster scales weight `SpellHitRating` / `SpellCritRating`. Pawn's own stat list hides those stats on Forever | `ClassicHawsJon.lua:64`; `UIStrings.lua:44,46` (no `PawnStatForever`) |
+| The whole addon is CC BY-NC-ND 3.0 | its Readme and the header of every Lua file |
+| On Forever (`camelot`) Pawn loads its HawsJon scale file, not the Ask Mr. Robot file | its TOC |
+| Those scales are "sourced from HawsJon" (`http://tbcwowaddons.weebly.com/pawn.html`), a third party | the scale file's header |
+| They were "originally designed for Burning Crusade". On Forever every rating multiplier is 1, so they are applied as TBC values | the scale file |
+| 127 scale-template calls, one per class tree, each a full stat table | the scale file |
+| Caster scales weight `SpellHitRating` / `SpellCritRating`. Pawn's own stat list hides those stats on Forever | the scale file; Pawn's stat list (no `PawnStatForever`) |
 
 The last two rows matter apart from licensing: Pawn's numbers are not tuned for Forever either.
 
@@ -67,16 +67,16 @@ The last two rows matter apart from licensing: Pawn's numbers are not tuned for 
 
 | Path | What happens | Is it copying by us? | Verdict |
 |---|---|---|---|
-| **Paste (works today)** | In Pawn: Scale tab → pick the built-in "Classic" scale → **Export** (enabled for read-only scales, `PawnUI.lua:405-406`) → copy → `/gg import <SPEC.KEY> <string>` | No. The user copies from their own installed Pawn for personal use. Glass Gear distributes nothing. | **Documented** ([FORMATS.md](../FORMATS.md#from-pawns-own-scales); the import dialog in GG-105). |
-| **"Import from Pawn" at runtime** | While Pawn is loaded, Glass Gear calls Pawn's global `PawnGetScaleTag(name)` (`Pawn.lua:5307`, which Pawn's own Export uses), on a user's click only, and feeds the string to the existing importer | Not distribution: nothing ships, and the values go from the user's Pawn into the user's own SavedVariables, unchanged. The same as the paste path, one click shorter. | **Later** (GG-121, P3, not in the MVP). Explicit action only, never automatic, `pcall`-wrapped, Pawn only as an optional dependency. |
-| **Reading Pawn's SavedVariables** | Read `PawnCommon.Scales` | — | **Doesn't work.** Pawn deletes built-in scale values before saving (`Pawn.lua:5661-5668`, `PawnUnitializePlugins`). Only the user's own custom scales are saved. |
+| **Paste (works today)** | In Pawn: Scale tab → pick the built-in "Classic" scale → **Export** (enabled for read-only scales) → copy → `/gg import <SPEC.KEY> <string>` | No. The user copies from their own installed Pawn for personal use. Glass Gear distributes nothing. | **Documented** ([FORMATS.md](../FORMATS.md#from-pawns-own-scales); the import dialog in GG-105). |
+| **"Import from Pawn" at runtime** | While Pawn is loaded, Glass Gear calls Pawn's global `PawnGetScaleTag(name)` (which Pawn's own Export uses), on a user's click only, and feeds the string to the existing importer | Not distribution: nothing ships, and the values go from the user's Pawn into the user's own SavedVariables, unchanged. The same as the paste path, one click shorter. | **Later** (GG-121, P3, not in the MVP). Explicit action only, never automatic, `pcall`-wrapped, Pawn only as an optional dependency. |
+| **Reading Pawn's SavedVariables** | Read `PawnCommon.Scales` | — | **Doesn't work.** Pawn deletes built-in scale values before saving (`PawnUnitializePlugins`). Only the user's own custom scales are saved. |
 
 Export details that matter for import:
 
 - A built-in scale has a class and a "spec", so its tag carries `Class=` and `Spec=`
-  (`Pawn.lua:5326-5331`). Glass Gear ignores `Spec=` on Forever (FORMATS.md:47).
-- The tag leaves out entries equal to Pawn's template (`Pawn.lua:5332-5339`). With `NoStats` that
-  template holds only the "never usable" `X` markers (`ScaleTemplates.lua:31-32,187-193`), so no
+  Glass Gear ignores `Spec=` on Forever (FORMATS.md:47).
+- The tag leaves out entries equal to Pawn's template. With `NoStats` that
+  template holds only the "never usable" `X` markers, so no
   numeric weight is lost. Glass Gear's class gate covers those markers anyway (`Data/Classes.lua`).
 - Tokens outside our list (`SpellHitRating`, `SpellCritRating`, `Mana`, `Health`, `AllResist`,
   `ResilienceRating`, `ArmorPenetration`, `MetaSocketEffect`…) come in as `UNSUPPORTED_TOKEN`
@@ -91,10 +91,10 @@ not as a default.
 
 | Source | Covers | Licence and source | Ship derived numbers? |
 |---|---|---|---|
-| Pawn 2.14.0 built-in ("Classic", HawsJon) | Every class tree; TBC-designed, ratings ×1 on Forever | CC BY-NC-ND 3.0 (above); HawsJon's terms unknown | **No.** Paste or runtime import only |
+| Pawn built-in ("Classic", HawsJon) | Every class tree; TBC-designed, ratings ×1 on Forever | CC BY-NC-ND 3.0 (above); HawsJon's terms unknown | **No.** Paste or runtime import only |
 | WoWSims `tbc-new` (`C:\Projects\WoW\wowsims\tbc-new`, `8aa378b36`) | TBC, level 70 (`ui/core/constants/mechanics.ts:1`); "Pawn EP" export | MIT (`LICENSE`, "Copyright (c) 2022 wowsims team") | The code is MIT. **Wrong game version**: level 70 weights would mislead at 60. |
 | WoWSims `sod` ([github.com/wowsims/sod](https://github.com/wowsims/sod)) | Season of Discovery, level-60 era, same framework | MIT ([pkg.go.dev](https://pkg.go.dev/github.com/wowsims/sod@v0.0.89)); a fork asks for a visible link back | Sims the owner runs produce the owner's own output, so they're clean. SoD runes and mechanics differ from Forever, so those weights would need judgement. **The route to real defaults**, via GG-502 / ASC-001 once a Forever-capable sim exists. A local Classic or Forever WoWSims checkout doesn't exist (ECOSYSTEM-FINDINGS.md "Not present"). |
-| SimulationCraft engine | Retail-first; the addon (12.1.5-03) exports Forever profiles with `spec=unknown` | GPL-3.0 ([github.com/simulationcraft/simc](https://github.com/simulationcraft/simc)). GPL covers the program, not the user's output | Scale factors the owner computes would be the owner's own. No local engine understands Forever profiles (ECOSYSTEM-FINDINGS.md). Not now. |
+| SimulationCraft engine | Retail-first; the addon exports Forever profiles with `spec=unknown` | GPL-3.0 ([github.com/simulationcraft/simc](https://github.com/simulationcraft/simc)). GPL covers the program, not the user's output | Scale factors the owner computes would be the owner's own. No local engine understands Forever profiles (ECOSYSTEM-FINDINGS.md). Not now. |
 | Community guides (class Discords, guide sites, Wowhead Classic guides) | Varies; often level 60 Classic Era, often per phase | Usually all rights reserved site content. Not fetched (Wowhead only through the shared tool). | **No** without explicit permission. Users can paste such weights themselves as Pawn strings. |
 | **Our own table** | What we write | Ours, MIT | **Yes.** The recommended stopgap. |
 
@@ -128,7 +128,7 @@ Notes for every row:
 
 - **† Unit pending GG-103.** Hit, crit, dodge, parry and block are written **per 1 % item stat**,
   as on Classic-era items ("+1% chance to hit"). If Forever's `GetItemStats` reports them as TBC
-  rating points instead (Pawn's multiplier of 1 on Forever hints at that, `ClassicHawsJon.lua:43-57`),
+  rating points instead (Pawn's multiplier of 1 on Forever hints at that),
   these numbers must be divided by the rating per 1 % before shipping.
 - `MeleeDps` / `RangedDps` are weapon DPS (derived from `Dps`, `Data/Stats.lua:96`). Only specs
   that hit with their weapon get them.

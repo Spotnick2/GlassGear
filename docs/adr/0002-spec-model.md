@@ -17,7 +17,7 @@ What does exist:
   each (`wow-ui-source` forever ca8368f2f, `Blizzard_ClassTalentsFrame.lua:107-161, 343-355`).
 
 AltStableSync measured `GetNumSpecGroups() = 1` on a character without dual spec. Pawn turns specs
-off on Forever (`VgerCore.lua:49`).
+off on Forever.
 
 ## Decision
 

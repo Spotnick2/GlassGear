@@ -32,9 +32,9 @@ issue + PR; mockups = owner's images in `Downloads\GlassGear` (do **not** regene
 | AltStableCompanion (0f0718a, v0.1.1) / AltStableSync (e5b1b75, v1.0.0) | Companion = .NET tray app (portraits via SavedVariables). No simulation anywhere. | Gear Lab / sims = **future**, needs new Companion work. |
 | Shatter (0ce809d, v1.0.0-beta1) | No external veto API. `ItemScanner:IsCandidateDisenchantable` (`ItemScanner.lua:75-97`) is used by queue build **and** click-time `Disenchant:ValidateItem` (`:183`). No rescan on `PLAYER_EQUIPMENT_CHANGED`. Mail items sender-owned, `PrepareDisenchantQueue` uses only `CanBeDisenchanted`. Integration precedent: `Integrations/*`, `GlassMailSelection()`. | Shatter-side `Integrations/GlassGear.lua` + one check in `IsCandidateDisenchantable` (Solo only), fail-closed. Mail Mode untouched. |
 | LibGlass (e2b9062, **r11**) / Glass UI (b78b244) | `New{preset="pearl"}`; consumers pin `tag: r11`; no tooltip skin. Glass UI `Suite.ROSTER` fixed — unknown addons get `"unknown"`; follow opt-out saved by Glass UI; reload to switch. | Pin LibGlass r11. Glass UI PR to add GlassGear as dynamic member. Default look = WoW Forever. |
-| Pawn 2.14.0 Forever (Downloads zip; CC BY-NC-ND → behaviour only) | Scale tag grammar `Pawn.lua:3103-3136`; % = (new−best)/best for the slot, >0.5% threshold; rings vs weaker; trinkets skipped; 2H vs 1H skip; no unique handling. | Pawn-compatible string I/O + Pawn-compatible upgrade % definition (documented, labelled estimate). |
+| Pawn, Forever release (CC BY-NC-ND → behaviour only) | Scale tag grammar; % = (new−best)/best for the slot, >0.5% threshold; rings vs weaker; trinkets skipped; 2H vs 1H skip; no unique handling. | Pawn-compatible string I/O + Pawn-compatible upgrade % definition (documented, labelled estimate). |
 | WoWSims (local `wowsims/tbc-new` 8aa378b3, level 70) | "Pawn EP" export is a Pawn string (drops hit/crit/haste etc.). Importer JSON = WowSimsExporter. No Forever sim locally. | Pawn EP strings importable (provenance `wowsims-pawn-ep`, warn on dropped stats); character JSON unsupported (not weights). |
-| SimulationCraft addon 12.1.5-03 zip | `## Interface: 120100, 120105, 16001` — **does** target Forever; exports simc profile (`spec=unknown` on Forever, `legacy_talents=`, gear lines). | Profile ≠ weights; needs external simc `calculate_scale_factors`. Only simc **scale-factor/Pawn output** importable later. |
+| SimulationCraft addon | `## Interface: 120100, 120105, 16001` — **does** target Forever; exports simc profile (`spec=unknown` on Forever, `legacy_talents=`, gear lines). | Profile ≠ weights; needs external simc `calculate_scale_factors`. Only simc **scale-factor/Pawn output** importable later. |
 
 ## Key decisions (become ADRs in docs/adr/)
 
@@ -121,7 +121,7 @@ issue + PR; mockups = owner's images in `Downloads\GlassGear` (do **not** regene
 3. **ADR-0003 Upgrade metric & configurations**: score = Σ weight × stat over **supported tokens**
    (published list; unknown tokens reported, not silently zero). Enchants: symmetric base-item
    comparison (strip enchant from candidate and baseline, keep suffix/unique fields, as Pawn
-   `Pawn.lua:3024-3045,3598,3687`). Comparison = **enumerate legal resulting configurations**
+   as Pawn does). Comparison = **enumerate legal resulting configurations**
    (candidate into each compatible slot; displaced items removed; unique category limits from
    `GetItemUniqueness` re-checked on the result; 2H→1H needs an identified companion off-hand from the
    baseline/bags else `status=unknown, reason=NEEDS_OFFHAND`; 1H/OH→2H compares against MH+OH

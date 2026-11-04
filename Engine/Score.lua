@@ -35,7 +35,7 @@ end
 
 -- Item strings: "item:<id>:<enchant>:..." links and trimmed baseline strings.
 -- StripEnchant keeps every other field (gems, the bonus block that carries a
--- Forever random suffix), as Pawn does (Pawn.lua:3024-3045), so both sides
+-- Forever random suffix), as Pawn does, so both sides
 -- compare without enchants.
 function Score.StripEnchant(itemString)
     if type(itemString) ~= "string" then return itemString end
