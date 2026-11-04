@@ -55,6 +55,14 @@ H.eq(holy.profile.version, "defaults-1", "...the table's revision as its version
 H.check(H.has(holy.limitations, "DEFAULT_WEIGHTS"), "...limitation DEFAULT_WEIGHTS")
 H.eq(H.has(row({ bag = 0, slot = 1 }, "PRIEST.SHADOW").limitations, "DEFAULT_WEIGHTS"), false, "an imported spec: no DEFAULT_WEIGHTS")
 H.eq(api.GetProfile(GG.player.key, "PRIEST.HOLY").source, "default", "GetProfile: what Holy scores with, the default")
+local none, why = api.GetProfile("Player-1-NOBODY", "PRIEST.HOLY")
+H.eq(none == nil and why, "UNKNOWN_CHARACTER", "...never a default for a character Glass Gear doesn't know")
+none, why = api.GetProfile(GG.player.key, "MAGE.FROST")
+H.eq(none == nil and why, "UNKNOWN_SPEC", "...nor for another class's spec")
+D.SPECS["MAGE.FROST"] = { weights = { Intellect = 1 } }
+none, why = api.GetProfile(GG.player.key, "MAGE.FROST")
+H.eq(none == nil and why, "UNKNOWN_SPEC", "...even when that spec has a default")
+D.SPECS["MAGE.FROST"] = nil
 local specs = api.GetSpecs(GG.player.key)
 local holySpec
 for _, s in ipairs(specs) do if s.key == "PRIEST.HOLY" then holySpec = s end end

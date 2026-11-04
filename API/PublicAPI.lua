@@ -140,8 +140,20 @@ function API.GetSpecs(charKey)
     return out
 end
 
+-- Is `spec` (a string) one of that class's specs?
+local function classHas(class, spec)
+    if type(spec) ~= "string" then return false end
+    for _, s in ipairs(GG.Data.Classes.Specs(class)) do if s.key == spec then return true end end
+    return false
+end
+
 function API.GetProfile(charKey, specKey)
     if not GG.store then return nil, "not-ready" end
+    -- Only a pair Glass Gear evaluates (GetSpecs lists it): the current
+    -- character or an own alt, with a spec of its class.
+    local c = GG.Integrations.RosterProvider.Find(charKey)
+    if not c then return nil, "UNKNOWN_CHARACTER" end
+    if not classHas(c.class, specKey) then return nil, "UNKNOWN_SPEC" end
     -- What the spec scores with: the player's import, or a default (source "default", GG-120).
     local p = GG.Profiles.Effective(GG.store, charKey, specKey)
     if not p then return nil, "NO_WEIGHTS" end
@@ -169,13 +181,6 @@ local function withTrackedAlts(list)
 end
 
 local function tracked(spec) return GG.Prefs.IsTracked(GG.player.key, spec) end
-
--- Is `spec` (a string) one of that class's specs?
-local function classHas(class, spec)
-    if type(spec) ~= "string" then return false end
-    for _, s in ipairs(GG.Data.Classes.Specs(class)) do if s.key == spec then return true end end
-    return false
-end
 
 -- The request's (character, spec) targets, in API order: the current
 -- character's, then the tracked alts' (the roster's order, tree order).

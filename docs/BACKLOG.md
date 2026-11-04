@@ -202,7 +202,7 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   else default, else nil) feeds Evaluate, `GetProfile`, the comparison and `/gg`; `Profiles.Active`
   stays the import. Limitation `DEFAULT_WEIGHTS`; soft protection; the "default weights" tag and the
   tooltip line; the comparison's Source; the settings switch (shown once the table has specs);
-  `features.defaultWeights`. `test_defaults.lua` (42 checks, with a test table). **Left:** the
+  `features.defaultWeights`. `test_defaults.lua` (45 checks, with a test table). **Left:** the
   numbers (fill SPECS, bump REVISION, set SOURCE).
 
 ### GG-121: Import from Pawn (P3, Future: not in the MVP)
