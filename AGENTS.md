@@ -65,4 +65,15 @@ restart. Deploy yourself after a change.
   docs-only PRs that aren't worth a review.
 - Cross-repo work goes as issues in the other repos ([docs/INTEGRATION-GAPS.md](docs/INTEGRATION-GAPS.md)).
   Never edit a sibling repo from this one.
-- Releases follow `References\Docs\RELEASING.md` (GG-404 first).
+- Releases follow `References\Docs\RELEASING.md`.
+
+## Releasing
+
+- **CurseForge** project `1778699`; its packager builds a file from every pushed tag through the
+  repo's webhook. No CurseForge key lives in the repo, and the packager never uploads from CI.
+- **Wago Addons** project `O67b5PN3`; the `wago` job uploads CI's zip for a tag (`WAGO_API_TOKEN`
+  secret, set from the owner's secrets folder).
+- **GitHub Release**: the `release` job publishes the same zip and `release.json` for a tag.
+- The TOC carries both IDs (`X-Curse-Project-ID`, `X-Wago-ID`; `tests/test_manifest.lua`).
+- `README.curseforge.md` (the CurseForge and Wago description) is untracked: `.git/info/exclude`
+  and `.pkgmeta` ignore it. The owner pastes it.

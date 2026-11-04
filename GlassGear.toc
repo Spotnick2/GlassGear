@@ -9,6 +9,8 @@
 ## SavedVariablesPerCharacter: GlassGearChar
 ## OptionalDeps: AltStable, GlassUI
 ## X-License: MIT
+## X-Curse-Project-ID: 1778699
+## X-Wago-ID: O67b5PN3
 
 Libs\LibGlass-1.0\LibGlass-1.0.xml
 Core\Init.lua
