@@ -1,6 +1,6 @@
 ------------------------------------------------------------
 -- test_bag_addons.lua - GG-401: markers on Bagnon's buttons. A fake
--- BagBrother shaped like the reference (Bagnon 12.1.7: Item:Update, a
+-- BagBrother shaped like Bagnon's (Item:Update, a
 -- ContainerItem whose Update calls it, button.bag + GetID, IsCached,
 -- button.frame): green / amber / nothing as on Blizzard's bags, never on a
 -- cached view (another character), following the reveal key and arriving

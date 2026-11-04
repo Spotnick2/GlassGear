@@ -34,8 +34,10 @@ The single global is `GlassGear`, and `GlassGear.API` is the public v1 contract
   - Never mint a version on receipt, except when retiring conflict copies.
   - The writer token is fresh every session.
 - **Spec keys and entry ids are stable.** Add to them; never rename them.
-- **Pawn is CC BY-NC-ND.** Implement its documented format and behaviour; never copy its code. The
-  reference copy is `References\Addons\BagsInventory\Pawn`.
+- **Pawn is CC BY-NC-ND.** Implement its documented format and behaviour; never copy its code.
+- **Reference copies stay private.** Never cite a third-party reference copy (its path, version or
+  `file.lua:line`) in code, docs, tests or issues; the citations live in the private project
+  memory, which the reference index reads. Naming an addon we integrate with is fine.
 - **No `## Dependencies`**, only `OptionalDeps`. No GameTooltip restyling, no writes to Blizzard
   globals (`SlashCmdList` fields only).
 - **Player text goes through `GG.L`** (GG-403, `Core/Locale.lua`): `L["English text"]`, a literal

@@ -13,7 +13,7 @@
   silently zero.
 - **Enchants** are handled symmetrically: the enchant is stripped from both the candidate and the
   baseline item, and the random suffix and the other item-string fields are kept. Pawn does the same
-  (`Pawn.lua:3024-3045, 3598, 3687`).
+  (as Pawn does).
   - Enchants that would carry over are a future option, off by default.
 - **Effects:**
   - An item with an equip, use or proc spell (`C_Item.GetItemSpell`) gets `EFFECT_NOT_SCORED`.
@@ -28,7 +28,7 @@ pct = (candidateScore − baselineScore) / baselineScore
 ```
 
 - `baselineScore` is the score of the item or items the candidate **displaces** in the chosen
-  configuration (below). This is the Pawn definition (`Pawn.lua:3770`): it is relative to the
+  configuration (below). This is the Pawn definition: it is relative to the
   replaced items, **not** to the character's total.
 - `delta = candidateScore − baselineScore` is always returned alongside `pct`.
 - If `baselineScore ≤ 0`, then `pct = nil`, and the delta and the reason `BASELINE_NONPOSITIVE` are
@@ -36,7 +36,7 @@ pct = (candidateScore − baselineScore) / baselineScore
 - If the displaced position is a confirmed, legal **empty** slot, the status is `upgrade`,
   `pct = nil`, and the reason is `EMPTY_SLOT`.
 - Unknown occupancy is `unknown`, never `EMPTY_SLOT`.
-- An item is an upgrade when `pct ≥ threshold` (default 0.005, as Pawn `Pawn.lua:3760`), or when it is
+- An item is an upgrade when `pct ≥ threshold` (default 0.005, as Pawn), or when it is
   `EMPTY_SLOT`.
 - The label everywhere is **"item-score estimate"**. Results are never ranked across characters by
   `pct`.

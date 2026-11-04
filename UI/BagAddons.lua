@@ -3,27 +3,24 @@
 --
 -- Bagnon: its windows come from BagBrother (a global: WildAddon's NewAddon
 -- writes _G[name]); a bag or bank item button is a ContainerItem, whose
--- Update(info) runs on every redraw (References Bagnon 12.1.7,
--- BagBrother/core/classes/containerItem.lua:62). Guild-bank and void items
+-- Update(info) runs on every redraw. Guild-bank and void items
 -- are other classes (their "bag" is a tab): never hooked. One
 -- hooksecurefunc on ContainerItem.Update decorates the button with the same marker
 -- as Blizzard's bags (UI/BagMarkers.lua: Policy.Marker, UI/Marks.lua), read
--- from the button's bag and slot (item.lua:306-312). A button showing a
--- cached inventory (another character, an offline bank: containerItem.lua
--- :132 IsCached) is never decorated: its bag and slot would read the
--- current character's item.
+-- from the button's bag and slot. A button showing a cached inventory
+-- (another character, an offline bank: IsCached) is never decorated: its
+-- bag and slot would read the current character's item.
 --
--- Baganator (References Baganator 839-1, Forever build): no hook. Its
--- public API takes a corner widget (API/Main.lua:229 RegisterCornerWidget,
--- the way its own Pawn support adds an arrow, API/Pawn.lua): onInit makes
+-- Baganator (Forever build): no hook. Its
+-- public API takes a corner widget (RegisterCornerWidget, the way it adds
+-- other addons' arrows): onInit makes
 -- our mark for each of its item buttons, onUpdate(widget, details) says
 -- whether it shows (Baganator shows or hides it, and the player can move or
 -- remove it in Baganator's corner settings). `details.itemLocation` is
 -- {bagID, slotIndex}; Baganator sets it from the current character's bags
--- even when the view shows another character (CategoryViews/BagLayout.lua
--- :67-71), so the item there must be the one shown (same link), else no
--- mark. Answers still computing: no mark now, and a widget refresh
--- (RequestItemButtonsRefresh, API/Main.lua:21) once they arrive.
+-- even when the view shows another character, so the item there must be
+-- the one shown (same link), else no mark. Answers still computing: no mark
+-- now, and a widget refresh (RequestItemButtonsRefresh) once they arrive.
 --
 -- Other bag replacements (AdiBags, ArkInventory, BetterBags,
 -- EllesmereUIBags) are reported as "markers unavailable" until each has an

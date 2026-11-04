@@ -22,7 +22,7 @@ with scale factors, then import the Pawn string it produces." It never says only
 
 ## Pawn scale string v1
 
-The reference is Pawn 2.14.0 in `References/Addons/BagsInventory/Pawn/Pawn`, used for behaviour
+The reference is Pawn 2.14.0 (the Forever release), used for behaviour
 only (CC BY-NC-ND, so no code is copied).
 
 ### From Pawn's own scales
@@ -41,7 +41,6 @@ as `SpellHitRating` and `SpellCritRating`, which aren't on our token list, so th
 A one-click "Import from Pawn" is GG-121, later.
 
 ### Grammar
-- Pawn's own patterns are at `Pawn.lua:3105` and `:3114`.
 
   ```
   ( Pawn: v<N>: "<Name>": <Key>=<Value>, <Key>=<Value>, ... )
@@ -62,7 +61,7 @@ A one-click "Import from Pawn" is GG-121, later.
 - **`Spec=`** is ignored on Forever, as Pawn does: there are no spec IDs here (`VgerCore.lua:49`).
   The target spec is the one the player picks in Glass Gear.
 - **`X`** means "never an upgrade for this stat or type". Pawn stores it as `-1000000`
-  (`Pawn.lua:84`). Glass Gear stores `X` as its own marker, never as a large negative number:
+  (as Pawn does). Glass Gear stores `X` as its own marker, never as a large negative number:
   - on a stat, an item with that stat gets the status `ineligible` with reason `IGNORED_STAT`;
   - on an `Is<Type>` token, items of that type are `ineligible` with reason `IGNORED_TYPE`.
 - **Other values outside [-999.999, 999.999]** are refused (`VALUE_OUT_OF_RANGE`). The codec bound
@@ -92,7 +91,7 @@ Warnings: `CLASS_MISMATCH`, `UNSUPPORTED_TOKEN`, and `WOWSIMS_DROPPED_STATS` (be
 
 Glass Gear reads an item's stats with `C_Item.GetItemStats(link)`. It returns a table keyed by
 global-string names such as `ITEM_MOD_STAMINA_SHORT`, and armor as `RESISTANCE0_NAME` (as the SimC
-addon reads them on Forever, `Simulationcraft/forever/stats.lua:96-98`). It never parses tooltip
+addon reads them on Forever). It never parses tooltip
 text, which keeps it locale-independent.
 
 **Measured on 1.60.1.70425** (Wanderful's probe log, `WanderfulProbe.lua` in the beta
@@ -144,7 +143,7 @@ Status meanings:
 | BlockRating | `ITEM_MOD_BLOCK_RATING_SHORT` | supported |
 | BlockValue | `ITEM_MOD_BLOCK_VALUE_SHORT` | supported |
 | Hp5 | `ITEM_MOD_HEALTH_REGEN_SHORT` | supported |
-| Mp5 | expected `ITEM_MOD_POWER_REGEN0_SHORT` (Pawn's mapping, `UIStrings.lua:77`) | supported; key confirmed by GG-103 |
+| Mp5 | expected `ITEM_MOD_POWER_REGEN0_SHORT` (Pawn's mapping) | supported; key confirmed by GG-103 |
 | SpellDamage | `ITEM_MOD_SPELL_POWER_SHORT` (damage and healing, measured 70425); damage-only expected `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT` | supported |
 | Healing | `ITEM_MOD_SPELL_POWER_SHORT` (with SpellDamage, measured 70425); healing-only expected `ITEM_MOD_SPELL_HEALING_DONE_SHORT` | supported |
 | Fire/Nature/Frost/Shadow/ArcaneResist | `RESISTANCE2_NAME` … `RESISTANCE6_NAME`; the twin `ITEM_MOD_FIRE_RESISTANCE_SHORT` … counts only when the first is absent (both measured 70425) | supported |
@@ -182,7 +181,7 @@ for a character who can't wear it.
 
 ### Not on Forever
 These are accepted on import as `UNSUPPORTED_TOKEN`:
-- Pawn tokens without the `PawnStatForever` flag (`UIStrings.lua:35-130`): SpellHitRating,
+- Pawn tokens without the `PawnStatForever` flag: SpellHitRating,
   SpellCritRating, SpellHasteRating, MasteryRating, Versatility, ResilienceRating, ArmorPenetration,
   SpellPower, MetaSocketEffect and socket tokens;
 - WoWSims-only names: `Mana`, `Health`, `Armor2`.
@@ -237,7 +236,7 @@ pct = (candidateScore − baselineScore) / baselineScore
 ```
 
 This is computed over the slots the best legal configuration affects. The denominator is the score
-of the item(s) the candidate replaces for that character and spec, as in Pawn (`Pawn.lua:3770`).
+of the item(s) the candidate replaces for that character and spec, as in Pawn.
 It is not the character's total.
 
 - `delta` is always returned with it.
