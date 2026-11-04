@@ -11,6 +11,8 @@ H.eq(H.directive("SavedVariablesPerCharacter"), "GlassGearChar", "per-character 
 H.eq(H.directive("OptionalDeps"), "AltStable, GlassUI", "integrations are optional, never Dependencies")
 H.eq(H.directive("Dependencies"), nil, "no hard dependency")
 H.eq(H.directive("Category"), "|cff7fd4ffGlass|r", "Glass family category line")
+H.eq(H.directive("X-Curse-Project-ID"), "1778699", "the CurseForge project ID (RELEASING.md)")
+H.eq(H.directive("X-Wago-ID"), "O67b5PN3", "the Wago project ID: the wago job uploads to the project the packaged TOC names")
 
 -- Every TOC entry exists with the exact case.
 local function listDir(dir)
