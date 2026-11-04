@@ -126,7 +126,7 @@ end
 
 -- Protection's tracked specs. A character nobody edited tracks all of its own
 -- specs (the PRD default "all tracked specs"); an alt is tracked only when
--- chosen (GG-201/GG-203 bring alts).
+-- chosen (the Characters page, GG-203).
 function Prefs.IsTracked(charKey, specKey)
     local t = GG.db.tracked[charKey]
     if t == nil then return GG.player ~= nil and charKey == GG.player.key end

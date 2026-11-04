@@ -86,29 +86,46 @@ local bank = row("Banky")
 H.check(bank.name:GetText():find("hidden in AltStable", 1, true) ~= nil, "a hidden alt: shown, dimmed")
 H.check(bank.status:GetText():find("No gear recorded", 1, true) ~= nil, "...no gear recorded")
 
--- Protection can't assess alts yet (GG-203): their boxes are inactive, and
--- the page says protection covers this character only.
-H.eq(GG.API.GetCapabilities().features.alts, false, "(no alt rows yet)")
-H.eq(Win.AltProtectionActive(), false, "alt protection: not active")
-H.eq(dr.checks[1]:IsEnabled(), false, "an alt's spec box can't be ticked")
+-- Without alt rows (an AltStable lacking AS-001/AS-003): alt boxes are
+-- inactive, and the page says protection covers this character only.
+local realActive = Win.AltProtectionActive
+Win.AltProtectionActive = function() return false end
+Win.Refresh()
+dr = row("Drakuza")
+H.eq(dr.checks[1]:IsEnabled(), false, "alts unavailable: an alt's spec box can't be ticked")
 H.check(dr.checks[1].alpha < 1, "...and is shown dimmed")
-H.eq(me.checks[1]:IsEnabled(), true, "the current character's boxes work")
+H.eq(row("Karuzo").checks[1]:IsEnabled(), true, "the current character's boxes work")
 H.check(Wd.note:GetText():find("this character's ticked specs; alts can't be protected yet", 1, true) ~= nil,
     "the page says protection covers this character only")
 Win.SetTracked(dr, 1, true)
 H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), false, "...and an alt tick is refused, never stored")
+Win.AltProtectionActive = realActive
 
--- Once alts can be assessed, ticking an alt's spec tracks it.
-local realActive = Win.AltProtectionActive
-Win.AltProtectionActive = function() return true end
+-- With AltStable's extensions, alts are assessed (GG-203): ticking an alt's spec tracks it.
+H.eq(GG.API.GetCapabilities().features.alts, true, "features.alts with AltStable AS-001 + AS-003")
+H.eq(Win.AltProtectionActive(), true, "alt protection active")
 Win.Refresh()
 dr = row("Drakuza")
-H.eq(dr.checks[1]:IsEnabled(), true, "alt protection active: the alt's boxes work")
+H.eq(dr.checks[1]:IsEnabled(), true, "...the alt's boxes work")
 H.check(Wd.note:GetText():find("keeps upgrades for the ticked specs", 1, true) ~= nil, "...and the note covers every ticked spec")
+H.check(Wd.note:GetText():find("amber bag arrows, for items you can mail it", 1, true) ~= nil, "...and says alts get tooltip rows and arrows")
 dr.checks[1]:Click()
 H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), true, "ticking Arcane tracks it")
 H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), false, "...and only it")
-Win.AltProtectionActive = realActive
+
+-- At most LIMITS.targets specs in all (each is a row on every bag item).
+local limit = GG.API.LIMITS.targets
+GG.API.LIMITS.targets = 5                       -- the priest's 3 + Arcane: one more fits
+dr.checks[2]:Click()
+H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), true, "below the limit: another alt spec ticks")
+dr = row("Drakuza")
+dr.checks[3]:Click()
+H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FROST"), false, "at the limit: refused, never stored")
+H.check(Wd.note:GetText():find("At most 5 specs in all", 1, true) ~= nil, "...and the page says why")
+dr = row("Drakuza")
+dr.checks[2]:Click()
+H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), false, "unticking always works")
+GG.API.LIMITS.targets = limit
 Win.Refresh()
 me = row("Karuzo")
 me.checks[1]:Click()

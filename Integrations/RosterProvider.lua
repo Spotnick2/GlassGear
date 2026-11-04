@@ -125,9 +125,12 @@ function RosterProvider.Refresh()
     local sig = signature(list)
     local changed = lastSignature ~= nil and sig ~= lastSignature
     lastSignature = sig
-    -- No invalidation: no answer depends on the alts yet (features.alts is
-    -- false; alt rows are GG-203, which invalidates for its own charKeys).
-    if changed and GG.player then GG.Callbacks.Fire("RosterChanged") end
+    -- Alt rows (GG-203) depend on the roster (level, realm, faction,
+    -- provenance): answers given before are dropped.
+    if changed and GG.player then
+        GG.Callbacks.Fire("RosterChanged")
+        GG.API._Invalidate("roster")
+    end
     return changed
 end
 
@@ -146,7 +149,10 @@ local function onGear(_, guids)
     for _, guid in ipairs(guids) do
         if guid ~= me and RosterProvider.Find(guid) then keys[#keys + 1] = guid end
     end
-    if #keys > 0 then GG.Callbacks.Fire("EquipmentChanged", { charKeys = keys }) end
+    if #keys > 0 then
+        GG.Callbacks.Fire("EquipmentChanged", { charKeys = keys })
+        GG.API._Invalidate("equipment", keys)        -- their rows compare with that gear (GG-203)
+    end
 end
 
 local HANDLERS = { CharactersChanged = onRoster, ProvenanceChanged = onRoster, GearChanged = onGear }

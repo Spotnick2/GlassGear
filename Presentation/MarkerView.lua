@@ -20,7 +20,9 @@ function View.View(response, bound, surface, bindType)
     local view = { own = {}, alts = {}, bound = bound, surface = surface, bindType = bindType }
     for _, r in ipairs(response and response.results or {}) do
         if r.status ~= "unsupported" and r.spec then
-            if r.current and not view.current then
+            if r.character and r.character.current == false then
+                view.alts[#view.alts + 1] = r          -- a tracked alt (GG-203)
+            elseif r.current and not view.current then
                 view.current = r
             else
                 view.own[#view.own + 1] = r

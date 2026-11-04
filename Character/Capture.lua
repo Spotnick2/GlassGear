@@ -112,6 +112,9 @@ local function hydrate(e)
     if #missing == 0 then hydrated[key] = b end
     return b, missing
 end
+-- A stored baseline entry, hydrated (kept per entry version): the current
+-- character's specs here, an alt's in Character/Alts.lua (GG-203).
+Capture.Hydrate = hydrate
 
 -- Map a spec to a saved set by name, or "none" (no set, not even the
 -- client's) or "auto" (the client's, if any). The one setter behind

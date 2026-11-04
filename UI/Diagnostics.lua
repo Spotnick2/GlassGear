@@ -57,7 +57,13 @@ function Diagnostics.Lines()
         add(L["AltStable: %d of your other characters (%d on this account, %d on your other accounts)"]
             :format(alt.own, alt.self, alt.ownAccount))
     end
-    add(L["alt upgrades: GG-203 (needs the entry-sync library and the transfer-rule probe)"])
+    -- Alt rows (GG-203): the alt specs ticked on the Characters page.
+    if alt.usable then
+        add(L["alt upgrades: %d alt specs ticked (/gg characters); your other account's alts need profile sync"]
+            :format(#GG.Alts.Tracked()))
+    else
+        add(L["alt upgrades: off (they need AltStable)"])
+    end
     add(L["profile sync: unavailable (entry-sync library ES-001, GG-202)"])
     local themeWhy = GG.themeInfo and GG.themeInfo.reason
     add(themeWhy and L["theme: %s (%s)"]:format(tostring(GG.themeName), themeWhy)

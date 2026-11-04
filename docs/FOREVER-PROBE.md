@@ -398,12 +398,13 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   - Does the page show each alt's gear age from `GetCharacterGear(guid).capturedAt`, and does
     playing an alt refresh it on the other account after a sync?
   - Does "Open AltStable" open AltStable's sheet (`OpenSheet`)?
-  - Are an alt's spec boxes dimmed and locked, with the note that alts can't be protected yet?
+  - With AltStable's extensions, can an alt's spec boxes be ticked (GG-203); without them, are they
+    dimmed and locked, with the note that alts can't be protected yet?
   - Do `CharactersChanged` / `ProvenanceChanged` arrive within a frame of a sync, and does the page
     follow without reopening?
 - **Why.** The roster and page are built against a fake AltStable from its docs/PUBLIC-API.md.
-- **Steps.** `/gg`; `/gg characters`; try to tick a spec of an alt (inactive until GG-203); log the
-  other account, sync, back; Open AltStable.
+- **Steps.** `/gg`; `/gg characters`; tick a spec of an alt; log the other account, sync, back;
+  Open AltStable.
 
 ## P18: Bagnon markers (GG-401)
 
@@ -444,3 +445,22 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** Install Baganator; `/gg` (bag addon line); open the bags with an upgrade inside; sort;
   switch to the category view; hold Ctrl; pick another character; remove the widget in Baganator's
   corner settings and `/gg` again.
+
+## P21: Alt rows, this WoW account (GG-203)
+
+- **Question.**
+  - With an alt of this WoW account ticked on the Characters page and its weights imported while
+    playing it: does a BoE that is its upgrade show "Name · Spec +x%" on the tooltip, an amber bag
+    arrow, and does Shatter keep it?
+  - Once bound (equip it, or a BoP), does the alt row disappear, at no cost?
+  - The mail rule (GG-116): can an unbound BoE really be mailed to every alt on the same realm and
+    faction, and to none on another realm or faction? Is a bag item's `isBound` false exactly for
+    those?
+  - An alt that played that spec with Glass Gear: is its recorded gear used ("Alts: compared with the
+    gear AltStable last saw them wear" gone)?
+  - After the alt changes gear and logs out, does `GearChanged` refresh the rows on the next
+    character?
+- **Why.** Alt rows are built against a fake AltStable; the mail rule is a proposal.
+- **Steps.** On the alt: `/gg import` its weights, play its spec a minute. On this character:
+  `/gg characters`, tick the alt's spec; hover a BoE in the bags that it wants; open the bags; open
+  Shatter's list; mail it to the alt and back on another realm or faction if you have one.

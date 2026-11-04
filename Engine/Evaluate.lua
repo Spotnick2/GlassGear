@@ -41,7 +41,9 @@ local function newResult(input)
     local p = input.profile
     return {
         status = "unknown",
-        character = { key = r.key, name = r.name, realm = r.realm, provenance = r.provenance },
+        -- current: true for the logged-in character, false for one of its
+        -- alts (GG-203: the surfaces tell alt rows by it).
+        character = { key = r.key, name = r.name, realm = r.realm, provenance = r.provenance, current = r.current },
         spec = input.spec,
         current = input.current == true,
         profile = p and { id = p.id, source = p.source, version = p.version, updatedAt = p.updatedAt } or nil,

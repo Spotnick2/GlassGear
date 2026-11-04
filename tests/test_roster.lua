@@ -47,7 +47,8 @@ local RP = GG.Integrations.RosterProvider
 local function names(list) local t = {} for _, c in ipairs(list) do t[#t + 1] = c.name end return table.concat(t, ",") end
 
 H.eq(api.GetCapabilities().features.roster, true, "features.roster (AltStable usable)")
-H.check(api.GetCapabilities().unavailable.alts:find("GG-203", 1, true) ~= nil, "unavailable.alts points at GG-203, not GG-201")
+H.eq(api.GetCapabilities().features.alts, true, "features.alts (GG-203)")
+H.eq(api.GetCapabilities().unavailable.alts, nil, "...nothing missing for alts")
 local list = api.GetCharacters()
 H.eq(names(list), "Karuzo,Wanda,Drakuza,Banky", "the current character first, then the player's own others")
 H.eq(list[1].current, true, "...the current one from Glass Gear itself")
@@ -86,7 +87,7 @@ chars[4].provenance = "own-account"           -- a sync proved the friend's acco
 fire("ProvenanceChanged")
 WoW.flush()
 H.eq(roster, 1, "a provenance change: RosterChanged")
-H.eq(H.has(inval, "roster"), false, "...no invalidation: no answer depends on alts yet (GG-203)")
+H.eq(H.has(inval, "roster"), true, "...and an invalidation: alt rows depend on the roster (GG-203)")
 H.check(names(api.GetCharacters()):find("Friendo", 1, true) ~= nil, "...the character proven own is listed now")
 chars[2].level = 43
 fire("CharactersChanged")
@@ -100,6 +101,7 @@ api.RegisterCallback("EquipmentChanged", function(_, p) eq = p end, "test_roster
 fire("GearChanged", { "Player-1-ALT1" })
 WoW.flush()
 H.eq(eq and eq.charKeys and eq.charKeys[1], "Player-1-ALT1", "GearChanged -> EquipmentChanged for that alt")
+H.eq(H.has(inval, "equipment"), true, "...and an invalidation: its rows compare with that gear")
 eq = nil
 chars[4].provenance = "third-party"
 fire("ProvenanceChanged")

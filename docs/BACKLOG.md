@@ -485,6 +485,15 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   - Cross-account ownership comes from provenance, never the `account` label.
 - **Refs.** mockup 03.
 - **Validation:** auto, game.
+- **Done for this WoW account's alts (auto).** `Character/Alts.lua`; API scopes `tracked` and
+  `own+tracked` (the surfaces), `targets` with alts, `features.alts` with AltStable AS-001 + AS-003;
+  transfer decided first (a bound item costs its alts nothing), the mail rule still proposed (P21,
+  GG-116); an alt's baseline = its observed one for the spec, else AltStable's last scan
+  (fallback-current, never trusted by protection); tooltip "Name · Spec", amber arrows, protection
+  (`TRANSFER_UNKNOWN` keeps account-bound kinds); roster and gear changes invalidate; at most
+  `LIMITS.targets` specs ticked. `Policy.Protection` counts only eligible specs for "nothing
+  checked". `test_alts.lua` (89 checks). **Left:** the other account's alts have no weights until
+  GG-202; loot and hypothetical links show no alts (transfer unknown without an instance).
 
 ### GG-204: Characters page (P1, MVP)
 

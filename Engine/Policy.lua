@@ -166,9 +166,19 @@ function Policy.Protection(results, opts)
         out.reasons[1] = "NO_PROTECTION_TARGETS"
         return out
     end
+    -- Specs that could be checked at all: an ineligible one (class, spec
+    -- armor, level window, an item that can't reach that alt) has no say.
+    local relevant = 0
     for _, r in ipairs(results) do
         local who = { character = r.character, spec = r.spec }
-        if r.status == "upgrade" then
+        local alt = r.character and r.character.current == false
+        if r.status ~= "ineligible" then relevant = relevant + 1 end
+        if r.status == "upgrade" and alt and not (r.transfer and r.transfer.state == "eligible") then
+            -- An upgrade for an alt the item may not reach (an account-bound
+            -- kind, unprobed, GG-116): kept, never cleared, never "protect".
+            unknown = true
+            out.reasons[#out.reasons + 1] = "TRANSFER_UNKNOWN"
+        elseif r.status == "upgrade" then
             -- Inside the level window counts too: keep it for later.
             protect = true
             who.pct = r.score and r.score.pct
@@ -195,8 +205,10 @@ function Policy.Protection(results, opts)
     elseif pending then out.verdict = "pending"
     elseif unknown then out.verdict = "unknown"
     elseif unsupported then out.verdict = "unsupported"
-    elseif #out.unchecked == #results then
-        -- Nothing could be checked at all: never call that safe.
+    elseif #out.unchecked > 0 and #out.unchecked == relevant then
+        -- Nothing could be checked at all: never call that safe. (Specs that
+        -- can't use it don't count: an item no tracked spec can wear stays
+        -- clear, but no weights beside them is still nothing checked.)
         out.verdict = "unknown"
         out.reasons[#out.reasons + 1] = "NO_WEIGHTS"
     end

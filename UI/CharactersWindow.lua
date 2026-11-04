@@ -6,10 +6,11 @@
 --
 -- /gg characters, or the settings page's button. The tracked specs are
 -- Prefs' (the protection scope, adr/0006); alts are opted in, the current
--- character's specs are tracked by default. Until protection can assess an
--- alt (GG-203: alt rows), an alt's boxes are shown dimmed and can't be
+-- character's specs are tracked by default. A ticked alt spec also gets
+-- tooltip rows and amber arrows (GG-203). Without alt rows (an AltStable
+-- lacking AS-001/AS-003), an alt's boxes are shown dimmed and can't be
 -- ticked, and the page says so: a tick must never promise protection that
--- doesn't happen. Pairing and sync stay AltStable's: "Open AltStable",
+-- doesn't happen. At most LIMITS.targets specs in all can be ticked. Pairing and sync stay AltStable's: "Open AltStable",
 -- never a second pairing UI.
 ------------------------------------------------------------
 
@@ -34,15 +35,23 @@ local function at(region, x, y, parent)
     return region
 end
 
--- Can disenchant protection keep an alt's upgrades? Only once evaluations
--- have alt rows (GG-203: the API's `alts` feature); until then it assesses
--- the current character's tracked specs alone.
+-- Can disenchant protection keep an alt's upgrades? Only when evaluations
+-- have alt rows (GG-203: the API's `alts` feature, AltStable AS-001 +
+-- AS-003); otherwise it assesses the current character's tracked specs alone.
 function Win.AltProtectionActive()
     local ok, caps = pcall(GG.API.GetCapabilities)
     return ok and type(caps) == "table" and caps.features and caps.features.alts == true or false
 end
 
-Win.NOTE_ACTIVE = L["Disenchant protection keeps upgrades for the ticked specs. Synced data does not guarantee an item can be transferred."]
+Win.NOTE_ACTIVE = L["Disenchant protection keeps upgrades for the ticked specs. A ticked alt's upgrades also show on tooltips and as amber bag arrows, for items you can mail it. Synced data does not guarantee an item can be transferred."]
+Win.NOTE_FULL = L["At most %d specs in all, yours included: untick another alt's spec first."]
+
+-- Every ticked alt spec is a row on every bag item and tooltip: the API's
+-- target limit (LIMITS.targets, this character's own specs included) caps them.
+function Win.TrackedFull()
+    local own = GG.player and #GG.Data.Classes.Specs(GG.player.class) or 0
+    return own + #GG.Alts.Tracked() >= GG.API.LIMITS.targets
+end
 Win.NOTE_ALTS_INACTIVE = L["Disenchant protection keeps upgrades for this character's ticked specs; alts can't be protected yet. Synced data does not guarantee an item can be transferred."]
 
 local function age(seconds)
@@ -137,6 +146,11 @@ function Win.SetTracked(row, j, on)
     local s = c and row.specs[j]
     if not s then return end
     if not c.current and not Win.AltProtectionActive() then Win.Refresh(); return end
+    if on and not c.current and Win.TrackedFull() then
+        Win.Refresh()
+        W.note:SetText(Win.NOTE_FULL:format(GG.API.LIMITS.targets))
+        return
+    end
     local keys = {}
     for _, x in ipairs(row.specs) do keys[#keys + 1] = x.key end
     GG.Prefs.SetTracked(c.key, s.key, on, keys)
