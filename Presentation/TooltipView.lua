@@ -8,8 +8,10 @@
 --     lines = { { left, right|nil, lc = {r,g,b}, rc = {r,g,b}|nil }, ... }
 --
 -- Layout (mockup 01): "Glass Gear", the current spec first and marked
--- CURRENT, the other specs compact, notes (set bonus, unscored effects, spec
--- not set), then the footer "Weighted item score · estimates".
+-- CURRENT, the other specs compact, then the tracked alts' upgrades for an
+-- item that can reach them ("Wanda · Frost", mockup 03, GG-203), notes (set
+-- bonus, unscored effects, spec not set), then the footer
+-- "Weighted item score · estimates".
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -105,6 +107,15 @@ local function specName(key)
     return s and s.name or tostring(key)
 end
 
+-- A row's name: the spec, or for an alt "Name · Spec" (its first name only:
+-- AltStable's names carry the surname).
+local function rowName(row)
+    if row.kind ~= "alt" then return specName(row.spec) end
+    local name = row.character and row.character.name
+    name = type(name) == "string" and name:match("^%S+") or "?"
+    return L["%s \194\183 %s"]:format(name, specName(row.spec))
+end
+
 -- Stats a profile can't score, per side (the item / the replaced item).
 local function statGap(l, side)
     local p = side == "baseline" and "BASELINE_" or ""
@@ -168,27 +179,33 @@ function View.Notes(rows, setWarnings) return notes(rows, setWarnings) end
 function View.Build(response, settings, ctx)
     if type(response) ~= "table" or type(response.results) ~= "table" then return nil end
     ctx = ctx or {}
-    local view = { own = {} }
+    local view = { own = {}, alts = {} }
     for _, r in ipairs(response.results) do
         if r.status ~= "unsupported" and r.spec then
-            if r.current and not view.current then
+            if r.character and r.character.current == false then
+                view.alts[#view.alts + 1] = r
+            elseif r.current and not view.current then
                 view.current = r
             else
                 view.own[#view.own + 1] = r
             end
         end
     end
-    local rows = GG.Engine.Policy.TooltipRows(view, settings or {}, false)
+    -- Alt rows: only upgrades for alts the item can reach (Policy.TooltipRows
+    -- checks each row's transfer state, so a bound item never lists one).
+    local rows = GG.Engine.Policy.TooltipRows(view, settings or {}, true)
     if #rows == 0 then return nil end
 
     local lines = { { left = "Glass Gear", lc = C.title } }
-    local offSpecVsCurrentGear = false
+    local offSpecVsCurrentGear, altVsLastSeen = false, false
     for _, row in ipairs(rows) do
         local right, rc = rightOf(row)
-        local left = specName(row.spec)
+        local left = rowName(row)
         if row.emphasis then left = left .. "  " .. View.BADGE end
         lines[#lines + 1] = { left = left, right = right, lc = row.emphasis and C.current or C.spec, rc = rc }
-        if not row.emphasis and has(row.reasons, "BASELINE_FALLBACK")
+        if row.kind == "alt" then
+            if has(row.reasons, "BASELINE_FALLBACK") then altVsLastSeen = true end
+        elseif not row.emphasis and has(row.reasons, "BASELINE_FALLBACK")
             and (row.status == "upgrade" or row.status == "no_upgrade") then
             offSpecVsCurrentGear = true
         end
@@ -207,10 +224,15 @@ function View.Build(response, settings, ctx)
     -- A spec compared with gear recorded too long ago says so (GG-108).
     local stale = {}
     for _, row in ipairs(rows) do
-        if has(row.reasons, "BASELINE_STALE") then stale[#stale + 1] = specName(row.spec) end
+        if has(row.reasons, "BASELINE_STALE") then stale[#stale + 1] = rowName(row) end
     end
     if #stale > 0 then
         lines[#lines + 1] = { left = L["Gear recorded over 14 days ago: %s"]:format(table.concat(stale, ", ")), lc = C.later }
+    end
+    -- An alt that never played that spec with Glass Gear is compared with what
+    -- AltStable last saw it wear (GG-203).
+    if altVsLastSeen then
+        lines[#lines + 1] = { left = L["Alts: compared with the gear AltStable last saw them wear"], lc = C.muted }
     end
     if not ctx.currentSpec then
         lines[#lines + 1] = { left = L["Current spec not set: /gg options"], lc = C.muted }

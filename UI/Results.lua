@@ -70,8 +70,9 @@ function Results.Get(ref, key)
     if entry then return entry.response end
     -- No `context`: in M1 nothing in the evaluation depends on it, which is what
     -- lets every surface share one answer. A surface whose answer would differ
-    -- (alts on loot, GG-111/GG-203) must key and ask separately.
-    local response = GG.API.Evaluate({ item = ref, scope = "own" })
+    -- (alts on loot, GG-111/GG-203) must key and ask separately. Every own spec
+    -- and the tracked alts' (GG-203): the tooltip and markers filter them.
+    local response = GG.API.Evaluate({ item = ref, scope = "own+tracked" })
     remember(key, response)
     return response
 end

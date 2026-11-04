@@ -66,9 +66,11 @@ H.eq(r.results[1].status, "no_upgrade", "ItemLocation equipment slot: the equipp
 
 -- Unsupported scopes are reported, never narrowed.
 r = api.Evaluate({ item = WoW.link(60), scope = "tracked" })
-H.eq(r.results[1].status, "unsupported", "tracked scope needs alts")
+H.eq(#r.results, 3, "tracked scope without AltStable: this character's tracked specs (all, untouched)")
+H.eq(r.results[1].character.current, true, "...rows of the current character")
 r = api.Evaluate({ item = WoW.link(60), scope = "targets", targets = { { char = "Player-2-OTHER", spec = "MAGE.FROST" } } })
-H.eq(r.results[1].status, "unsupported", "alt targets unsupported in M0")
+H.eq(r.results[1].status, "unsupported", "a character Glass Gear doesn't know: unsupported")
+H.eq(r.results[1].reasons[1], "UNKNOWN_CHARACTER", "...UNKNOWN_CHARACTER")
 H.eq(api.AssessProtection({ bag = 0, slot = 1 }).verdict, "protect", "protection: the better mantle is kept (test_protection has the rest)")
 
 -- Pending item data, then EvaluationReady with the full response.

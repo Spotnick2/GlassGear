@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Alts (GG-203, this WoW account): tick an alt's specs on the Characters page (needs AltStable).
+  An unbound item it can use better shows "Name · Spec +x%" on the tooltip, an amber bag arrow, and
+  Shatter keeps it. Only items you can mail it count (same realm and faction; to be checked in
+  game). The alt is compared with what it wore while playing that spec with Glass Gear, else with
+  what AltStable last saw it wear. Your other account's alts need sync for their weights.
 - Ready for translation (GG-403): every text you read goes through one table, keyed by the English
   text, and class names come from your client's language. `Locales/enUS.lua` lists every text to
   translate; a translation whose placeholders don't match, or with a stray %, is ignored rather than breaking a line.

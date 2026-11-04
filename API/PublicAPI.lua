@@ -2,9 +2,9 @@
 -- API/PublicAPI.lua - GlassGear.API v1 (docs/API.md).
 --
 -- Discovery, readiness, characters/specs/profiles, Evaluate and
--- AssessProtection (GG-301) for the current character. Alts and the
--- "tracked" Evaluate scope report "unsupported" until GG-201/GG-203.
--- Everything returned is a deep copy.
+-- AssessProtection (GG-301). A target is a (character, spec): the current
+-- character's specs, and with AltStable (GG-201) the tracked alts' specs
+-- (GG-203, Character/Alts.lua). Everything returned is a deep copy.
 --
 -- The runtime (GG-114):
 --   * A request subscribes to a job. Requests for the same item instance (or
@@ -34,7 +34,7 @@ API.LIMITS = { targets = 32, batch = 64, perFrame = 200, jobs = 512, requests = 
     loadTimeout = 5, loadAttempts = 3, cache = 2000 }
 
 -- requests[requestId] = jobKey (a subscription)
--- jobs[jobKey] = { request, specs, itemIDs = {[id]=true}, deferred, subs = {[requestId]=true}, rows, seq }
+-- jobs[jobKey] = { request, targets, itemIDs = {[id]=true}, deferred, subs = {[requestId]=true}, rows, seq }
 -- waiting[itemID] = { attempts, since }   (the one owner of load attempts)
 local state = { ready = false, nextId = 0, requests = {}, requestCount = 0, jobs = {}, jobRows = 0, jobSeq = 0,
     waiting = {}, waitingCount = 0, generation = 0, gens = {}, frameTime = nil, frameUsed = 0,
@@ -94,11 +94,12 @@ end
 API._cache = cache   -- test seam
 
 local function features()
+    local roster = GG.Integrations.RosterProvider.DetectAltStable().usable   -- GG-201
     return {
-        roster = GG.Integrations.RosterProvider.DetectAltStable().usable,   -- GG-201
+        roster = roster,
         evaluate = true, evaluateBatch = true, cancelRequest = true,
-        scopes = { current = true, own = true, tracked = false, targets = true },
-        alts = false, sync = false, assessProtection = true, frameBudget = true, resultCache = true,
+        scopes = { current = true, own = true, tracked = true, ["own+tracked"] = true, targets = true },
+        alts = roster, sync = false, assessProtection = true, frameBudget = true, resultCache = true,
     }
 end
 
@@ -108,9 +109,9 @@ function API.GetCapabilities()
         apiVersion = API.API_VERSION, build = GG.MEASURED_ON_BUILD, features = features(),
         limits = API.LIMITS,
         unavailable = {
-            alts = alt.reason or "alt rows are GG-203 (the entry-sync library ES-001 and the transfer-rule probe GG-116)",
-            sync = "needs the entry-sync library (ES-001, GG-202)",
-            ["scope:tracked"] = "needs alts (GG-201)",
+            -- English: other addons read these (the player's text is RosterProvider.Status).
+            alts = not alt.usable and alt.reason or nil,
+            sync = "needs the entry-sync library (ES-001, GG-202); until then the other account's alts have no weights here",
         },
     })
 end
@@ -149,38 +150,75 @@ end
 -- Evaluation
 ------------------------------------------------------------
 
--- The request's (character, spec) targets, in API order. M1: current character.
+-- The current character's specs in API order: the current spec, then the
+-- others in tree order; `only(spec)` filters them.
+local function ownTargets(only)
+    local p, out = GG.player, {}
+    if GG.currentSpec and (not only or only(GG.currentSpec)) then out[1] = { char = p, spec = GG.currentSpec } end
+    for _, s in ipairs(GG.Data.Classes.Specs(p.class)) do
+        if s.key ~= GG.currentSpec and (not only or only(s.key)) then out[#out + 1] = { char = p, spec = s.key } end
+    end
+    return out
+end
+
+local function withTrackedAlts(list)
+    for _, t in ipairs(GG.Alts.Tracked()) do list[#list + 1] = t end
+    return list
+end
+
+local function tracked(spec) return GG.Prefs.IsTracked(GG.player.key, spec) end
+
+-- The request's (character, spec) targets, in API order: the current
+-- character's, then the tracked alts' (the roster's order, tree order).
+--   current       the current spec
+--   own           every spec of the current character
+--   tracked       the protection scope: its tracked specs and the tracked alts'
+--   own+tracked   every own spec and the tracked alts' (the bag and tooltip surfaces)
+--   targets       request.targets: the current character or own alts
+-- A derived scope over LIMITS.targets is refused (TOO_MANY_TARGETS), never cut.
 local function targetsFor(request)
     local p = GG.player
     local scope = request.scope or "current"
-    local specs = {}
+    local list
     if scope == "current" then
-        specs[1] = GG.currentSpec or "UNKNOWN"
+        list = { { char = p, spec = GG.currentSpec or "UNKNOWN" } }
     elseif scope == "own" then
-        if GG.currentSpec then specs[1] = GG.currentSpec end
-        for _, s in ipairs(GG.Data.Classes.Specs(p.class)) do
-            if s.key ~= GG.currentSpec then specs[#specs + 1] = s.key end
-        end
+        list = ownTargets()
+    elseif scope == "tracked" then
+        list = withTrackedAlts(ownTargets(tracked))
+    elseif scope == "own+tracked" then
+        list = withTrackedAlts(ownTargets())
     elseif scope == "targets" then
         if #(request.targets or {}) > API.LIMITS.targets then return nil, "TOO_MANY_TARGETS" end
+        list = {}
         for _, t in ipairs(request.targets or {}) do
-            if t.char ~= p.key then return nil, "ALT_TARGETS_UNSUPPORTED" end
-            specs[#specs + 1] = t.spec
+            local c = type(t) == "table" and GG.Integrations.RosterProvider.Find(t.char)
+            if not c then return nil, "UNKNOWN_CHARACTER" end
+            if c.key ~= p.key and not GG.Data.Classes.Spec(t.spec) then return nil, "UNKNOWN_SPEC" end
+            list[#list + 1] = { char = c, spec = t.spec }
         end
     else
         return nil, "SCOPE_UNSUPPORTED"
     end
-    return specs
+    if #list > API.LIMITS.targets then return nil, "TOO_MANY_TARGETS" end
+    return list
+end
+
+-- By key: GG.player is rebuilt on a level-up, and a pending job keeps the
+-- targets it was made with.
+local function isMe(t) return GG.player ~= nil and t.char ~= nil and t.char.key == GG.player.key end
+
+local function charOf(t)
+    local c = t.char
+    return c and { key = c.key, name = c.name, realm = c.realm, provenance = c.provenance, current = isMe(t) } or nil
 end
 
 -- One row per target with the same status and reason (placeholders, overload, timeout).
-local function rowsFor(specs, status, reason)
+local function rowsFor(targets, status, reason)
     local rows = {}
-    for _, spec in ipairs(specs) do
-        rows[#rows + 1] = { status = status, spec = spec, current = spec == GG.currentSpec,
-            character = GG.player and { key = GG.player.key, name = GG.player.name, realm = GG.player.realm,
-                provenance = GG.player.provenance } or nil,
-            reasons = { reason }, limitations = {} }
+    for _, t in ipairs(targets) do
+        rows[#rows + 1] = { status = status, spec = t.spec, current = isMe(t) and t.spec == GG.currentSpec,
+            character = charOf(t), reasons = { reason }, limitations = {} }
     end
     return rows
 end
@@ -329,7 +367,7 @@ local function evaluateOne(...)
     return response, rowDeps
 end
 
-evaluateOneTimed = function(request, requestId, specs, prior, priorDeps, opts)
+evaluateOneTimed = function(request, requestId, targets, prior, priorDeps, opts)
     opts = opts or {}
     local response = { requestId = requestId, results = {} }
     local rowDeps = {}
@@ -338,7 +376,7 @@ evaluateOneTimed = function(request, requestId, specs, prior, priorDeps, opts)
     else link, instance = GG.Compat.ResolveItemRef(request.item) end
     local facts = link and GG.Compat.ItemFacts(link)
     if not facts then
-        response.results = rowsFor(specs, "unknown", "NO_ITEM")
+        response.results = rowsFor(targets, "unknown", "NO_ITEM")
         response.status = "unknown"
         return response, rowDeps
     end
@@ -408,17 +446,49 @@ evaluateOneTimed = function(request, requestId, specs, prior, priorDeps, opts)
         state.stats.ownedEvaluations = (state.stats.ownedEvaluations or 0) + 1
         if not opts.protection then state.frameUsed = state.frameUsed + 1 end
     end
-    for i, spec in ipairs(specs) do
+    local settings = settingsFor(opts.protection)
+    for i, t in ipairs(targets) do
+        local spec, me = t.spec, isMe(t)
+        -- An alt as the roster has it now (a pending job keeps its targets).
+        local alt = not me and t.char and GG.Integrations.RosterProvider.Find(t.char.key)
+        -- Can the item reach that alt at all (GG-203)? Decided before any
+        -- work: a bound item costs its alts nothing.
+        local transfer = alt and facts.ready and GG.Alts.Transfer(facts, instance, alt)
         local r, putOff
         local deps = {}
         local done = prior and prior.results[i]
-        if done and done.status ~= "pending" and done.spec == spec and rowFresh(done, now) then
+        if done and done.status ~= "pending" and done.spec == spec and rowFresh(done, now)
+            and done.character and t.char and done.character.key == t.char.key then
             r = done
+        elseif not me and not alt then
+            r = rowsFor({ t }, "unknown", "UNKNOWN_CHARACTER")[1]      -- forgotten meanwhile
+        elseif transfer and transfer.state == "ineligible" then
+            r = rowsFor({ t }, "ineligible", "NOT_TRANSFERABLE")[1]
+            r.transfer = transfer
         elseif not opts.protection and budgetLeft() <= 0 then
             -- Over this frame's budget: a placeholder, computed on a later frame.
             state.stats.deferredRows = state.stats.deferredRows + 1
-            r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
+            r = rowsFor({ t }, "pending", "FRAME_BUDGET")[1]
             for id in pairs(priorDeps and priorDeps[i] or {}) do deps[id] = true end
+        elseif alt then
+            if opts.protection then state.stats.evaluations = state.stats.evaluations + 1 else spend() end
+            if not facts.ready then deps[facts.itemID] = true end
+            -- The alt's own gear for that spec; its own bags are unknown, so no
+            -- "better gear already owned" check (GG-122 is this character's).
+            local baseline, altMissing, why = GG.Alts.BaselineFor(alt, spec, now)
+            if baseline then
+                r = GG.Engine.Evaluate.One({
+                    item = facts, recipient = GG.Alts.Recipient(alt, baseline), spec = spec, current = false,
+                    profile = GG.Profiles.Active(GG.store, alt.key, spec),
+                    baseline = baseline, settings = settings, instance = instance,
+                    companions = GG.Alts.Companions(baseline), transfer = transfer or nil,
+                })
+            elseif why then
+                r = rowsFor({ t }, "unknown", why)[1]
+            else
+                for _, id in ipairs(altMissing or {}) do deps[id] = true end
+                r = rowsFor({ t }, "pending", "BASELINE_ITEM_DATA_PENDING")[1]
+            end
         else
             local firstOfFrame = state.frameUsed == 0
             if opts.protection then
@@ -434,7 +504,7 @@ evaluateOneTimed = function(request, requestId, specs, prior, priorDeps, opts)
                 local input = {
                     item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
                     profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
-                    baseline = baseline, settings = settingsFor(opts.protection), instance = instance,
+                    baseline = baseline, settings = settings, instance = instance,
                     companions = companions,
                     transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },
                 }
@@ -460,14 +530,14 @@ evaluateOneTimed = function(request, requestId, specs, prior, priorDeps, opts)
             end
             if putOff then
                 state.stats.deferredRows = state.stats.deferredRows + 1
-                r = rowsFor({ spec }, "pending", "FRAME_BUDGET")[1]
+                r = rowsFor({ t }, "pending", "FRAME_BUDGET")[1]
                 for id in pairs(priorDeps and priorDeps[i] or {}) do deps[id] = true end
             elseif r then
                 if spec == "UNKNOWN" then r.status = "unknown"; r.reasons = { "UNKNOWN_SPEC" } end
             else
                 if fromLive then for _, id in ipairs(missing) do deps[id] = true end end
                 for _, id in ipairs(specMissing or {}) do deps[id] = true end
-                r = rowsFor({ spec }, "pending", "BASELINE_ITEM_DATA_PENDING")[1]
+                r = rowsFor({ t }, "pending", "BASELINE_ITEM_DATA_PENDING")[1]
             end
         end
         if r.status == "pending" then rowDeps[i] = deps end
@@ -531,13 +601,15 @@ local function expiryOf(response)
 end
 
 -- The contextual key: item instance (or link), targets, context.
-local function keyFor(link, instance, specs, context)
+local function keyFor(link, instance, targets, context)
     local inst = ""
     if instance then
         inst = table.concat({ tostring(instance.guid or ""), tostring(instance.bag or ""), tostring(instance.slot or ""),
             tostring(instance.equipSlot or ""), instance.bound and "b" or "u" }, ",")
     end
-    return table.concat({ link, inst, table.concat(specs, ","), tostring(context or "") }, "\31")
+    local who = {}
+    for i, t in ipairs(targets) do who[i] = t.char.key .. "/" .. t.spec end
+    return table.concat({ link, inst, table.concat(who, ","), tostring(context or "") }, "\31")
 end
 
 local function wait(itemID)
@@ -637,7 +709,7 @@ settleTimed = function(key, response, rowDeps)
     if full then
         for w in pairs(deps) do released[w] = true end   -- don't keep what was just queued
         job.itemIDs = {}
-        finishJob(key, { status = "unknown", results = rowsFor(job.specs, "unknown", "ITEM_QUEUE_FULL") })
+        finishJob(key, { status = "unknown", results = rowsFor(job.targets, "unknown", "ITEM_QUEUE_FULL") })
     elseif #waitIDs == 0 and not deferred then
         job.itemIDs = {}
         finishJob(key, response)
@@ -664,7 +736,7 @@ end
 local function refresh(key)
     local job = state.jobs[key]
     if not job then return end
-    local response, rowDeps = evaluateOne(job.request, nil, job.specs, priorOf(job))
+    local response, rowDeps = evaluateOne(job.request, nil, job.targets, priorOf(job))
     settle(key, response, rowDeps)
 end
 
@@ -691,8 +763,8 @@ runDeferred = function()
     end
 end
 
-local function overloaded(id, specs)
-    return U.deepCopy({ requestId = id, status = "unknown", results = rowsFor(specs, "unknown", "OVERLOADED") })
+local function overloaded(id, targets)
+    return U.deepCopy({ requestId = id, status = "unknown", results = rowsFor(targets, "unknown", "OVERLOADED") })
 end
 
 function API.Evaluate(request)
@@ -702,15 +774,15 @@ function API.Evaluate(request)
     if not state.ready then
         return { requestId = id, status = "unknown", results = { { status = "unknown", reasons = { "NOT_READY" } } } }
     end
-    local specs, why = targetsFor(request)
-    if not specs then
+    local targets, why = targetsFor(request)
+    if not targets then
         return { requestId = id, status = "unsupported", results = { { status = "unsupported", reasons = { why }, limitations = {} } } }
     end
     local link, instance = GG.Compat.ResolveItemRef(request.item)
     if not link then
-        return U.deepCopy({ requestId = id, status = "unknown", results = rowsFor(specs, "unknown", "NO_ITEM") })
+        return U.deepCopy({ requestId = id, status = "unknown", results = rowsFor(targets, "unknown", "NO_ITEM") })
     end
-    local key = keyFor(link, instance, specs, request.context)
+    local key = keyFor(link, instance, targets, request.context)
 
     -- A cached answer of this generation, still fresh.
     local function fromCache()
@@ -747,14 +819,14 @@ function API.Evaluate(request)
         end
     end
     if job then
-        if state.requestCount >= API.LIMITS.requests then return overloaded(id, specs) end
+        if state.requestCount >= API.LIMITS.requests then return overloaded(id, targets) end
         job.subs[id] = true
         state.requests[id] = key
         state.requestCount = state.requestCount + 1
         return withId(job.response, id)
     end
 
-    local response, rowDeps = evaluateOne(request, id, specs)
+    local response, rowDeps = evaluateOne(request, id, targets)
     local waitIDs, deferred = needs(response, rowDeps)
     if #waitIDs == 0 and not deferred then
         if cacheable(response) then cache.put(key, U.deepCopy(response), expiryOf(response)) end
@@ -762,18 +834,18 @@ function API.Evaluate(request)
     end
     local rows = pendingRows(response)
     if state.requestCount >= API.LIMITS.requests or state.jobRows + rows > API.LIMITS.jobs then
-        return overloaded(id, specs)
+        return overloaded(id, targets)
     end
     local ids = {}
     for _, itemID in ipairs(waitIDs) do
         if not wait(itemID) then
             releaseUnneeded(ids)
-            return U.deepCopy({ requestId = id, status = "unknown", results = rowsFor(specs, "unknown", "ITEM_QUEUE_FULL") })
+            return U.deepCopy({ requestId = id, status = "unknown", results = rowsFor(targets, "unknown", "ITEM_QUEUE_FULL") })
         end
         ids[itemID] = true
     end
     state.jobSeq = state.jobSeq + 1
-    state.jobs[key] = { request = request, specs = specs, itemIDs = ids, deferred = deferred, subs = { [id] = true },
+    state.jobs[key] = { request = request, targets = targets, itemIDs = ids, deferred = deferred, subs = { [id] = true },
         rows = rows, response = response, rowDeps = rowDeps, seq = state.jobSeq, generation = state.generation,
         gaveUp = {} }
     state.jobRows = state.jobRows + rows
@@ -813,7 +885,7 @@ function API._ItemDataArrived(itemID, success)
     local affected, computedMissing = {}, false
     for _, k in ipairs(jobsWaitingFor(itemID)) do
         local job = state.jobs[k.key]
-        local response, rowDeps = evaluateOne(job.request, nil, job.specs, priorOf(job))
+        local response, rowDeps = evaluateOne(job.request, nil, job.targets, priorOf(job))
         affected[#affected + 1] = { key = k.key, response = response, rowDeps = rowDeps }
         for i, deps in pairs(rowDeps) do
             if deps[itemID] and response.results[i].reasons[1] ~= "FRAME_BUDGET" then computedMissing = true end
@@ -899,19 +971,12 @@ end
 -- Protection (GG-301, API.md "Protection", adr/0003, adr/0006)
 ------------------------------------------------------------
 
--- The protection scope: the tracked specs of the current character (alts:
--- GG-203). Read from the protection settings only, never from the tooltip
--- or marker scopes.
+-- The protection scope: the tracked specs of the current character, then
+-- the tracked alts' (GG-203), as Evaluate's "tracked" scope. Read from the
+-- protection settings only, never from the tooltip or marker scopes.
 local function protectionTargets()
-    local out = {}
-    if not GG.player then return out end
-    -- API order: the current spec first, then the others in tree order.
-    local cur = GG.currentSpec
-    if cur and GG.Prefs.IsTracked(GG.player.key, cur) then out[1] = cur end
-    for _, s in ipairs(GG.Data.Classes.Specs(GG.player.class)) do
-        if s.key ~= cur and GG.Prefs.IsTracked(GG.player.key, s.key) then out[#out + 1] = s.key end
-    end
-    return out
+    if not GG.player then return {} end
+    return targetsFor({ scope = "tracked" })
 end
 
 -- A short opaque hash (djb2) so consumers compare tokens, never parse them.
@@ -941,14 +1006,15 @@ local function assess(itemRef, opts)
         state.nextExpiry = nil
         API._Invalidate("freshness", GG.player and { GG.player.key } or nil)
     end
-    local specs = protectionTargets()
-    if #specs == 0 then return verdictOf("unknown", { "NO_PROTECTION_TARGETS" }) end
+    local targets, tooMany = protectionTargets()
+    if not targets then return verdictOf("unknown", { tooMany }) end
+    if #targets == 0 then return verdictOf("unknown", { "NO_PROTECTION_TARGETS" }) end
     local link, instance = GG.Compat.ResolveItemRef(itemRef)
     if not link then return verdictOf("unknown", { "NO_ITEM" }) end
     state.stats.protections = state.stats.protections + 1
     -- Computed now, every time: protection never reads a cached answer
     -- (instance bind state, GUID and expiry are re-read on every call).
-    local response, rowDeps = evaluateOne({ item = itemRef }, nil, specs, nil, nil,
+    local response, rowDeps = evaluateOne({ item = itemRef }, nil, targets, nil, nil,
         { protection = true, link = link, instance = instance })
     local s = GG.db and GG.db.settings.protection or GG.DB.DEFAULTS.settings.protection
     -- noWeights: "ignore" or "keep"; anything else keeps the item (fail-closed).
@@ -1006,7 +1072,7 @@ local function assess(itemRef, opts)
     out.expiresAt = expiresAt
     local guid = instance and instance.guid
     out.token = hash(table.concat({ tostring(guid or link), tostring(instance and instance.bound and 1 or 0),
-        tostring(state.generation), noWeights, table.concat(specs, ",") }, "|"))
+        tostring(state.generation), noWeights, keyFor("", nil, targets, "") }, "|"))
     out.instance = instance and { guid = guid, bound = instance.bound } or nil
     return out
 end
@@ -1036,6 +1102,7 @@ end
 -- on the next frame.
 function API._Invalidate(reason, charKeys)
     state.generation = state.generation + 1
+    if GG.Alts then GG.Alts.Forget() end
     state.gens[reason] = (state.gens[reason] or 0) + 1
     GG.Callbacks.Fire("EvaluationInvalidated", { reason = reason, charKeys = charKeys })
 end

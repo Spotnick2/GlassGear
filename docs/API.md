@@ -46,7 +46,7 @@ end
 | `Evaluate(request)` | response (below) | yes (current character, local baselines) |
 | `EvaluateBatch(requests)` | list of responses (at most 64 items) | yes |
 | `CancelRequest(requestId)` | `true` / `false` | yes |
-| `AssessProtection(itemRef, opts)` | protection result (below) | yes (the current character's tracked specs, GG-301) |
+| `AssessProtection(itemRef, opts)` | protection result (below) | yes (the tracked specs: this character's, GG-301, and the tracked alts', GG-203) |
 | `RegisterCallback(event, fn, owner)` / `UnregisterCallback(event, owner)` | — | yes |
 
 ### Request
@@ -55,10 +55,18 @@ end
 {
   item    = link | ItemLocation | { bag = b, slot = s },
   context = "tooltip" | "bags" | "loot" | "purchase" | "protection",
-  scope   = "current" | "own" | "tracked" | "targets",
+  scope   = "current" | "own" | "tracked" | "own+tracked" | "targets",
   targets = { { char = "<charKey>", spec = "PRIEST.HOLY" }, ... }, -- scope == "targets", at most 32
 }
 ```
+
+- **Scopes** (GG-203): `current` = the current spec; `own` = every spec of the current character;
+  `tracked` = the protection scope, its tracked specs and the tracked alts' (the Characters page);
+  `own+tracked` = every own spec and the tracked alts' (what the tooltip and bag arrows read);
+  `targets` = the listed `(character, spec)` pairs, the current character or one of the player's own
+  alts (`UNKNOWN_CHARACTER`, `UNKNOWN_SPEC` otherwise). Alts need `features.alts` (AltStable AS-001 +
+  AS-003); without it the alt part is empty. A scope over `LIMITS.targets` is `unsupported`,
+  `TOO_MANY_TARGETS`: never cut.
 
 ### Response
 
@@ -96,8 +104,19 @@ end
 
 - **`replaces.companion`** (GG-113): the item string of the main hand or off-hand a one-hander was
   paired with (against a spec whose gear has a two-hander), or nil.
-- **Order:** current spec, then the character's other specs in tree order, then alts in the owner's
-  tracked order.
+- **Order:** current spec, then the character's other specs in tree order, then the tracked alts'
+  specs (AltStable's roster order, then tree order).
+- **Alt rows** (GG-203): `character.current` is `false` (`true` on the current character's rows).
+  - `transfer` decides first: an item that can't reach that alt (bound, another realm or faction) is
+    `ineligible`, `NOT_TRANSFERABLE`, with the cause in `transfer.reasons`, and costs no evaluation.
+    An unbound item on the same realm and faction is `eligible`, `MAIL_SAME_REALM_FACTION` (proposed
+    until probed, GG-116). Account-bound kinds and links with no instance are `unknown`.
+  - Baseline: what the alt wore while it played that spec with Glass Gear on this WoW account
+    (`observed`), else AltStable's last scan of its gear (`fallback-current`, reason
+    `BASELINE_FALLBACK`); `unknown`, `NO_ALT_GEAR` when AltStable has none.
+  - Profiles are the alt's own. The other account's alts have none here until sync (GG-202):
+    `NO_WEIGHTS`.
+  - No "better gear already owned" check (GG-122 reads this character's bags).
 - **Aggregate `status`** (display only, never a protection verdict), first match wins:
   1. any `upgrade`;
   2. else any `pending`;
@@ -137,8 +156,9 @@ is over the per-frame budget.
 
 ### Protection
 
-Implemented by GG-301 (`features.assessProtection = true`). The protection scope is the current
-character's tracked specs (settings, DISENCHANT PROTECTION); tracked alts join with GG-203.
+Implemented by GG-301 (`features.assessProtection = true`). The protection scope is Evaluate's
+`tracked`: the current character's tracked specs (settings, DISENCHANT PROTECTION) and the tracked
+alts' (the Characters page, GG-203).
 
 ```lua
 local p = api.AssessProtection({ bag = 0, slot = 3 }, { noWeights = "ignore" })   -- opts optional
@@ -159,17 +179,22 @@ local p = api.AssessProtection({ bag = 0, slot = 3 }, { noWeights = "ignore" }) 
   - An item has `EFFECT_NOT_SCORED`, `SET_BONUS_NOT_SCORED` or `NO_SUPPORTED_STATS` and its supported
     score is not already an upgrade.
   - Item data is missing.
+- **Alts** (GG-203). An alt the item can't reach has no say. An alt's upgrade on an item whose
+  transfer is `unknown` (account-bound kinds, unprobed) keeps the item: `unknown`,
+  `TRANSFER_UNKNOWN`, never `protect` or `clear`. An alt compared with AltStable's last scan
+  (`fallback-current`) never gives `clear`.
 - **Specs without weights.** A spec that has no profile cannot be checked. With the default
   `opts.noWeights = "ignore"`, it is listed in `unchecked` and the reasons carry `UNCHECKED_SPECS`,
   so Shatter can say "Discipline unchecked". It does not block the item.
   - With `"keep"`, such a spec makes the verdict `unknown` instead.
-  - If no spec in scope has weights, the verdict is `unknown`, never `clear`.
+  - If no spec in scope has weights, the verdict is `unknown`, never `clear`. Specs that can't use
+    the item (ineligible) don't count here: no weights beside them is still nothing checked.
 
   Without this rule, every item would stay blocked until every tracked spec had weights.
 - **Options:** `noWeights` (`"ignore"` | `"keep"`; default: the setting; any other value keeps the
   item) and `scope` (only `"tracked"`; anything else answers `unsupported`, `SCOPE_UNSUPPORTED`).
 - **Other reasons for `unknown`:** `NOT_READY`, `NO_ITEM` (nothing at that slot),
-  `NO_PROTECTION_TARGETS` (no spec tracked), `ITEM_QUEUE_FULL`, `ITEM_DATA_UNAVAILABLE` (its load
+  `NO_PROTECTION_TARGETS` (no spec tracked), `TOO_MANY_TARGETS`, `ITEM_QUEUE_FULL`, `ITEM_DATA_UNAVAILABLE` (its load
   gave up), `INTERNAL_ERROR` (an error inside: reported to the error handler, the item is kept).
 - **Pending:** the item data it needs is requested. When it arrives, or its load gives up,
   `EvaluationInvalidated` (`itemData`, with `itemIDs`) tells the consumer to ask again; it is

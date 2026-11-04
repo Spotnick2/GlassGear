@@ -419,7 +419,7 @@ local function build()
         get("tooltip.specs"), set("tooltip.specs"))
     specChecks(left, "tooltip", "tooltip.specs")
     local alts = checkbox(left, L["Show eligible alt upgrades"], get("tooltip.alts"), set("tooltip.alts"))
-    tip(alts, L["Alt rows need AltStable and arrive with GG-203. The setting is kept until then."])
+    tip(alts, L["Upgrades for the alts ticked on the Characters page, for items you can mail them. Needs AltStable."])
     checkbox(left, L["Set-bonus warnings"], get("setBonusWarnings"), set("setBonusWarnings"))
 
     -- Bag and loot arrows
