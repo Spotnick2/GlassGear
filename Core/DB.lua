@@ -17,6 +17,7 @@ DB.DEFAULTS = {
         levelWindow = { enabled = true, lookAhead = 0 },
         specArmor = true,
         setBonusWarnings = true,
+        defaults = { enabled = true },      -- GG-120: Glass Gear's default weights
         appearance = { theme = "forever" },
     },
     ui = { windows = {} },      -- window positions (GG-105); never synced

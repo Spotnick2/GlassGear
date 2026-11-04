@@ -100,6 +100,7 @@ local function features()
         evaluate = true, evaluateBatch = true, cancelRequest = true,
         scopes = { current = true, own = true, tracked = true, ["own+tracked"] = true, targets = true },
         alts = roster, sync = false, assessProtection = true, frameBudget = true, resultCache = true,
+        defaultWeights = GG.Data.Defaults.Any(),      -- GG-120: specs without an import score with a default
     }
 end
 
@@ -139,9 +140,22 @@ function API.GetSpecs(charKey)
     return out
 end
 
+-- Is `spec` (a string) one of that class's specs?
+local function classHas(class, spec)
+    if type(spec) ~= "string" then return false end
+    for _, s in ipairs(GG.Data.Classes.Specs(class)) do if s.key == spec then return true end end
+    return false
+end
+
 function API.GetProfile(charKey, specKey)
     if not GG.store then return nil, "not-ready" end
-    local p = GG.Profiles.Active(GG.store, charKey, specKey)
+    -- Only a pair Glass Gear evaluates (GetSpecs lists it): the current
+    -- character or an own alt, with a spec of its class.
+    local c = GG.Integrations.RosterProvider.Find(charKey)
+    if not c then return nil, "UNKNOWN_CHARACTER" end
+    if not classHas(c.class, specKey) then return nil, "UNKNOWN_SPEC" end
+    -- What the spec scores with: the player's import, or a default (source "default", GG-120).
+    local p = GG.Profiles.Effective(GG.store, charKey, specKey)
     if not p then return nil, "NO_WEIGHTS" end
     return U.deepCopy(p)
 end
@@ -167,13 +181,6 @@ local function withTrackedAlts(list)
 end
 
 local function tracked(spec) return GG.Prefs.IsTracked(GG.player.key, spec) end
-
--- Is `spec` (a string) one of that class's specs?
-local function classHas(class, spec)
-    if type(spec) ~= "string" then return false end
-    for _, s in ipairs(GG.Data.Classes.Specs(class)) do if s.key == spec then return true end end
-    return false
-end
 
 -- The request's (character, spec) targets, in API order: the current
 -- character's, then the tracked alts' (the roster's order, tree order).
@@ -487,7 +494,7 @@ evaluateOneTimed = function(request, requestId, targets, prior, priorDeps, opts)
             if baseline then
                 r = GG.Engine.Evaluate.One({
                     item = facts, recipient = GG.Alts.Recipient(alt, baseline), spec = spec, current = false,
-                    profile = GG.Profiles.Active(GG.store, alt.key, spec),
+                    profile = GG.Profiles.Effective(GG.store, alt.key, spec),
                     baseline = baseline, settings = settings, instance = instance,
                     companions = GG.Alts.Companions(baseline), transfer = transfer or nil,
                 })
@@ -511,7 +518,7 @@ evaluateOneTimed = function(request, requestId, targets, prior, priorDeps, opts)
             if baseline and not (fromLive and #missing > 0) then
                 local input = {
                     item = facts, recipient = GG.player, spec = spec, current = spec == GG.currentSpec,
-                    profile = GG.Profiles.Active(GG.store, GG.player.key, spec),
+                    profile = GG.Profiles.Effective(GG.store, GG.player.key, spec),
                     baseline = baseline, settings = settings, instance = instance,
                     companions = companions,
                     transfer = { state = "eligible", reasons = { "SAME_CHARACTER" } },

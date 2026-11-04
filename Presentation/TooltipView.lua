@@ -30,6 +30,7 @@ View.COLORS = {
 }
 local C = View.COLORS
 View.BADGE = "|cff7fd4ff" .. L["CURRENT"] .. "|r"
+View.DEFAULT_TAG = "|cff8c8c8c" .. L["default weights"] .. "|r"     -- GG-120
 
 -- Short texts for terminal reasons (ineligible / unknown). First match wins.
 local REASON_TEXT = {
@@ -197,11 +198,15 @@ function View.Build(response, settings, ctx)
     if #rows == 0 then return nil end
 
     local lines = { { left = "Glass Gear", lc = C.title } }
-    local offSpecVsCurrentGear, altVsLastSeen = false, false
+    local offSpecVsCurrentGear, altVsLastSeen, anyDefault = false, false, false
     for _, row in ipairs(rows) do
         local right, rc = rightOf(row)
         local left = rowName(row)
         if row.emphasis then left = left .. "  " .. View.BADGE end
+        if row.defaultWeights then
+            left = left .. "  " .. View.DEFAULT_TAG
+            anyDefault = true
+        end
         lines[#lines + 1] = { left = left, right = right, lc = row.emphasis and C.current or C.spec, rc = rc }
         if row.kind == "alt" then
             if has(row.reasons, "BASELINE_FALLBACK") then altVsLastSeen = true end
@@ -233,6 +238,9 @@ function View.Build(response, settings, ctx)
     -- AltStable last saw it wear (GG-203).
     if altVsLastSeen then
         lines[#lines + 1] = { left = L["Alts: compared with the gear AltStable last saw them wear"], lc = C.muted }
+    end
+    if anyDefault then
+        lines[#lines + 1] = { left = L["Default weights: import your own for better advice (/gg profiles)"], lc = C.muted }
     end
     if not ctx.currentSpec then
         lines[#lines + 1] = { left = L["Current spec not set: /gg options"], lc = C.muted }

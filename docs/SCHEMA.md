@@ -16,6 +16,7 @@ GlassGearDB = {
     levelWindow = { enabled = true, lookAhead = 0 },              -- look-ahead 0-10 levels
     specArmor  = true,
     setBonusWarnings = true,
+    defaults = { enabled = true },   -- GG-120: specs without an import score with Data/Defaults.lua
     appearance = { theme = "forever" },          -- kept unchanged while Glass UI decides the look
   },
   ui = { windows = { profiles = { point, relPoint, x, y } } },   -- window positions (GG-105);

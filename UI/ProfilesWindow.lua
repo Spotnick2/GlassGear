@@ -392,7 +392,9 @@ function Win.Refresh()
     if not state.spec then state.spec = GG.currentSpec ~= "UNKNOWN" and GG.currentSpec or (specs[1] and specs[1].key) end
     for _, b in ipairs(W.specs) do
         local active = GG.Profiles.ActiveEntry(GG.store, key, b.specKey)
-        local sub = active and active.data.name or L["no weights"]
+        -- No import: the default it scores with, if any (GG-120).
+        local sub = active and active.data.name
+            or (GG.Profiles.Effective(GG.store, key, b.specKey) and L["default weights"]) or L["no weights"]
         if b.specKey == GG.currentSpec then sub = L["%s  \194\183 current"]:format(sub) end
         b.sub:SetText(sub)
         color(b.sub, active and "info" or "warn")

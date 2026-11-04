@@ -452,6 +452,11 @@ local function build()
     end
     checkbox(right, L["Spec armor rules"], get("specArmor"), set("specArmor"))
     note(right, L["Each spec gets its armor types: a Holy Paladin can use cloth, Protection can't."])
+    -- Only once Glass Gear ships defaults (GG-120): a switch that does nothing is not offered.
+    if GG.Data.Defaults.Any() then
+        local d = checkbox(right, L["Default weights for specs without an import"], get("defaults.enabled"), set("defaults.enabled"))
+        tip(d, L["Glass Gear's own starting weights. Any profile you import replaces them; disenchant protection never clears an item on them alone."])
+    end
 
     -- Protection
     header(right, L["DISENCHANT PROTECTION"])

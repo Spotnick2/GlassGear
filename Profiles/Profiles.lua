@@ -66,6 +66,18 @@ function Profiles.Active(store, guid, specKey)
     return e and Profiles.Shape(e) or nil
 end
 
+-- What a spec scores with: its active imported profile, else Glass Gear's
+-- default for that spec (GG-120, Data/Defaults.lua) while settings.defaults
+-- is on, else nil ("no weights"). Profiles.Active stays the imported one:
+-- editing, the profile UI and GetSpecs' hasProfile mean the player's own.
+function Profiles.Effective(store, guid, specKey)
+    local p = Profiles.Active(store, guid, specKey)
+    if p then return p end
+    local s = GG.db and GG.db.settings and GG.db.settings.defaults
+    if s and s.enabled == false then return nil end
+    return GG.Data.Defaults.For(specKey)
+end
+
 -- The activeAt a choice made now gets: later than every profile of the spec
 -- already has, so two choices within one second still order (the clock is
 -- whole seconds).

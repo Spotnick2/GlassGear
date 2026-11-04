@@ -1,6 +1,6 @@
 # ADR-0005: Weight sources and provenance
 
-- Status: accepted (2026-11-01); `default` row proposed by GG-106, pending the owner's numbers
+- Status: accepted (2026-11-01); `default` implemented by GG-120 (the table ships empty until the owner's measured numbers)
 
 Every profile records `source`, `importedAt` / `updatedAt` and, when it is known, `origin` (a free
 text label, such as the Pawn scale name).

@@ -42,7 +42,7 @@ end
 | `IsReady()` | boolean | yes |
 | `GetCharacters()` | list of `{key, guid, name, realm, faction, class, level, provenance, current, hidden, account, provenanceVia}`: the current character first, then the player's own others from AltStable (GG-201; `provenance` `self` or `own-account`, never `third-party`). The current character only without AltStable AS-001 + AS-003 (`features.roster`) | yes (local) |
 | `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order, for the current character or an own alt (an alt's `current` is always false: its spec isn't known). `key` is the stable identifier; `name` is for display, in the client's language (GG-403) | yes |
-| `GetProfile(charKey, specKey)` | The spec's **active** profile (of up to 4; SCHEMA, latest `activeAt`): `{id, specKey, name, source, origin, version, updatedAt, weights = {[token] = n}}` or `nil, reason` | yes (local) |
+| `GetProfile(charKey, specKey)` | The spec's **active** profile (of up to 4; SCHEMA, latest `activeAt`): `{id, specKey, name, source, origin, version, updatedAt, weights = {[token] = n}}` or `nil, reason` (`NO_WEIGHTS`; `UNKNOWN_CHARACTER` / `UNKNOWN_SPEC` for a pair `GetSpecs` doesn't list). With no import, the spec's default (`source = "default"`, GG-120) | yes (local) |
 | `Evaluate(request)` | response (below) | yes (current character, local baselines) |
 | `EvaluateBatch(requests)` | list of responses (at most 64 items) | yes |
 | `CancelRequest(requestId)` | `true` / `false` | yes |
@@ -80,7 +80,9 @@ end
       character   = { key, name, realm, provenance = "self" | "own-account" },
       spec        = "PRIEST.HOLY",
       current     = false,
-      profile     = { id, source = "imported-pawn", version, updatedAt } | nil,
+      profile     = { id, source = "imported-pawn" | "default" | ..., version, updatedAt } | nil,
+                    -- "default": Glass Gear's own weights for a spec without an import
+                    -- (GG-120; id "default:<spec>", version "defaults-<revision>")
       candidate   = { itemString, instance = { bag, slot, guid, bound } | nil },
       baseline    = { source = "equipment-set" | "observed" | "fallback-current",
                       capturedAt, complete = true, stale = false, maybeBehind = false,
@@ -96,7 +98,7 @@ end
       eligibility = { equipNow = true, reasons = {} },
       transfer    = { state = "eligible" | "ineligible" | "unknown", reasons = {} },
       reasons     = { "EMPTY_SLOT", ... },
-      limitations = { "EFFECT_NOT_SCORED", ... },
+      limitations = { "EFFECT_NOT_SCORED", "DEFAULT_WEIGHTS", ... },
     },
   },
 }
@@ -187,6 +189,10 @@ local p = api.AssessProtection({ bag = 0, slot = 3 }, { noWeights = "ignore" }) 
   `opts.noWeights = "ignore"`, it is listed in `unchecked` and the reasons carry `UNCHECKED_SPECS`,
   so Shatter can say "Discipline unchecked". It does not block the item.
   - With `"keep"`, such a spec makes the verdict `unknown` instead.
+  - **Default weights** (GG-120, `features.defaultWeights`, soft): a result scored with a default
+    (`DEFAULT_WEIGHTS`) that is an upgrade protects (the recipient has `defaultWeights = true`); one
+    that is no upgrade counts like a spec without weights (unchecked, or `unknown` with
+    `DEFAULT_WEIGHTS` under `"keep"`), never a reason for `clear`.
   - If no spec in scope has weights, the verdict is `unknown`, never `clear`. Specs that can't use
     the item (ineligible) don't count here: no weights beside them is still nothing checked.
 
