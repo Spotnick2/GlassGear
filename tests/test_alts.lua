@@ -134,6 +134,9 @@ H.eq(hz.reasons[1], "NOT_TRANSFERABLE", "...NOT_TRANSFERABLE")
 H.eq(hz.transfer.reasons[1], "OTHER_FACTION", "...because of the faction")
 H.eq(by[FAR .. "/MAGE.FROST"].transfer.reasons[1], "OTHER_REALM", "another realm: OTHER_REALM")
 H.eq(by[BARE .. "/MAGE.FROST"].reasons[1], "NO_ALT_GEAR", "an alt AltStable has no gear for: unknown, NO_ALT_GEAR")
+local reads0 = gearReads
+rows({ bag = 0, slot = 4 })
+H.eq(gearReads - reads0, 0, "...another item in the same generation: no new AltStable read, not even for her (none is remembered)")
 local _, late = rows({ bag = 0, slot = 5 })
 H.eq(late[LOW .. "/MAGE.FROST"].status, "ineligible", "a level 20 alt and a level 50 item: its own level counts")
 H.eq(late[WANDA .. "/MAGE.FROST"].status, "upgrade", "...a level 60 one gets it")
@@ -245,12 +248,18 @@ H.eq(GG.Engine.Policy.Protection({ { status = "ineligible", spec = "A" } }).verd
 GG.store:Delete(GG.Capture.ID(WANDA, "MAGE.FROST"), GG.store:Get(GG.Capture.ID(WANDA, "MAGE.FROST")).version)
 WoW.cacheMiss[51] = true
 GG.API._Invalidate("test", { WANDA })
-local ready
-api.RegisterCallback("EvaluationReady", function(_, payload) ready = payload end, "test_alts")
-local pr, pby = rows({ bag = 0, slot = 1 })
+local ready, pr, pby
+api.RegisterCallback("EvaluationReady", function(_, payload)
+    if pr and payload.requestId == pr.requestId then ready = payload end      -- this request's answer
+end, "test_alts")
+pr, pby = rows({ bag = 0, slot = 1 })
 H.eq(pby[WANDA .. "/MAGE.FROST"].status, "pending", "her gear loading: pending")
 H.eq(pby[WANDA .. "/MAGE.FROST"].reasons[1], "BASELINE_ITEM_DATA_PENDING", "...BASELINE_ITEM_DATA_PENDING")
 H.eq(pby[ME .. "/PRIEST.SHADOW"].status, "no_upgrade", "...the priest's rows aren't held up")
+local pendingReads = gearReads
+rows({ bag = 0, slot = 4 })
+rows({ bag = 0, slot = 5 })
+H.eq(gearReads - pendingReads, 0, "...more items while her gear loads: AltStable read once, hydration retried")
 WoW.cacheMiss[51] = nil
 WoW.fire("ITEM_DATA_LOAD_RESULT", 51, true)
 WoW.flush()
@@ -285,6 +294,12 @@ H.eq(#tr.results, 1, "scope targets: an alt's spec")
 H.eq(tr.results[1].character.key, WANDA, "...hers")
 tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = WANDA, spec = "MAGE.NOPE" } } })
 H.eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...an unknown spec: unsupported")
+tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = WANDA, spec = "PRIEST.SHADOW" } } })
+H.eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...another class's spec for her: unsupported")
+tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = ME, spec = "MAGE.FROST" } } })
+H.eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...the current character too: a mage spec for the priest is refused")
+local okMissing, missingSpec = pcall(api.Evaluate, { item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = ME } } })
+H.eq(okMissing and missingSpec.results[1].reasons[1], "UNKNOWN_SPEC", "...a target without a spec: unsupported, never an error")
 tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = "Player-1-FRIEND", spec = "MAGE.FROST" } } })
 H.eq(tr.results[1].reasons[1], "UNKNOWN_CHARACTER", "...a third-party character: unsupported")
 

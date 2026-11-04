@@ -492,7 +492,7 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
   (fallback-current, never trusted by protection); tooltip "Name · Spec", amber arrows, protection
   (`TRANSFER_UNKNOWN` keeps account-bound kinds); roster and gear changes invalidate; at most
   `LIMITS.targets` specs ticked. `Policy.Protection` counts only eligible specs for "nothing
-  checked". `test_alts.lua` (84 checks). **Left:** the other account's alts have no weights until
+  checked". `test_alts.lua` (89 checks). **Left:** the other account's alts have no weights until
   GG-202; loot and hypothetical links show no alts (transfer unknown without an instance).
 
 ### GG-204: Characters page (P1, MVP)

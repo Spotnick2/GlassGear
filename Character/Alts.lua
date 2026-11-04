@@ -33,9 +33,13 @@ local GG = GlassGear
 local Alts = {}
 GG.Alts = Alts
 
-local gearMemo = {}     -- [guid] = { baseline, capturedAt }: AltStable gear, hydrated, this generation
+-- Per generation (Alts.Forget on every invalidation):
+local gearMemo = {}     -- [guid] = { baseline, capturedAt }: AltStable gear, hydrated
+local gearRead = {}     -- [guid] = AltStable's answer (false: none): read once, even while
+                        -- its items load (hydration is retried; the read is not)
 
-function Alts.Forget() gearMemo = {} end
+function Alts.Forget() gearMemo, gearRead = {}, {} end
+Alts.reads = 0          -- AltStable gear reads (tests: once per alt per generation)
 
 function Alts.Tracked()
     local out = {}
@@ -81,8 +85,14 @@ end
 local function lastSeen(c, now)
     local m = gearMemo[c.key]
     if not m then
-        local gear = GG.Integrations.RosterProvider.Gear(c.key)
-        if type(gear) ~= "table" then return nil, {}, "NO_ALT_GEAR" end
+        local gear = gearRead[c.key]
+        if gear == nil then
+            Alts.reads = Alts.reads + 1
+            gear = GG.Integrations.RosterProvider.Gear(c.key)
+            if type(gear) ~= "table" then gear = false end
+            gearRead[c.key] = gear
+        end
+        if not gear then return nil, {}, "NO_ALT_GEAR" end
         local b, missing = GG.Baselines.Hydrate(storedFromGear(gear), GG.Compat.ItemFacts)
         if #missing > 0 then return nil, missing end
         m = { baseline = GG.Baselines.Choose({ current = b }), capturedAt = gear.capturedAt }
