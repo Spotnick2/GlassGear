@@ -64,7 +64,7 @@ end
   `tracked` = the protection scope, its tracked specs and the tracked alts' (the Characters page);
   `own+tracked` = every own spec and the tracked alts' (what the tooltip and bag arrows read);
   `targets` = the listed `(character, spec)` pairs, the current character or one of the player's own
-  alts (`UNKNOWN_CHARACTER`, `UNKNOWN_SPEC` otherwise). Alts need `features.alts` (AltStable AS-001 +
+  alts, each with a spec of that character's class (`UNKNOWN_CHARACTER`, `UNKNOWN_SPEC` otherwise). Alts need `features.alts` (AltStable AS-001 +
   AS-003); without it the alt part is empty. A scope over `LIMITS.targets` is `unsupported`,
   `TOO_MANY_TARGETS`: never cut.
 

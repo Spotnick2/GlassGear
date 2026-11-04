@@ -170,6 +170,13 @@ end
 
 local function tracked(spec) return GG.Prefs.IsTracked(GG.player.key, spec) end
 
+-- Is `spec` (a string) one of that class's specs?
+local function classHas(class, spec)
+    if type(spec) ~= "string" then return false end
+    for _, s in ipairs(GG.Data.Classes.Specs(class)) do if s.key == spec then return true end end
+    return false
+end
+
 -- The request's (character, spec) targets, in API order: the current
 -- character's, then the tracked alts' (the roster's order, tree order).
 --   current       the current spec
@@ -196,7 +203,8 @@ local function targetsFor(request)
         for _, t in ipairs(request.targets or {}) do
             local c = type(t) == "table" and GG.Integrations.RosterProvider.Find(t.char)
             if not c then return nil, "UNKNOWN_CHARACTER" end
-            if c.key ~= p.key and not GG.Data.Classes.Spec(t.spec) then return nil, "UNKNOWN_SPEC" end
+            -- Every target, the current character's too: a spec of that character's class.
+            if not classHas(c.class, t.spec) then return nil, "UNKNOWN_SPEC" end
             list[#list + 1] = { char = c, spec = t.spec }
         end
     else
