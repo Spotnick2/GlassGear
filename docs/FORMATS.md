@@ -35,9 +35,11 @@ but a player who has Pawn can bring any of its scales over, built-in ones includ
 3. In game: `/gg import <SPEC.KEY> <string>`, for example `/gg import PRIEST.SHADOW ( Pawn: v1: ... )`.
 
 The import replaces that spec's active profile. Built-in scales carry `Class=` and `Spec=`; `Spec=`
-is ignored on Forever. Caster scales lose their spell-hit and spell-crit weights: Pawn writes them
-as `SpellHitRating` and `SpellCritRating`, which aren't on our token list, so they come in as
-`UNSUPPORTED_TOKEN` warnings (whether Forever items carry spell hit separately is GG-103).
+is ignored on Forever. Caster scales keep their hit and crit weights: on Forever, Pawn folds
+`SpellHitRating` and `SpellCritRating` into `HitRating` and `CritRating` before it exports, and
+Glass Gear scores those. A string exported from another game version can still carry the spell
+tokens. They aren't on our token list, so they come in as `UNSUPPORTED_TOKEN` warnings. This comes
+from reading Pawn's code and hasn't been tried in game.
 A one-click "Import from Pawn" is GG-121, later.
 
 ### Grammar
