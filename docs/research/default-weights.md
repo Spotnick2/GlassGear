@@ -4,6 +4,8 @@
   ([#40](https://github.com/Spotnick2/GlassGear/issues/40)), with an empty table. The numbers are
   to come from the owner's own MythicSim stat-weight sims (2026-11-03), after GG-103
 - Issue: [#7](https://github.com/Spotnick2/GlassGear/issues/7)
+- Revised 2026-11-11 ([#68](https://github.com/Spotnick2/GlassGear/issues/68)): Pawn now has
+  Forever-specific scales, and a pasted caster scale keeps its hit and crit weight
 - Not legal advice. Every licence reading here is the conservative one.
 
 ## Summary
@@ -35,12 +37,14 @@ wowsims". Here is what the licence allows.
 |---|---|
 | The whole addon is CC BY-NC-ND 3.0 | its Readme and the header of every Lua file |
 | On Forever (`camelot`) Pawn loads its HawsJon scale file, not the Ask Mr. Robot file | its TOC |
-| Those scales are "sourced from HawsJon" (`http://tbcwowaddons.weebly.com/pawn.html`), a third party | the scale file's header |
-| They were "originally designed for Burning Crusade". On Forever every rating multiplier is 1, so they are applied as TBC values | the scale file |
-| 127 scale-template calls, one per class tree, each a full stat table | the scale file |
-| Caster scales weight `SpellHitRating` / `SpellCritRating`. Pawn's own stat list hides those stats on Forever | the scale file; Pawn's stat list (no `PawnStatForever`) |
+| Those scales are "curated by HawsJon" (`http://tbcwowaddons.weebly.com/pawn.html`), a third party | the scale file's header |
+| Forever has its own set: one full stat table per spec, curated for Forever and kept apart from the Classic and TBC tables. Earlier releases applied the TBC-designed tables unchanged | Pawn's changelog; the scale file |
+| On Forever the rating stats (hit, crit, haste, expertise, defense, dodge, parry, block) are converted per 1 %, as on Classic Era, where "these stats all appear as percentages". Earlier releases used a multiplier of 1 on Forever | the scale file |
+| Caster scales write their hit and crit weights as `SpellHitRating` / `SpellCritRating`. Pawn's stat list hides those stats on Forever, and its changelog says they "were removed from items in Forever". When it loads a scale on Forever, Pawn folds them into `HitRating` / `CritRating` (spell haste into `HasteRating`), keeping the larger value | the scale file; Pawn's stat list (no `PawnStatForever`); its scale corrections |
 
-The last two rows matter apart from licensing: Pawn's numbers are not tuned for Forever either.
+Two rows matter apart from licensing. The unit row is a hint for GG-103's rating units
+([note †](#proposed-defaults)), and the caster row decides what a pasted caster scale keeps
+([below](#paths-that-get-the-same-numbers-without-shipping-them)).
 
 ### Can we ship them? No (conservative reading)
 
@@ -80,8 +84,10 @@ Export details that matter for import:
   numeric weight is lost. Glass Gear's class gate covers those markers anyway (`Data/Classes.lua`).
 - Tokens outside our list (`SpellHitRating`, `SpellCritRating`, `Mana`, `Health`, `AllResist`,
   `ResilienceRating`, `ArmorPenetration`, `MetaSocketEffect`…) come in as `UNSUPPORTED_TOKEN`
-  warnings and are kept in `ignoredTokens` (FORMATS.md). A pasted caster scale therefore loses its
-  spell-hit weight. Whether Forever items carry spell hit separately at all is probe GG-103.
+  warnings and are kept in `ignoredTokens` (FORMATS.md). A caster scale exported on Forever still
+  keeps its hit and crit weight: Pawn has already folded the spell tokens into `HitRating` /
+  `CritRating`, which Glass Gear scores. Only a string exported from another game version still
+  carries them. This comes from reading Pawn's code and hasn't been tried in game.
 
 A Pawn scale imported either way is an **import** (`source = "imported-pawn"`, `origin` = the scale
 name and "Pawn built-in" when it was read-only). The user chose it, so it counts as their weights,
@@ -91,7 +97,7 @@ not as a default.
 
 | Source | Covers | Licence and source | Ship derived numbers? |
 |---|---|---|---|
-| Pawn built-in ("Classic", HawsJon) | Every class tree; TBC-designed, ratings ×1 on Forever | CC BY-NC-ND 3.0 (above); HawsJon's terms unknown | **No.** Paste or runtime import only |
+| Pawn built-in ("Classic", HawsJon) | Every spec, with a set curated for Forever; ratings converted per 1 % | CC BY-NC-ND 3.0 (above); HawsJon's terms unknown | **No.** Paste or runtime import only |
 | WoWSims `tbc-new` (`C:\Projects\WoW\wowsims\tbc-new`, `8aa378b36`) | TBC, level 70 (`ui/core/constants/mechanics.ts:1`); "Pawn EP" export | MIT (`LICENSE`, "Copyright (c) 2022 wowsims team") | The code is MIT. **Wrong game version**: level 70 weights would mislead at 60. |
 | WoWSims `sod` ([github.com/wowsims/sod](https://github.com/wowsims/sod)) | Season of Discovery, level-60 era, same framework | MIT ([pkg.go.dev](https://pkg.go.dev/github.com/wowsims/sod@v0.0.89)); a fork asks for a visible link back | Sims the owner runs produce the owner's own output, so they're clean. SoD runes and mechanics differ from Forever, so those weights would need judgement. **The route to real defaults**, via GG-502 / ASC-001 once a Forever-capable sim exists. A local Classic or Forever WoWSims checkout doesn't exist (ECOSYSTEM-FINDINGS.md "Not present"). |
 | SimulationCraft engine | Retail-first; the addon exports Forever profiles with `spec=unknown` | GPL-3.0 ([github.com/simulationcraft/simc](https://github.com/simulationcraft/simc)). GPL covers the program, not the user's output | Scale factors the owner computes would be the owner's own. No local engine understands Forever profiles (ECOSYSTEM-FINDINGS.md). Not now. |
@@ -127,9 +133,10 @@ unlikely to improve them.
 Notes for every row:
 
 - **† Unit pending GG-103.** Hit, crit, dodge, parry and block are written **per 1 % item stat**,
-  as on Classic-era items ("+1% chance to hit"). If Forever's `GetItemStats` reports them as TBC
-  rating points instead (Pawn's multiplier of 1 on Forever hints at that),
-  these numbers must be divided by the rating per 1 % before shipping.
+  as on Classic-era items ("+1% chance to hit"). Pawn now converts them on Forever as it does on
+  Classic Era, so its author expects percentages there too, which would leave these numbers as they
+  are. If GG-103 finds that Forever's `GetItemStats` reports TBC rating points instead, they must be
+  divided by the rating per 1 % before shipping.
 - `MeleeDps` / `RangedDps` are weapon DPS (derived from `Dps`, `Data/Stats.lua:96`). Only specs
   that hit with their weapon get them.
 - `Armor` stays small: within one slot and one armor type, base armor barely varies, and armor type
@@ -257,7 +264,7 @@ A Pawn built-in scale the user imports is `imported-pawn`, not `default`.
 |---|---|---|---|
 | GG-120 ([#40](https://github.com/Spotnick2/GlassGear/issues/40)) | P1 | MVP | Default weights: `Data/Defaults.lua` from the draft table, revised after GG-103; fallback in `Profiles.Active`, provenance `default`, the "default weights" label, the `DEFAULT_WEIGHTS` limitation with soft protection, the setting, tests. |
 | GG-121 ([#41](https://github.com/Spotnick2/GlassGear/issues/41)) | P3 | Future | "Import from Pawn": list Pawn's scales (`PawnGetAllScalesEx`) and import one through `PawnGetScaleTag` on a click, `pcall`-wrapped, Pawn as an optional dependency; `origin` notes "Pawn built-in" for read-only scales. Only if users ask for it. |
-| (FORMATS) | P2 | docs | Done: [FORMATS.md](../FORMATS.md#from-pawns-own-scales) documents the paste path, with the caster spell-hit caveat. |
+| (FORMATS) | P2 | docs | Done: [FORMATS.md](../FORMATS.md#from-pawns-own-scales) documents the paste path. Its caster caveat was corrected in [#68](https://github.com/Spotnick2/GlassGear/issues/68): hit and crit survive the export. |
 
 The replacement for the defaults is already in the backlog: GG-502 (import sim results) and
 ASC-001 (Companion sim orchestration).
