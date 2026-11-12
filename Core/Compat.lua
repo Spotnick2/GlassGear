@@ -1,6 +1,6 @@
 ------------------------------------------------------------
 -- Core/Compat.lua - the only file that calls item/character game APIs.
--- Every name is in the 1.60.1.70532 dump; the behaviour (return shapes on a
+-- Every name is in the 1.60.1.70888 dump; the behaviour (return shapes on a
 -- cache miss, stat keys) is probed by docs/FOREVER-PROBE.md before it is
 -- trusted. A missing API returns nil, "unavailable".
 ------------------------------------------------------------
@@ -319,7 +319,7 @@ function Compat.EquippedBaseline(now)
 end
 
 ------------------------------------------------------------
--- Equipment sets (GG-108, adr/0003 source 1). C_EquipmentSet is in the 70532
+-- Equipment sets (GG-108, adr/0003 source 1). C_EquipmentSet is in the 70888
 -- dump and Forever's character sheet uses it (Camelot PaperDollFrame.lua:1550);
 -- what GetItemIDs returns for an empty or ignored slot is probe P14.
 ------------------------------------------------------------

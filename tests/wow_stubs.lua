@@ -9,7 +9,7 @@
 -- Strict like Shatter's stubs (Shatter/tests/wow_stubs.lua):
 --   * Reading a global this file doesn't define is an error, except the
 --     addon's own declared globals. Every name here is in the API dump
---     References/Forever/api/forever-api-1.60.1.70532.md (or Blizzard's Lua
+--     References/Forever/api/forever-api-1.60.1.70888.md (or Blizzard's Lua
 --     in wow-ui-source for ItemLocation, DEFAULT_CHAT_FRAME, SlashCmdList).
 --   * Writing a global other than the addon's own is recorded in
 --     WoW.globalWrites; test_load fails on anything undeclared.
@@ -289,7 +289,7 @@ function WoW.tick(dt)
 end
 
 -- The client's secure hook (wraps t[name]).
-function hooksecurefunc(t, name, fn)                                                                   -- 22859
+function hooksecurefunc(t, name, fn)                                                                   -- 23013
     if type(t) == "string" then t, name, fn = _G, t, name end
     local orig = t[name]
     rawset(t, name, function(...)
@@ -302,45 +302,45 @@ end
 ------------------------------------------------------------
 -- API surface (dump line numbers in comments)
 ------------------------------------------------------------
-C_Timer = { After = function(_, fn) WoW.timers[#WoW.timers + 1] = fn end }   -- 3760
+C_Timer = { After = function(_, fn) WoW.timers[#WoW.timers + 1] = fn end }   -- 3764
 function GetTime() return WoW.time end
 function time() return WoW.epoch end
-function GetBuildInfo() return "1.60.1", "70532", "Oct 30 2026", 16001 end    -- 4722
-function GetLocale() return WoW.locale or "enUS" end                                     -- 4982
+function GetBuildInfo() return "1.60.1", "70888", "Nov  9 2026", 16001 end    -- 4726
+function GetLocale() return WoW.locale or "enUS" end                                     -- 4986
 function geterrorhandler() return function(e) WoW.errors[#WoW.errors + 1] = e end end
 
 function UnitName(u) if u == "player" then return WoW.player.name end end
-function UnitClass(u) if u == "player" then return WoW.player.className, WoW.player.class, 5 end end   -- 6418
-function UnitGUID(u) if u == "player" then return WoW.player.guid end end                             -- 6437
-function UnitLevel(u) if u == "player" then return WoW.player.level end end                           -- 6517
-function UnitFactionGroup(u) if u == "player" then return WoW.player.faction, WoW.player.faction end end -- 6435
-function GetRealmName() return WoW.player.realm end                                                    -- 5156
-function CanDualWield() return WoW.player.dualWield end                                                -- 4457
-function GetInventoryItemLink(unit, slot)                                                              -- 19049
+function UnitClass(u) if u == "player" then return WoW.player.className, WoW.player.class, 5 end end   -- 6422
+function UnitGUID(u) if u == "player" then return WoW.player.guid end end                             -- 6441
+function UnitLevel(u) if u == "player" then return WoW.player.level end end                           -- 6521
+function UnitFactionGroup(u) if u == "player" then return WoW.player.faction, WoW.player.faction end end -- 6439
+function GetRealmName() return WoW.player.realm end                                                    -- 5160
+function CanDualWield() return WoW.player.dualWield end                                                -- 4461
+function GetInventoryItemLink(unit, slot)                                                              -- 19226
     local id = unit == "player" and WoW.equipped[slot]
     return id and WoW.link(id) or nil
 end
 
-C_AddOns = { IsAddOnLoaded = function(name) return WoW.loadedAddOns[name] == true, WoW.loadedAddOns[name] == true end }  -- 197
+C_AddOns = { IsAddOnLoaded = function(name) return WoW.loadedAddOns[name] == true, WoW.loadedAddOns[name] == true end }  -- 198
 function GetNumSpecGroups() return WoW.numSpecGroups end                                     -- 19269 (undocumented)
-C_SpecializationInfo = { GetActiveSpecGroup = function() return WoW.specGroup end }                   -- 3490
-C_SpellBook = { IsSpellKnown = function() return false end }                                          -- 3634
+C_SpecializationInfo = { GetActiveSpecGroup = function() return WoW.specGroup end }                   -- 3494
+C_SpellBook = { IsSpellKnown = function() return false end }                                          -- 3638
 
 C_Item = {}
-function C_Item.GetItemInfoInstant(info)                                                               -- 2244
+function C_Item.GetItemInfoInstant(info)                                                               -- 2247
     local id = idOf(info)
     local it = id and WoW.items[id]
     if not it then return nil end
     return id, "Armor", "Cloth", it.equipLoc, 0, it.classID, it.subclassID
 end
-function C_Item.GetItemInfo(info)                                                                      -- 2243
+function C_Item.GetItemInfo(info)                                                                      -- 2246
     local id = idOf(info)
     local it = id and WoW.items[id]
     if not it or WoW.cacheMiss[id] then return nil end
     return it.name, WoW.link(id), 3, 60, it.minLevel or 1, "Armor", "Cloth", 1, it.equipLoc, 0, 0,
         it.classID, it.subclassID, it.bindType or 1, 0, it.setID, false, ""
 end
-function C_Item.GetItemStats(link)                                                                     -- 2266
+function C_Item.GetItemStats(link)                                                                     -- 2269
     local id = idOf(link)
     local it = id and WoW.items[id]
     if not it or WoW.cacheMiss[id] or WoW.statsMiss[id] then return nil end
@@ -348,39 +348,39 @@ function C_Item.GetItemStats(link)                                              
     for k, v in pairs(it.stats or {}) do copy[k] = v end
     return copy
 end
-function C_Item.GetItemSpell(info)                                                                     -- 2264
+function C_Item.GetItemSpell(info)                                                                     -- 2267
     local it = WoW.items[idOf(info) or 0]
     if it and it.spell then return it.spell, 1 end
     return nil
 end
-function C_Item.GetItemUniqueness(info)                                                                -- 2268
+function C_Item.GetItemUniqueness(info)                                                                -- 2271
     local it = WoW.items[idOf(info) or 0]
     if it and it.unique then return it.unique.cat, it.unique.max end
     return 0, 0
 end
-function C_Item.RequestLoadItemDataByID(info) WoW.itemRequests[#WoW.itemRequests + 1] = idOf(info) end  -- 2315
-function C_Item.DoesItemExist(loc)                                                                     -- 2210
+function C_Item.RequestLoadItemDataByID(info) WoW.itemRequests[#WoW.itemRequests + 1] = idOf(info) end  -- 2318
+function C_Item.DoesItemExist(loc)                                                                     -- 2213
     local b = WoW.bags[loc.bagID]
     return b ~= nil and b[loc.slotIndex] ~= nil
 end
-function C_Item.GetItemGUID(loc) return WoW.bags[loc.bagID][loc.slotIndex].guid end                   -- 2235
-function C_Item.GetItemLinkByGUID(guid)                                                                -- 2251
+function C_Item.GetItemGUID(loc) return WoW.bags[loc.bagID][loc.slotIndex].guid end                   -- 2238
+function C_Item.GetItemLinkByGUID(guid)                                                                -- 2254
     for _, b in pairs(WoW.bags) do
         for _, s in pairs(b) do if s.guid == guid then return WoW.link(s.itemID) end end
     end
 end
 
-function IsControlKeyDown() return WoW.keys.CTRL == true end                                          -- 5446
-function IsAltKeyDown() return WoW.keys.ALT == true end                                                 -- 5431
-function GetCurrentKeyBoardFocus() return WoW.focus end                                                 -- 18891
-function InCombatLockdown() return WoW.combat end                                                       -- 19837
+function IsControlKeyDown() return WoW.keys.CTRL == true end                                          -- 5450
+function IsAltKeyDown() return WoW.keys.ALT == true end                                                 -- 5435
+function GetCurrentKeyBoardFocus() return WoW.focus end                                                 -- 19064
+function InCombatLockdown() return WoW.combat end                                                       -- 20015
 C_Texture = {                                                                                          -- 3752, 3754
     GetAtlasExists = function(name) return WoW.atlases[name] == true end,
     GetAtlasInfo = function(name) if WoW.atlases[name] then return { width = 16 } end end,
 }
 
 C_Container = {}
-function C_Container.GetContainerNumSlots(bag)                                                         -- 1177
+function C_Container.GetContainerNumSlots(bag)                                                         -- 1179
     local n = 0
     for slot in pairs(WoW.bags[bag] or {}) do if slot > n then n = slot end end
     return n
@@ -388,39 +388,39 @@ end
 
 -- Equipment sets (dump 1560-1579; EquipmentManagerDocumentation.lua).
 C_EquipmentSet = {
-    GetEquipmentSetIDs = function()                                                                     -- 1569
+    GetEquipmentSetIDs = function()                                                                     -- 1571
         local ids = {}
         for id in pairs(WoW.sets) do ids[#ids + 1] = id end
         table.sort(ids)
         return ids
     end,
-    GetEquipmentSetInfo = function(id)                                                                  -- 1570
+    GetEquipmentSetInfo = function(id)                                                                  -- 1572
         local set = WoW.sets[id]
         if set then return set.name, 0, id, false, 0, 0, 0, 0, 0 end
     end,
-    GetItemIDs = function(id)                                                                           -- 1572
+    GetItemIDs = function(id)                                                                           -- 1574
         local set = WoW.sets[id]
         if not set then return nil end
         local out = {}
         for k, v in pairs(set.items or {}) do out[k] = v end
         return out
     end,
-    GetIgnoredSlots = function(id)                                                                      -- 1571
+    GetIgnoredSlots = function(id)                                                                      -- 1573
         local set = WoW.sets[id]
         local out = {}
         for k, v in pairs(set and set.ignored or {}) do out[k] = v end
         return out
     end,
-    GetEquipmentSetForSpec = function(group)                                                            -- 1567
+    GetEquipmentSetForSpec = function(group)                                                            -- 1569
         for id, set in pairs(WoW.sets) do if set.specGroup == group then return id end end
         return nil
     end,
 }
-function C_Container.GetContainerItemID(bag, slot)                                                     -- 1169
+function C_Container.GetContainerItemID(bag, slot)                                                     -- 1171
     local b = WoW.bags[bag]
     return b and b[slot] and b[slot].itemID or nil
 end
-function C_Container.GetContainerItemInfo(bag, slot)                                                   -- 1170
+function C_Container.GetContainerItemInfo(bag, slot)                                                   -- 1172
     local b = WoW.bags[bag]
     local s = b and b[slot]
     if not s then return nil end
@@ -462,16 +462,16 @@ GameTooltip = {                                                                 
 Enum = { TooltipDataType = { Item = 0, Spell = 1, Unit = 2 },
     LootSlotType = { None = 0, Item = 1, Money = 2, Currency = 3 } }      -- LootConstantsDocumentation.lua:41-44
 
-function GetLootSlotType(slot)                                                                          -- 19129
+function GetLootSlotType(slot)                                                                          -- 19306
     local s = WoW.loot[slot]
     if not s then return Enum.LootSlotType.None end
     return s.money and Enum.LootSlotType.Money or Enum.LootSlotType.Item
 end
-function GetLootSlotLink(slot)                                                                          -- 19128
+function GetLootSlotLink(slot)                                                                          -- 19305
     local s = WoW.loot[slot]
     return s and s.itemID and WoW.link(s.itemID) or nil
 end
-function GetLootRollItemLink(rollID)                                                                    -- 19125
+function GetLootRollItemLink(rollID)                                                                    -- 19302
     local id = WoW.rolls[rollID]
     return id and WoW.link(id) or nil
 end

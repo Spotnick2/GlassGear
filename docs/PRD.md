@@ -155,7 +155,7 @@ adr/0001 amendment: it goes through the shared entry-sync library (ES-001, GG-20
   ([API.md](API.md)).
 - English strings only for now (the family convention). Comparisons use locale-independent tokens
   (`ITEM_MOD_*`, `INVTYPE_*`, class tokens), never tooltip text (GG-403).
-- Lua 5.1 and the Forever API only. Every API used is in the newest dump (1.60.1.70532), and runtime
+- Lua 5.1 and the Forever API only. Every API used is in the newest dump (1.60.1.70888), and runtime
   behaviour is checked in game.
 
 ## 10. Acceptance
