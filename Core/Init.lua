@@ -8,9 +8,9 @@ local GG = GlassGear
 
 GG.NAME = "GlassGear"
 -- The client build these files were checked against (API dump
--- References/Forever/api/forever-api-1.60.1.70532.md). Runtime behaviour is
+-- References/Forever/api/forever-api-1.60.1.70888.md). Runtime behaviour is
 -- unverified until docs/FOREVER-PROBE.md's checks pass.
-GG.MEASURED_ON_BUILD = "70532"
+GG.MEASURED_ON_BUILD = "70888"
 GG.SCHEMA = 1
 
 -- Sub-namespaces, filled by later files in TOC order.
