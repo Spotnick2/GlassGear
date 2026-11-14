@@ -160,6 +160,9 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
     (`item:14094::::::::::::1:12745`: level and spec blanked, crafter dropped) the same as the full
     link? Alt baselines from AltStable come only in that form (AS-003).
   - Does an enchanted link include the enchant? SimC's Forever code says it doesn't.
+  - On an item with bonus armor (a green armor line on top of its base armor), is the bonus in
+    `RESISTANCE0_NAME`, under a key of its own, or missing? Only `RESISTANCE0_NAME` maps to Armor,
+    so a separate key arrives as `UNSUPPORTED_STAT`.
   - How long after `C_Item.RequestLoadItemDataByID` does `ITEM_DATA_LOAD_RESULT` or
     `GET_ITEM_INFO_RECEIVED` fire for an uncached item?
   - Does `GetItemStats` then return data? It returns nothing on a miss:
@@ -168,10 +171,11 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps**
   1. `run` over the owner's equipped and bag items: log every key `GetItemStats` returns, per link.
   2. Repeat with a known suffix item, an enchanted item, a wand, a caster item with spell damage,
-     and a healing item.
+     a healing item, and an item with bonus armor.
   3. `run`: request an uncached item ID (from a list the probe carries), then use a `wait` step on
      the load event with a 10 s timeout; log the delay.
-- **Fact candidates.** The key per Pawn token (inputs: none). The suffix behaviour.
+- **Fact candidates.** The key per Pawn token (inputs: none). The suffix behaviour. Where bonus
+  armor goes.
 
 ## P5: Transfer rules (GG-116)
 
