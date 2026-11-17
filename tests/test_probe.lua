@@ -32,7 +32,7 @@ end
 
 -- A few of the probe's samples, with the keys Forever is expected to return.
 WoW.items[2231] = { name = "Inferno Robe", equipLoc = "INVTYPE_ROBE", classID = 4, subclassID = 1,
-    stats = { ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = 20, RESISTANCE0_NAME = 50 } }
+    stats = { ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = 20, ITEM_MOD_HERBALISM_SHORT = 5, RESISTANCE0_NAME = 50 } }
 WoW.items[1449] = { name = "Minor Channeling Ring", equipLoc = "INVTYPE_FINGER", classID = 4, subclassID = 0,
     stats = { ITEM_MOD_SPELL_POWER_SHORT = 7 } }
 WoW.items[14094] = { name = "Beaded Wraps", equipLoc = "INVTYPE_WRIST", classID = 4, subclassID = 1,
@@ -78,8 +78,8 @@ H.check(tostring(pending):find("still loading", 1, true) ~= nil, "...and it says
 local types, summary = NS.Samples()
 H.check(types >= 2, "the loaded samples are read")
 H.check(summary:find("85:ITEM_MOD_FIRE_DAMAGE_DONE_SHORT", 1, true) ~= nil, "the summary gives the fire type's key")
-H.check(logHas("Glass Gear UNSUPPORTED_STAT: ITEM_MOD_FIRE_DAMAGE_DONE_SHORT"),
-    "a key Glass Gear can't map is named (fire isn't mapped yet)")
+H.check(logHas("Glass Gear UNSUPPORTED_STAT: ITEM_MOD_HERBALISM_SHORT"),
+    "a key Glass Gear can't map is named (a profession skill)")
 H.check(logHas("type 45 (spell power) 1449"), "each sample is labelled with its stat type")
 H.check(logHas("no stats"), "a sample with no data says so")
 

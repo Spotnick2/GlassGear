@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Fire, Frost, Nature and Holy spell damage count**: items with "+N Fire Spell Damage" and the
+  like now score for the specs that weigh them, measured in game (they were left out, with a
+  warning, until then).
 - **The Glass look with Glass UI**: with Glass UI loaded, Glass Gear's windows follow its look
   (Pearl glass, Glass UI's tint and accent), and Glass UI's settings show Glass Gear's state. Prefer
   the WoW Forever look? Pick it under Appearance in Glass Gear's settings and `/reload`.

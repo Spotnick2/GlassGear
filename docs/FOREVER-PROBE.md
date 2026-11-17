@@ -25,7 +25,7 @@ needs to find out, and records the result here with the build once it is run.
 | P1 | Load and `/gg diag` | GG-001, GG-004 | `/fp steps gg load` | narrowed |
 | P2 | Spec group and talent-tree points | GG-101 | `gg spec` | narrowed |
 | P3 | Loot window and group roll frames | GG-102 | `gg loot` | narrowed |
-| P4 | `GetItemStats` on suffix/enchanted links; item-data timing | GG-103 | `/fp steps gg stats` | ready (module built) |
+| P4 | `GetItemStats` on suffix/enchanted links; item-data timing | GG-103 | `/fp steps gg stats` | measured 70938 (2026-11-17) |
 | P5 | Transfer rules | GG-116 | `gg transfer` | narrowed |
 | P6 | Tooltip post-call on bag, loot and link tooltips | GG-107, GG-111 | `gg tips` | narrowed |
 | P7 | Modifier state and keyboard focus | GG-110 | `gg reveal` | narrowed |
@@ -65,6 +65,7 @@ none of them (their rows read "not measured").
 | P4 | Stat keys (see FORMATS.md): `ITEM_MOD_SPELL_POWER_SHORT`, `ITEM_MOD_SHADOW/ARCANE_DAMAGE_DONE_SHORT`, resistance under two names, no speed key | 70425 | SV1 `WanderfulProbe.lua:27`, `:46`, `:77`, `:94`, `:156` |
 | P4 | Cache miss: `GetItemInfo` / `GetItemStats` return nothing. Cold IDs load with `ITEM_DATA_LOAD_RESULT success=true` in the same 0.1 s tick; an invalid ID fails 0.4 s later | 70374, 70425 | `AltStable/docs/forever-api-notes.md:1057-1075`; SV1 `WanderfulProbe.lua:37-39` |
 | P4 | A random suffix is a bonus ID (205 links); `GetItemStats` on such a link not measured | beta, 2026-10 | `AltStable/Scanner.lua:96-101` |
+| P4 | One item per stat type: Fire/Nature/Frost/Holy damage have their own `ITEM_MOD_<SCHOOL>_DAMAGE_DONE_SHORT`; healing items return `SPELL_HEALING_DONE` and `SPELL_DAMAGE_DONE` (15 / 5); mp5 is `MANA_REGENERATION`; bonus armor is inside `RESISTANCE0_NAME`; ratings for hit, crit, haste, expertise and the defences; suffix full = trimmed, bare lacks the suffix; enchants not in `GetItemStats`; 40 cold IDs loaded in 3-16 ms | **70938** | GlassGearProbe run #366 (P4 below) |
 | P5 | Mail to the other faction fails ("Target is unfriendly."); soulbound items can't be mailed; mail to the other WoW account's character works like an alt (item not recorded); bind types 0/1/2 seen; a "Binds to Account" item exists | 70374, 70450, 70425, 70291 | `GlassMail/docs/FOREVER-PROBE.md:52`, `:54`; SV1 `MailProbe.lua:3009`; SV1 `WanderfulProbe.lua:25`; SV12 `ApothecaProbe.lua:22402` |
 | P6 | `HookScript("OnTooltipSetItem")` throws; the Item post-call fired for `SetHyperlink`; `C_TooltipInfo` data carries `guid`, `id`, `lines` | 69913, 70291 | `AltStable/docs/forever-api-notes.md:1194-1216` |
 | P7 | An Alt-held overlay (event plus OnUpdate) appeared and cleared | 70450 | `NodeRadar/docs/FOREVER-PROBE.md:568-579` |
@@ -193,6 +194,35 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   7. `/reload`, to save.
 - **Fact candidates.** The key per Pawn token (inputs: none). The suffix behaviour. Where bonus
   armor goes.
+- **Result (1.60.1.70938, 2026-11-17, run #366, the owner's priest).** Every step done; all 43
+  samples and the suffix item loaded.
+  - **School damage:** `ITEM_MOD_FIRE_DAMAGE_DONE_SHORT` (2231 Inferno Robe, 23), `_NATURE_` (7386,
+    9), `_FROST_` (4324, 7), `_SHADOW_` (4323, 7), `_ARCANE_` (11263, 9), `_HOLY_` (253899 Shining
+    Boots, 6: type 84 is Holy). All six now map (Data/Stats.lua).
+  - **Healing and damage:** type 41 (7049 Truefaith Gloves) and type 42 (2943 Eye of Paleth) both
+    return `ITEM_MOD_SPELL_HEALING_DONE_SHORT` and `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT` (15 / 5,
+    13 / 4). Type 45 (1449) is `ITEM_MOD_SPELL_POWER_SHORT=5`, damage and healing.
+  - **Mana per 5:** `ITEM_MOD_MANA_REGENERATION_SHORT=6` (10659). Hp5: `ITEM_MOD_HEALTH_REGEN_SHORT`.
+  - **Bonus armor:** no key of its own. `RESISTANCE0_NAME` is the total: 3844 reads 358, its
+    tooltip `238 Armor` and `+120 Armor`; 6731 reads 198 = 168 + 30. Both lines are white
+    (1, 1, 1), so colour can't tell them apart.
+  - **Ratings:** `ITEM_MOD_HIT_RATING_SHORT=3` (4383), `CRIT_RATING=14` (3854),
+    `CRIT_RATING=14 PARRY_RATING=15` (12639), `CRIT_RATING=210 HASTE_RATING=150` (17142),
+    `EXPERTISE_RATING=6` (2907), `DEFENSE_SKILL_RATING=4` (7946), `DODGE_RATING=12` (7920),
+    `BLOCK_RATING=5` (4975). The rating-per-percent conversion is not measured here.
+  - **Unmapped keys seen:** `ITEM_MOD_ATTACK_POWER_VS_BEAST/DEMON/UNDEAD_SHORT`,
+    `ITEM_MOD_DAGGERS_SHORT`, `ITEM_MOD_TWOHANDED_AXES_SHORT`, `ITEM_MOD_HERBALISM_SHORT`,
+    `ITEM_MOD_FISHING_SHORT`, `ITEM_MOD_SPELL_RESISTANCE_ALL_SCHOOLS_SHORT` (12252, with no
+    per-school keys beside it), `ITEM_MOD_PHYSICAL_DAMAGE_DONE_SHORT` (21189). They stay
+    `UNSUPPORTED_STAT`.
+  - **Suffix:** `item:14094::::::::10:1482:::1:12745` and the trimmed string both give Int 1, SP 1,
+    Sta 1, armor 21; the bare `item:14094` only armor 21.
+  - **Worn and carried (43 items; 2 enchanted, enchants 41 and 66; one bonus-ID item):** the
+    enchant-stripped and trimmed strings read the same as the full link for every item, none
+    unreadable: enchants are not in `GetItemStats`. Non-gear items return an empty table, not nil.
+  - **Timing:** 3 IDs cached at request fired `ITEM_DATA_LOAD_RESULT` at +0 ms; the 40 cold ones
+    within 3-16 ms, every one `ITEM_DATA_LOAD_RESULT success=true`, 20 of them also
+    `GET_ITEM_INFO_RECEIVED`. The wait step passed on its first check.
 
 ## P5: Transfer rules (GG-116)
 
