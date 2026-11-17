@@ -5,10 +5,14 @@
 --
 --   TooltipView.Build(response, tooltipSettings, ctx) -> lines | nil
 --     ctx   = { currentSpec = key|nil }
+--     tooltipSettings also carry the reveal key (`reveal`) and whether it is
+--     held (`revealed`): GG-123.
 --     lines = { { left, right|nil, lc = {r,g,b}, rc = {r,g,b}|nil }, ... }
 --
 -- Layout (mockup 01): "Glass Gear", the current spec first and marked
--- CURRENT, the other specs compact, then the tracked alts' upgrades for an
+-- CURRENT, the other specs compact (GG-123: unless the scope is "all", they
+-- fold into one "+ 2 other specs (hold Alt)" line naming the best hidden
+-- upgrade, and the reveal key unfolds them), then the tracked alts' upgrades for an
 -- item that can reach them ("Wanda · Frost", mockup 03, GG-203), notes (set
 -- bonus, unscored effects, spec not set), then the footer
 -- "Weighted item score · estimates".
@@ -30,7 +34,8 @@ View.COLORS = {
 }
 local C = View.COLORS
 View.BADGE = "|cff7fd4ff" .. L["CURRENT"] .. "|r"
-View.DEFAULT_TAG = "|cff8c8c8c" .. L["default weights"] .. "|r"     -- GG-120
+-- The reveal key's name on the folded line (GG-123).
+local KEY_NAME = { CTRL = L["Ctrl"], ALT = L["Alt"] }
 
 -- Short texts for terminal reasons (ineligible / unknown). First match wins.
 local REASON_TEXT = {
@@ -194,20 +199,60 @@ function View.Build(response, settings, ctx)
     end
     -- Alt rows: only upgrades for alts the item can reach (Policy.TooltipRows
     -- checks each row's transfer state, so a bound item never lists one).
-    local rows = GG.Engine.Policy.TooltipRows(view, settings or {}, true)
+    settings = settings or {}
+    local Policy = GG.Engine.Policy
+    local rows = Policy.TooltipRows(view, settings, true)
+    -- GG-123: the specs the scope leaves out fold behind the reveal key. With
+    -- no current spec there is nothing to fold to: "current" shows them all.
+    local hidden = {}
+    if settings.specs ~= "all" and #view.own > 0 then
+        local all = Policy.TooltipRows(view, { specs = "all", alts = settings.alts }, true)
+        local key = KEY_NAME[settings.reveal]
+        if (not view.current and settings.specs == "current") or (key and settings.revealed) then
+            rows = all
+        elseif key then
+            local shownSpec = {}
+            for _, r in ipairs(rows) do if r.kind ~= "alt" then shownSpec[r.spec] = true end end
+            for _, r in ipairs(all) do
+                if r.kind == "spec" and not shownSpec[r.spec] then hidden[#hidden + 1] = r end
+            end
+        end
+    end
     if #rows == 0 then return nil end
 
     local lines = { { left = "Glass Gear", lc = C.title } }
-    local offSpecVsCurrentGear, altVsLastSeen, anyDefault = false, false, false
-    for _, row in ipairs(rows) do
+    local offSpecVsCurrentGear, altVsLastSeen = false, false
+    local function add(row)
         local right, rc = rightOf(row)
         local left = rowName(row)
         if row.emphasis then left = left .. "  " .. View.BADGE end
-        if row.defaultWeights then
-            left = left .. "  " .. View.DEFAULT_TAG
-            anyDefault = true
-        end
         lines[#lines + 1] = { left = left, right = right, lc = row.emphasis and C.current or C.spec, rc = rc }
+    end
+    -- The best upgrade among the folded specs: named on the folded line, and
+    -- its warnings (set bonus, unscored effects, stale or estimated gear) kept
+    -- with the shown rows' (PR #78 review).
+    local best
+    for _, h in ipairs(hidden) do
+        if h.status == "upgrade" and (not best or (h.pct or 0) > (best.pct or 0)) then best = h end
+    end
+    local shown = {}
+    for _, row in ipairs(rows) do shown[#shown + 1] = row end
+    if best then shown[#shown + 1] = best end
+    for i, row in ipairs(rows) do
+        add(row)
+        -- The folded specs, right under the current one; the best upgrade among them on the right.
+        if i == 1 and #hidden > 0 then
+            local text = #hidden == 1 and L["+ 1 other spec (hold %s)"]:format(KEY_NAME[settings.reveal])
+                or L["+ %d other specs (hold %s)"]:format(#hidden, KEY_NAME[settings.reveal])
+            local l = { left = text, lc = C.muted }
+            if best then
+                local right, rc = rightOf(best)
+                l.right, l.rc = L["%s %s"]:format(specName(best.spec), right), rc
+            end
+            lines[#lines + 1] = l
+        end
+    end
+    for _, row in ipairs(shown) do
         if row.kind == "alt" then
             if has(row.reasons, "BASELINE_FALLBACK") then altVsLastSeen = true end
         elseif not row.emphasis and has(row.reasons, "BASELINE_FALLBACK")
@@ -215,7 +260,7 @@ function View.Build(response, settings, ctx)
             offSpecVsCurrentGear = true
         end
     end
-    for _, n in ipairs(notes(rows, (settings or {}).setBonusWarnings ~= false)) do
+    for _, n in ipairs(notes(shown, (settings or {}).setBonusWarnings ~= false)) do
         lines[#lines + 1] = { left = n, lc = C.later }
     end
     -- Better gear already owned (GG-122): name it.
@@ -228,7 +273,7 @@ function View.Build(response, settings, ctx)
     end
     -- A spec compared with gear recorded too long ago says so (GG-108).
     local stale = {}
-    for _, row in ipairs(rows) do
+    for _, row in ipairs(shown) do
         if has(row.reasons, "BASELINE_STALE") then stale[#stale + 1] = rowName(row) end
     end
     if #stale > 0 then
@@ -238,9 +283,6 @@ function View.Build(response, settings, ctx)
     -- AltStable last saw it wear (GG-203).
     if altVsLastSeen then
         lines[#lines + 1] = { left = L["Alts: compared with the gear AltStable last saw them wear"], lc = C.muted }
-    end
-    if anyDefault then
-        lines[#lines + 1] = { left = L["Default weights: import your own for better advice (/gg profiles)"], lc = C.muted }
     end
     if not ctx.currentSpec then
         lines[#lines + 1] = { left = L["Current spec not set: /gg options"], lc = C.muted }

@@ -8,7 +8,8 @@ The layout is internal. Consumers use [API.md](API.md), never these tables.
 GlassGearDB = {
   schema   = 1,
   settings = {                     -- per account; never synced; written only through Core/Prefs
-    tooltip    = { specs = "all", selected = {}, alts = true },   -- "all" | "current" | "selected"
+    tooltip    = { specs = "current", selected = {}, alts = true },   -- "all" | "current" | "selected";
+                                     -- GG-123: what "all" leaves out folds behind the reveal key
     markers    = { scope = "current", selected = {}, markTransferable = true, threshold = 0.005 },
                                                  -- scope "current" | "selected" | "own"
     reveal     = { modifier = "CTRL" },          -- "CTRL" | "ALT" | "NONE" (never "SHIFT")

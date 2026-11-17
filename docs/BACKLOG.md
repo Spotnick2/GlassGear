@@ -44,6 +44,7 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 | GG-120 | [#40](https://github.com/Spotnick2/GlassGear/issues/40) |
 | GG-121 | [#41](https://github.com/Spotnick2/GlassGear/issues/41) |
 | GG-122 | [#46](https://github.com/Spotnick2/GlassGear/issues/46) |
+| GG-123 | [#76](https://github.com/Spotnick2/GlassGear/issues/76) |
 | GG-201 | [#21](https://github.com/Spotnick2/GlassGear/issues/21) |
 | GG-202 | [#22](https://github.com/Spotnick2/GlassGear/issues/22) |
 | GG-203 | [#23](https://github.com/Spotnick2/GlassGear/issues/23) |
@@ -199,7 +200,8 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 - **Deps.** GG-103 for the rating units **and** the school-specific spell damage keys (blocking).
 - **Acceptance.** An import replaces the default; a default-based `no_upgrade` never gives `clear`;
   only default or no-weight specs relevant → `unknown`, also beside an ineligible spec; rows carry
-  the tag; markers draw normally.
+  the tag; markers draw normally. (GG-123 took the tag and the footer off the tooltip, the owner's
+  call: clutter. `/gg`, the profiles window and `/gg compare` still name the defaults.)
 - **Validation:** auto, game (P6).
 - **Done (auto), table empty.** `Data/Defaults.lua` (`For`, `Any`, `REVISION`, `SOURCE`), shipped
   with **no numbers**: the owner's decision was measured numbers only, and the source is now the
@@ -443,6 +445,20 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 - **Done (auto), game P10.** `Tools/gen_item_sets.py` → `Data/ItemSets.lua` (build 1.60.1.70753,
   545 sets). A set newer than the generated build still reports `SET_BONUS_NOT_SCORED`. For a new
   build: `wago.py get ItemSet ItemSetSpell`, then re-run the generator.
+
+### GG-123: Tooltip folds the other specs behind the reveal key (P1, MVP)
+
+- **Outcome.** The tooltip shows the current spec; the others fold into one line,
+  `+ 2 other specs (hold Ctrl)`, with the best hidden upgrade on its right. Holding the reveal key
+  (GG-110) unfolds them. Owner request: a tooltip takes no click, so the key is the "+".
+- **Scope.**
+  - Default tooltip scope `current` (saved settings keep theirs). "All my specs" never folds;
+    "Selected specs" folds the unselected ones. Reveal key "None": no fold line.
+  - No current spec: every spec shows (nothing to fold to).
+  - The open tooltip refreshes on a reveal change (Reveal.Listen, Shatter's guards).
+  - The "default weights" tag and footer leave the tooltip (owner: clutter).
+- **Validation:** auto (`test_tooltip`), game.
+- **Done (auto).** `Presentation/TooltipView.lua`, `UI/Tooltip.lua`.
 
 ## M2: AltStable profiles, roster and the two-account flow
 

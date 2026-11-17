@@ -82,9 +82,9 @@ Rules that apply everywhere:
   (DRESSUP) still opens the dressing room.
 - **Combat:** reveal works, since it only uses Glass Gear's own textures. A button first seen during combat
   gets its marker after `PLAYER_REGEN_ENABLED`.
-- **Tooltips** already show the configured specs without the modifier. An open tooltip refreshes when
-  the modifier changes, using Shatter's guards (owner identity, `IsForbidden`). Additional tooltip
-  expansion while held is not in MVP. A future option could show alt rows on soulbound tooltips as
+- **Tooltips** show the current spec, and the other specs folded into one line naming the best hidden
+  upgrade (GG-123); held, the modifier unfolds them. "All my specs" never folds. An open tooltip
+  refreshes when the modifier changes, using Shatter's guards (owner identity, `IsForbidden`). A future option could show alt rows on soulbound tooltips as
   "not transferable" information, which is a separate setting.
 
 ## 5. Settings (three independent scopes)

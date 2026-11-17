@@ -71,7 +71,9 @@ for id in pairs(GG.db.entries) do H.check(not id:find("^default:"), "defaults ar
 SlashCmdList.GLASSGEAR("")
 H.check(WoW.chat():find("PRIEST.HOLY: Glass Gear default weights [default]", 1, true) ~= nil, "/gg names the default")
 
--- The tooltip: tagged rows, one line on how to do better.
+-- The tooltip: no tag and no extra line (GG-123: clutter); /gg, the profiles
+-- window and the comparison say it. Every spec shown, to see Holy's row.
+GG.db.settings.tooltip.specs = "all"
 local function text(ref, key)
     local out = {}
     for _, l in ipairs(GG.TooltipView.Build(GG.Results.Get(ref, key), GG.Tooltip.ViewSettings(), { currentSpec = GG.currentSpec }) or {}) do
@@ -80,9 +82,9 @@ local function text(ref, key)
     return table.concat(out, "\n")
 end
 local t = text({ bag = 0, slot = 1 }, "d1")
-H.check(t:find("Holy  " .. GG.TooltipView.DEFAULT_TAG .. " = +", 1, true) ~= nil, "Holy's row is tagged default weights: " .. t)
-H.check(t:find("Shadow  " .. GG.TooltipView.BADGE .. " =", 1, true) ~= nil, "...Shadow's (imported) isn't")
-H.check(t:find("Default weights: import your own for better advice (/gg profiles)", 1, true) ~= nil, "...and the tooltip says how to do better")
+H.check(t:find("\nHoly = +", 1, true) ~= nil, "Holy's default-based row is a plain row: " .. t)
+H.check(t:find("Shadow  " .. GG.TooltipView.BADGE .. " =", 1, true) ~= nil, "...like Shadow's (imported)")
+H.check(not t:lower():find("default weights", 1, true), "...no default-weights tag or line in the tooltip")
 
 -- The comparison names the source.
 local cv = GG.CompareView.Build(holy, { specKey = "PRIEST.HOLY", specName = "Holy", candidate = { name = "Healer Mantle", tokens = {} },
@@ -126,7 +128,6 @@ holy = row({ bag = 0, slot = 1 }, "PRIEST.HOLY")
 H.eq(holy.profile.source, "imported-pawn", "an import replaces Holy's default")
 H.eq(holy.status, "no_upgrade", "...its own weights (Intellect only) decide")
 H.eq(H.has(holy.limitations, "DEFAULT_WEIGHTS"), false, "...no DEFAULT_WEIGHTS")
-H.check(text({ bag = 0, slot = 1 }, "d2"):find("Holy  " .. GG.TooltipView.DEFAULT_TAG, 1, true) == nil, "...and no tag")
 
 -- The setting: off brings back "no weights".
 local disc = row({ bag = 0, slot = 1 }, "PRIEST.DISCIPLINE")

@@ -10,7 +10,7 @@ GG.DB = DB
 
 DB.DEFAULTS = {
     settings = {
-        tooltip = { specs = "all", selected = {}, alts = true },
+        tooltip = { specs = "current", selected = {}, alts = true },   -- GG-123: the others behind the reveal key
         markers = { scope = "current", selected = {}, markTransferable = true, threshold = 0.005 },
         reveal = { modifier = "CTRL" },
         protection = { scope = "tracked", threshold = 0.005, noWeights = "ignore" },

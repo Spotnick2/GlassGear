@@ -18,7 +18,21 @@ local Tooltip = {}
 GG.Tooltip = Tooltip
 
 local shown = setmetatable({}, { __mode = "k" })   -- [tooltip] = { key, itemID }
+local surfaces = setmetatable({}, { __mode = "k" }) -- [tooltip] = true once hooked as a reveal surface
 local registered = false
+
+-- A tooltip showing our block is a reveal surface while shown (GG-123, PR #78
+-- review): the reveal poll then runs with no bag or loot window open, so a
+-- focus change while the key is held still folds or unfolds it. Registered
+-- before the block is built, so the reveal state read is fresh.
+local function revealSurface(tooltip)
+    if not GG.Reveal then return end
+    if not surfaces[tooltip] and type(tooltip.HookScript) == "function" then
+        surfaces[tooltip] = true
+        tooltip:HookScript("OnHide", function(self) GG.Reveal.SurfaceShown(self, false) end)
+    end
+    if surfaces[tooltip] then GG.Reveal.SurfaceShown(tooltip, true) end
+end
 
 local function isComparison(tooltip)
     local ok, name = pcall(tooltip.GetName, tooltip)
@@ -61,11 +75,13 @@ function Tooltip.Render(tooltip, lines)
     end
 end
 
--- The tooltip scope plus the set-bonus warning switch (PRD section 5).
+-- The tooltip scope plus the set-bonus warning switch (PRD section 5), and
+-- the reveal key that unfolds the other specs (GG-123).
 function Tooltip.ViewSettings()
     local s = GG.db.settings
     return { specs = s.tooltip.specs, selected = s.tooltip.selected, alts = s.tooltip.alts,
-        setBonusWarnings = s.setBonusWarnings }
+        setBonusWarnings = s.setBonusWarnings,
+        reveal = s.reveal.modifier, revealed = GG.Reveal and GG.Reveal.Active() or false }
 end
 
 local function onItemTooltip(tooltip, data)
@@ -78,6 +94,7 @@ local function onItemTooltip(tooltip, data)
     if not GG.Data.Slots.IsEquippable(GG.Compat.EquipLoc(itemID)) then return end
     local ref, key = Tooltip.ItemRef(tooltip, data)
     if not ref then return end
+    revealSurface(tooltip)
     local lines = GG.TooltipView.Build(GG.Results.Get(ref, key), Tooltip.ViewSettings(),
         { currentSpec = GG.currentSpec })
     if not lines then return end
@@ -126,6 +143,7 @@ function Tooltip.Initialize()
         if not ok then handler("GlassGear tooltip: " .. tostring(err)) end
     end)
     GG.Results.Listen(refresh)
+    GG.Reveal.Listen(function() refresh(nil) end)   -- GG-123: the reveal key unfolds the other specs
     return true
 end
 

@@ -118,6 +118,7 @@ h = holy(54)
 H.eq(h.baseline.stale, true, "15 days later: Holy's recorded gear is stale")
 H.check(has(h.reasons, "BASELINE_STALE"), "...reason BASELINE_STALE")
 local tip = WoW.newTooltip("GameTooltip")
+GG.db.settings.tooltip.specs = "all"   -- Holy's row shown (GG-123 folds the off-specs by default)
 GG.Results.Reset()
 WoW.showItem(tip, { type = 0, id = 54, hyperlink = WoW.link(54) })
 local found = false

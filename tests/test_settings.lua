@@ -43,7 +43,7 @@ local function mark0() WoW.flush(); return #invalidations end
 ------------------------------------------------------------
 -- PRD section 5 defaults
 ------------------------------------------------------------
-H.eq(P.Get("tooltip.specs"), "all", "tooltip: all my specs")
+H.eq(P.Get("tooltip.specs"), "current", "tooltip: current spec, the others behind the reveal key (GG-123)")
 H.eq(P.Get("tooltip.alts"), true, "tooltip alts on")
 H.eq(P.Get("markers.scope"), "current", "marker scope: current spec")
 H.eq(P.Get("markers.markTransferable"), true, "mark transferable upgrades on")
@@ -79,10 +79,10 @@ H.eq(P.Get("markers.scope"), "current", "a refused value leaves the setting alon
 local n = mark0()
 P.Set("markers.scope", "current")
 H.eq(invalidatedSince(n), 0, "an unchanged value fires nothing")
-P.Set("tooltip.specs", "current")
+P.Set("tooltip.specs", "all")
 H.eq(invalidatedSince(n), 1, "tooltip scope change -> EvaluationInvalidated")
 H.eq(invalidations[#invalidations], "settings", "...reason settings")
-P.Set("tooltip.specs", "all")
+P.Set("tooltip.specs", "current")
 n = mark0()
 P.Set("reveal.modifier", "ALT")
 H.eq(invalidatedSince(n), 0, "the reveal key is not a policy input")
@@ -134,6 +134,7 @@ local function holyRows()
     for _, l in ipairs(tip.lines) do if l.left and l.left:find("^Holy") then count = count + 1 end end
     return count
 end
+P.Set("tooltip.specs", "all")
 WoW.flush()
 H.eq(holyRows(), 1, "all my specs: a Holy row")
 P.Set("tooltip.specs", "current")
@@ -316,15 +317,18 @@ P.Set("tooltip.specs", "current")
 lines = GG.Options.PreviewModel()
 local specRows = 0
 for _, l in ipairs(lines) do if l.right then specRows = specRows + 1 end end
-H.eq(specRows, 1, "preview: current spec only -> one row")
+H.eq(specRows, 2, "preview: current spec only -> one row, and the folded specs' line")
+H.check(lines[3] and lines[3].left:find("other spec", 1, true) and lines[3].right == "Discipline +3.1%",
+    "...which names the best hidden upgrade")
 WoW.flush()
 H.eq(GG.Options._controls and #GG.Options._controls > 0, true, "page controls registered")
 
 -- Defaults.
+P.Set("tooltip.specs", "all")
 n = mark0()
 local defaults = GG.Options.defaultsButton
 defaults:Click()
-H.eq(P.Get("tooltip.specs"), "all", "Defaults: tooltip scope back to all")
+H.eq(P.Get("tooltip.specs"), "current", "Defaults: tooltip scope back to current")
 H.eq(P.Get("markers.markTransferable"), true, "Defaults: transferable marking back on")
 H.eq(P.Get("levelWindow.lookAhead"), 0, "Defaults: look-ahead back to 0")
 H.eq(P.IsTracked(GG.player.key, "PRIEST.DISCIPLINE"), true, "Defaults: all own specs tracked again")

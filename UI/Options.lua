@@ -430,7 +430,7 @@ local function build()
 
     -- Tooltips
     header(left, L["TOOLTIPS"])
-    radios(left, { { "all", L["All my specs"] }, { "current", L["Current spec only"] }, { "selected", L["Selected specs:"] } },
+    radios(left, { { "all", L["All my specs"] }, { "current", L["Current spec (hold the reveal key for the others)"] }, { "selected", L["Selected specs:"] } },
         get("tooltip.specs"), set("tooltip.specs"))
     specChecks(left, "tooltip", "tooltip.specs")
     local alts = checkbox(left, L["Show eligible alt upgrades"], get("tooltip.alts"), set("tooltip.alts"))
@@ -447,7 +447,7 @@ local function build()
     header(left, L["REVEAL KEY"])
     radios(left, { { "CTRL", L["Ctrl"] }, { "ALT", L["Alt"] }, { "NONE", L["None"] }, { "SHIFT", L["Shift"], GG.Prefs.SHIFT_REASON } },
         get("reveal.modifier"), set("reveal.modifier"), true)
-    note(left, L["Hold it to show other specs' upgrades as amber arrows. Releasing it restores the normal arrows. Shift is used by item comparison."])
+    note(left, L["Hold it to show other specs' upgrades as amber arrows, and their rows on tooltips. Releasing it restores the normal view. Shift is used by item comparison."])
 
     -- Upgrade rules
     header(right, L["UPGRADE RULES"])
