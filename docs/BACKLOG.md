@@ -45,6 +45,7 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 | GG-121 | [#41](https://github.com/Spotnick2/GlassGear/issues/41) |
 | GG-122 | [#46](https://github.com/Spotnick2/GlassGear/issues/46) |
 | GG-123 | [#76](https://github.com/Spotnick2/GlassGear/issues/76) |
+| GG-124 | [#77](https://github.com/Spotnick2/GlassGear/issues/77) |
 | GG-201 | [#21](https://github.com/Spotnick2/GlassGear/issues/21) |
 | GG-202 | [#22](https://github.com/Spotnick2/GlassGear/issues/22) |
 | GG-203 | [#23](https://github.com/Spotnick2/GlassGear/issues/23) |
@@ -459,6 +460,16 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - The "default weights" tag and footer leave the tooltip (owner: clutter).
 - **Validation:** auto (`test_tooltip`), game.
 - **Done (auto).** `Presentation/TooltipView.lua`, `UI/Tooltip.lua`.
+
+### GG-124: An equipment set named after a spec is its baseline (P2, MVP)
+
+- **Outcome.** A saved set named after a spec (its name or key, any case) is that spec's baseline
+  without `/gg set`. Owner request: naming the set is the easy mapping.
+- **Scope.** Third set source, after the mapped set and the client's assignment (adr/0003);
+  `/gg set <spec> none` turns it off; `/gg` says "(named after the spec)". Renaming a set already
+  invalidates (`EQUIPMENT_SETS_CHANGED`).
+- **Validation:** auto (`test_baselines`), game (P14).
+- **Done (auto).** `Character/Capture.lua` (`SetFor`).
 
 ## M2: AltStable profiles, roster and the two-account flow
 

@@ -202,6 +202,31 @@ H.check(WoW.chat():find("(assigned in the client)", 1, true) ~= nil, "/gg says w
 WoW.sets[7].specGroup = nil
 setsChanged()
 
+-- GG-124: a set named after the spec (its name or key, any case) is used
+-- without a mapping; the client's assignment and /gg set come first.
+H.eq(holy(54).baseline.source, "observed", "no set for Holy: recorded gear")
+WoW.sets[7].name = "holy"
+setsChanged()
+h = holy(54)
+H.eq(h.baseline.source, "equipment-set", "a set named 'holy': Holy's baseline, no mapping needed")
+H.eq(h.status, "upgrade", "...compared with the set's pieces")
+SlashCmdList.GLASSGEAR("")
+H.check(WoW.chat():find("equipment set 'holy' (named after the spec)", 1, true) ~= nil, "/gg says the set is named after the spec")
+H.eq(result(54, "PRIEST.SHADOW").baseline.source ~= "equipment-set", true, "...and Shadow doesn't take Holy's set")
+WoW.sets[7].name = "PRIEST.HOLY"
+setsChanged()
+H.eq(select(3, GG.Capture.SetFor("PRIEST.HOLY")), "named", "the spec's key names it too")
+WoW.sets[8] = { name = "Healing", items = { [3] = 55 }, ignored = ignored, specGroup = 2 }
+setsChanged()
+H.eq(GG.Capture.SetFor("PRIEST.HOLY"), 8, "the set the client assigned wins over the named one")
+WoW.sets[8] = nil
+SlashCmdList.GLASSGEAR("set PRIEST.HOLY none")
+H.eq(holy(54).baseline.source, "observed", "/gg set none turns the named set off too")
+SlashCmdList.GLASSGEAR("set PRIEST.HOLY auto")
+WoW.sets[7].name = "Holy Set"
+setsChanged()
+H.eq(holy(54).baseline.source, "observed", "renamed away: recorded gear again")
+
 ------------------------------------------------------------
 -- A stored baseline whose items aren't loaded: that spec is pending, alone.
 ------------------------------------------------------------

@@ -20,7 +20,8 @@
 --
 -- Precedence per spec (adr/0003):
 --   1. an equipment set mapped to the spec (/gg set), else the set the client
---      assigned to that spec's group (unless /gg set <spec> none);
+--      assigned to that spec's group, else a set named after the spec (GG-124)
+--      (none of them after /gg set <spec> none);
 --   2. the current spec: what is worn now (observed, live);
 --      another spec: its stored observed baseline (stale after 14 days);
 --   3. the current gear, labelled fallback-current.
@@ -90,8 +91,10 @@ function Capture.Request(retry)
 end
 
 -- The set for a spec: the player's own mapping first, else the client's
--- assignment for the spec group mapped to this spec. Returns id, name, origin.
--- { none = true } (/gg set <spec> none) turns both off.
+-- assignment for the spec group mapped to this spec, else a set named after
+-- the spec, its name or key in any case (GG-124). Returns id, name, origin
+-- ("mapped" | "client" | "named"). { none = true } (/gg set <spec> none)
+-- turns them all off.
 function Capture.SetFor(spec)
     local map = GG.charDB and GG.charDB.equipSetMap or {}
     local m = map[spec]
@@ -102,6 +105,12 @@ function Capture.SetFor(spec)
             local id = GG.Compat.EquipmentSetForGroup(group)
             if id then return id, nil, "client" end
         end
+    end
+    local s = GG.Data.Classes.Spec(spec)
+    local key, name = tostring(spec):lower(), s and type(s.name) == "string" and s.name:lower()
+    for _, set in ipairs(GG.Compat.EquipmentSets() or {}) do
+        local n = set.name:lower()
+        if n == key or n == name then return set.id, set.name, "named" end
     end
 end
 
@@ -208,6 +217,7 @@ function Capture.Status(spec, now)
     local setID, name, origin = Capture.SetFor(spec)
     if setID then
         local client = origin == "client"
+        if origin == "named" then return L["equipment set '%s' (named after the spec)"]:format(name), "set" end
         if name then
             return (client and L["equipment set '%s' (assigned in the client)"] or L["equipment set '%s'"]):format(name), "set"
         end

@@ -9,6 +9,9 @@
   Ctrl)") that names the best upgrade among them. Hold the reveal key to see them all. "All my
   specs" in the settings shows them all the time. The "default weights" tag is gone from the
   tooltip; `/gg` and the profiles window still say which specs use them.
+- **Equipment sets named after a spec**: a set called "Shadow" (or "Holy", any case) is that spec's
+  gear, no `/gg set` needed. A set you map with `/gg set`, or one the client assigned to the spec,
+  still comes first.
 - **The Glass look with Glass UI**: with Glass UI loaded, Glass Gear's windows follow its look
   (Pearl glass, Glass UI's tint and accent), and Glass UI's settings show Glass Gear's state. Prefer
   the WoW Forever look? Pick it under Appearance in Glass Gear's settings and `/reload`.

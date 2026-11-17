@@ -68,6 +68,7 @@ return {
     "%d d ago",
     "%d h ago",
     "just now",
+    "equipment set '%s' (named after the spec)",
     "equipment set '%s' (assigned in the client)",
     "equipment set '%s'",
     "equipment set #%s (assigned in the client)",
