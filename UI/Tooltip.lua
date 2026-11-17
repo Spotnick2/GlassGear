@@ -61,11 +61,13 @@ function Tooltip.Render(tooltip, lines)
     end
 end
 
--- The tooltip scope plus the set-bonus warning switch (PRD section 5).
+-- The tooltip scope plus the set-bonus warning switch (PRD section 5), and
+-- the reveal key that unfolds the other specs (GG-123).
 function Tooltip.ViewSettings()
     local s = GG.db.settings
     return { specs = s.tooltip.specs, selected = s.tooltip.selected, alts = s.tooltip.alts,
-        setBonusWarnings = s.setBonusWarnings }
+        setBonusWarnings = s.setBonusWarnings,
+        reveal = s.reveal.modifier, revealed = GG.Reveal and GG.Reveal.Active() or false }
 end
 
 local function onItemTooltip(tooltip, data)
@@ -126,6 +128,7 @@ function Tooltip.Initialize()
         if not ok then handler("GlassGear tooltip: " .. tostring(err)) end
     end)
     GG.Results.Listen(refresh)
+    GG.Reveal.Listen(function() refresh(nil) end)   -- GG-123: the reveal key unfolds the other specs
     return true
 end
 

@@ -22,6 +22,7 @@ WoW.equipped[3] = 50
 WoW.bags[0] = { [1] = { itemID = 60, isBound = false, guid = "Item-1-AAA" } }
 
 local GG = WoW.loadAddon()
+GG.db.settings.tooltip.specs = "all"   -- every spec's row; the fold (GG-123) is tested at the end
 local tip = WoW.newTooltip("GameTooltip")
 local function bagData() return { type = 0, id = 60, guid = "Item-1-AAA" } end
 
@@ -78,6 +79,58 @@ H.check(line(tip, "Weighted item score") ~= nil, "the estimate footer")
 GG.db.settings.tooltip.specs = "current"
 WoW.showItem(tip, bagData(), WoW.bagButton(0, 1))
 H.check(line(tip, "Holy") == nil and line(tip, "Discipline") == nil, "specs = current hides the others")
+
+-- GG-123: the hidden specs fold into one line under the current spec; the
+-- reveal key (Ctrl by default) unfolds them while held.
+H.eq(tip.lines[4].left, "+ 2 other specs (hold Ctrl)", "the folded specs: one line, right under the current spec")
+H.eq(tip.lines[4].right, nil, "...nothing on its right when no hidden spec has an upgrade")
+H.check(line(tip, "other specs vs current gear") == nil, "...and the footer doesn't speak of hidden specs")
+local before = tip.refreshes or 0
+WoW.keys.CTRL = true
+WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
+H.eq((tip.refreshes or 0) - before, 1, "holding Ctrl refreshes the open tooltip")
+H.check(line(tip, "Holy") ~= nil and line(tip, "Discipline") ~= nil, "...which now lists every spec")
+H.check(line(tip, "other specs (hold") == nil, "...without the folded line")
+H.check(line(tip, "other specs vs current gear") ~= nil, "...and the footer is back")
+WoW.keys.CTRL = nil
+WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 0)
+H.check(line(tip, "Holy") == nil and line(tip, "+ 2 other specs") ~= nil, "releasing it folds them again")
+-- A hidden upgrade isn't missed: the best one is on the folded line.
+WoW.items[67] = { name = "Bright Mantle", equipLoc = "INVTYPE_SHOULDER", classID = 4, subclassID = 1,
+    stats = { [INT] = 12 } }
+local bright = WoW.newTooltip("ItemRefTooltip")
+WoW.showItem(bright, { type = 0, id = 67, hyperlink = WoW.link(67) })
+local fold = line(bright, "+ 2 other specs")
+H.eq(fold and fold.right, "Holy +20.0%", "the folded line names the best hidden upgrade")
+H.eq(fold and fold.rc[2] == 1 and fold.rc[1] < 0.5, true, "...in green")
+-- Two hidden upgrades: the larger one is named (Discipline, Int + Spirit: 15 / 10).
+WoW.items[68] = { name = "Calm Mantle", equipLoc = "INVTYPE_SHOULDER", classID = 4, subclassID = 1,
+    stats = { [INT] = 12, ITEM_MOD_SPIRIT_SHORT = 3 } }
+SlashCmdList.GLASSGEAR('import PRIEST.DISCIPLINE ( Pawn: v1: "Disc": Class=Priest, Intellect=1, Spirit=1 )')
+WoW.flush()
+WoW.showItem(bright, { type = 0, id = 68, hyperlink = WoW.link(68) })
+fold = line(bright, "+ 2 other specs")
+H.eq(fold and fold.right, "Discipline +50.0%", "two hidden upgrades: the larger one is named")
+-- Selected specs: the unselected ones fold.
+GG.db.settings.tooltip.specs = "selected"
+GG.db.settings.tooltip.selected = { ["PRIEST.HOLY"] = true }
+WoW.showItem(tip, bagData(), WoW.bagButton(0, 1))
+H.check(line(tip, "Holy") ~= nil and line(tip, "+ 1 other spec (hold Ctrl)") ~= nil, "selected: Holy shown, Discipline folded")
+GG.db.settings.tooltip.selected = {}
+GG.db.settings.tooltip.specs = "current"
+-- The key's name follows the setting; no key, nothing to fold behind.
+GG.db.settings.reveal.modifier = "ALT"
+WoW.showItem(tip, bagData(), WoW.bagButton(0, 1))
+H.check(line(tip, "+ 2 other specs (hold Alt)") ~= nil, "reveal key Alt: the line says Alt")
+GG.db.settings.reveal.modifier = "NONE"
+WoW.showItem(tip, bagData(), WoW.bagButton(0, 1))
+H.check(line(tip, "other spec") == nil and line(tip, "Holy") == nil, "reveal key none: the scope as chosen, no fold line")
+GG.db.settings.reveal.modifier = "CTRL"
+-- No current spec: nothing to fold to, every spec shows.
+local function res(spec) return { status = "no_upgrade", spec = spec, score = { pct = 0 }, reasons = {}, limitations = {} } end
+local noCur = GG.TooltipView.Build({ results = { res("PRIEST.HOLY"), res("PRIEST.SHADOW") } },
+    { specs = "current", reveal = "CTRL" }, {})
+H.eq(noCur and noCur[2].left .. "/" .. noCur[3].left, "Holy/Shadow", "no current spec: every spec, nothing folded")
 GG.db.settings.tooltip.specs = "all"
 
 -- Not for us: non-equippable items, comparison tooltips, forbidden tooltips.

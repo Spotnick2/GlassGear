@@ -5,6 +5,10 @@
 - **Fire, Frost, Nature and Holy spell damage count**: items with "+N Fire Spell Damage" and the
   like now score for the specs that weigh them, measured in game (they were left out, with a
   warning, until then).
+- **A shorter tooltip**: your current spec, then one line for the others ("+ 2 other specs (hold
+  Ctrl)") that names the best upgrade among them. Hold the reveal key to see them all. "All my
+  specs" in the settings shows them all the time. The "default weights" tag is gone from the
+  tooltip; `/gg` and the profiles window still say which specs use them.
 - **The Glass look with Glass UI**: with Glass UI loaded, Glass Gear's windows follow its look
   (Pearl glass, Glass UI's tint and accent), and Glass UI's settings show Glass Gear's state. Prefer
   the WoW Forever look? Pick it under Appearance in Glass Gear's settings and `/reload`.
