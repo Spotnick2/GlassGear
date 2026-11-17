@@ -10,7 +10,8 @@
 --   - A random-suffix item (a bonus ID on Forever) as its full link, the
 --     trimmed baseline string Glass Gear stores, and the bare item.
 --   - Everything worn and carried: each link's keys, and whether the enchant-
---     stripped and trimmed strings Glass Gear reads give the same stats.
+--     stripped and trimmed strings Glass Gear reads give the same stats (a
+--     failed read is "unreadable", never "same").
 --   With Glass Gear loaded, every key Glass Gear can't map is named
 --   (UNSUPPORTED_STAT), through its own GlassGear.Data.Stats.
 -- Commands: /fp gg request, samples, suffix, bags, item <id|link>, clear.
@@ -62,6 +63,7 @@ NS.SAMPLES = {
 -- "Beaded Wraps of the Sorcerer": a random suffix as a bonus ID (AltStable's
 -- measurement), in the three forms Glass Gear meets it.
 NS.SUFFIX = {
+    id = 14094,
     full = "item:14094::::::::10:1482:::1:12745",
     trimmed = "item:14094::::::::::::1:12745",
     base = "item:14094",
@@ -113,11 +115,13 @@ local function stats(link)
     return keys, raw
 end
 
-local function same(a, b)
-    if type(a) ~= "table" or type(b) ~= "table" then return a == b end
-    if #a ~= #b then return false end
-    for i = 1, #a do if a[i] ~= b[i] then return false end end
-    return true
+-- Two stat reads: "same", "differ", or "unreadable" when either gave no
+-- table (a failed read is never evidence that two forms agree).
+local function compare(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then return "unreadable" end
+    if #a ~= #b then return "differ" end
+    for i = 1, #a do if a[i] ~= b[i] then return "differ" end end
+    return "same"
 end
 
 -- The keys Glass Gear can't map, by its own table (when it's loaded).
@@ -178,7 +182,7 @@ function NS.Request()
         if not ok then say(("request %d: ERROR %s"):format(id, tostring(err))) end
         n = n + 1
     end
-    local sfx = 14094
+    local sfx = NS.SUFFIX.id
     if not requests[sfx] then
         requests[sfx] = { at = now(), cached = cached and cached(sfx) or false, events = {} }
         pcall(request, sfx)
@@ -187,12 +191,13 @@ function NS.Request()
     return n, warm
 end
 
--- The wait step: done once every sample answers (info and stats).
+-- The wait step: done once every sample and the suffix item answer (info and stats).
 function NS.Loaded()
     local missing = {}
     for _, s in ipairs(NS.SAMPLES) do
         if not isLoaded(s[1]) then missing[#missing + 1] = s[1] end
     end
+    if not isLoaded(NS.SUFFIX.id) then missing[#missing + 1] = NS.SUFFIX.id end
     if #missing == 0 then return true, "all loaded" end
     return false, (#missing .. " still loading: " .. table.concat(missing, ",", 1, math.min(#missing, 8)))
 end
@@ -259,8 +264,8 @@ function NS.Suffix()
     local full = readItem(NS.SUFFIX.full, "suffix full", false)
     local trim = readItem(NS.SUFFIX.trimmed, "suffix trimmed", false)
     local base = readItem(NS.SUFFIX.base, "suffix base", false)
-    local fullTrim, fullBase = same(full, trim), same(full, base)
-    say(("suffix: full = trimmed %s; full = base %s"):format(Show(fullTrim), Show(fullBase)))
+    local fullTrim, fullBase = compare(full, trim), compare(full, base)
+    say(("suffix: full vs trimmed %s; full vs base %s"):format(fullTrim, fullBase))
     return fullTrim, fullBase
 end
 
@@ -285,10 +290,10 @@ local function links()
 end
 
 function NS.Scan()
-    local items, enchanted, suffixed, differ, unsup = links(), 0, 0, 0, 0
+    local items, enchanted, suffixed, differ, unreadable, unsup = links(), 0, 0, 0, 0, 0
     for _, it in ipairs(items) do
         local f = fields(it.link) or {}
-        local ench = f[2] ~= nil and f[2] ~= ""
+        local ench = (tonumber(f[2] or "") or 0) > 0     -- "item:<id>:0:..." is no enchant
         local bonuses = tonumber(f[13] or "") or 0
         if ench then enchanted = enchanted + 1 end
         if bonuses > 0 then suffixed = suffixed + 1 end
@@ -299,18 +304,25 @@ function NS.Scan()
             local miss = unsupported(raw, s)
             if miss and #miss > 0 then unsup = unsup + 1 end
             local st, tr = stripped(s), trimmed(s)
-            local a = st ~= s and stats(st) or full
-            local b = tr and tr ~= s and stats(tr) or full
-            if not same(full, a) or not same(full, b) then
+            -- The full read stands in only for a string that didn't change; a
+            -- changed one is read, and a failed read stays a failure.
+            local a, whyA, b, whyB = full, nil, full, nil
+            if st ~= s then a, whyA = stats(st) end
+            if tr and tr ~= s then b, whyB = stats(tr) end
+            local ca, cb = compare(full, a), compare(full, b)
+            if ca == "unreadable" or cb == "unreadable" then
+                unreadable = unreadable + 1
+                say(("%s   UNREADABLE: stripped %s -> %s ; trimmed %s -> %s"):format(label, st,
+                    ca == "unreadable" and tostring(whyA) or ca, Show(tr), cb == "unreadable" and tostring(whyB) or cb))
+            elseif ca == "differ" or cb == "differ" then
                 differ = differ + 1
                 say(("%s   DIFFERS: stripped %s -> %s ; trimmed %s -> %s"):format(label, st,
-                    type(a) == "table" and table.concat(a, " ") or Show(a), Show(tr),
-                    type(b) == "table" and table.concat(b, " ") or Show(b)))
+                    table.concat(a, " "), Show(tr), table.concat(b, " ")))
             end
         end
     end
-    local summary = ("%d items, %d enchanted, %d with bonus IDs, %d differ when stripped/trimmed, %d with unsupported keys")
-        :format(#items, enchanted, suffixed, differ, unsup)
+    local summary = ("%d items, %d enchanted, %d with bonus IDs, %d differ when stripped/trimmed, %d unreadable when stripped/trimmed, %d with unsupported keys")
+        :format(#items, enchanted, suffixed, differ, unreadable, unsup)
     say("SCAN " .. summary)
     return #items, summary
 end

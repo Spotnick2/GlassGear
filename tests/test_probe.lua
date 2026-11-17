@@ -85,13 +85,45 @@ H.check(logHas("no stats"), "a sample with no data says so")
 
 -- Suffix: the three forms read the same item here.
 local fullTrim, fullBase = NS.Suffix()
-H.eq(fullTrim, true, "suffix: full and trimmed compared")
-H.eq(fullBase, true, "suffix: full and base compared")
+H.eq(fullTrim, "same", "suffix: full and trimmed compared")
+H.eq(fullBase, "same", "suffix: full and base compared")
+-- An unloaded suffix item is no evidence (PR #75 review).
+WoW.cacheMiss[14094] = true
+fullTrim, fullBase = NS.Suffix()
+H.eq(fullTrim .. "/" .. fullBase, "unreadable/unreadable", "suffix not loaded: unreadable, never 'same'")
+-- ...and the wait step waits for it.
+local samples = NS.SAMPLES
+NS.SAMPLES = { { 1449, 45, "spell power" } }
+done, pending = NS.Loaded()
+H.check(done == false and tostring(pending):find("14094", 1, true) ~= nil, "the wait step waits for the suffix item too")
+WoW.cacheMiss[14094] = nil
+H.eq((NS.Loaded()), true, "...and ends once it's loaded")
+NS.SAMPLES = samples
 
 -- Scan: what's worn.
 local count, scan = NS.Scan()
 H.eq(count, 1, "the equipped item is scanned")
-H.check(scan:find("1 items", 1, true) ~= nil, "...and summarised")
+H.check(scan:find("1 items, 0 enchanted", 1, true) ~= nil, "...and summarised; enchant 0 isn't an enchant: " .. scan)
+-- An enchanted item, and a stripped form the client can't read: unreadable, not "same".
+WoW.bags[0] = { [1] = { itemID = 1449, enchant = 1883 } }
+-- The bag link, kept in this file (the shared stubs don't grow: #65).
+C_Container.GetContainerItemLink = function(bag, slot)                                    -- 1173
+    local info = C_Container.GetContainerItemInfo(bag, slot)
+    return info and info.hyperlink
+end
+local getStats = C_Item.GetItemStats
+C_Item.GetItemStats = function(link)
+    if tostring(link):find("^item:1449:1883") or not tostring(link):find("^item:1449") then return getStats(link) end
+    return nil
+end
+count, scan = NS.Scan()
+C_Item.GetItemStats = getStats
+H.check(scan:find("2 items, 1 enchanted", 1, true) ~= nil, "an enchanted item is counted: " .. scan)
+H.check(scan:find("0 differ when stripped/trimmed, 1 unreadable", 1, true) ~= nil, "...a failed stripped read is unreadable, never the full stats")
+H.check(logHas("UNREADABLE: stripped item:1449:"), "...and logged with the string")
+count, scan = NS.Scan()
+H.check(scan:find("0 differ when stripped/trimmed, 0 unreadable", 1, true) ~= nil, "a readable stripped form compares normally")
+WoW.bags[0] = nil
 
 -- One item (what /fp gg item runs; /fp itself opens the host's console, which
 -- these stubs don't draw).

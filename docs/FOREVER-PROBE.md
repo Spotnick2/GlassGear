@@ -180,15 +180,16 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps** (`/fp steps gg stats`)
   1. `auto`: request the samples and the suffix item, timed to `ITEM_DATA_LOAD_RESULT` and
      `GET_ITEM_INFO_RECEIVED` (cached or not at request).
-  2. `wait` (20 s): every sample answers `GetItemInfo` and `GetItemStats`.
+  2. `wait` (20 s): every sample and the suffix item answer `GetItemInfo` and `GetItemStats`.
   3. `auto`: each sample's keys, the ones Glass Gear's own `Data/Stats.lua` can't map
      (`UNSUPPORTED_STAT`), and the tooltip's armor lines with their colour for bonus armor;
      a `SUMMARY` line gives the keys per stat type.
   4. `auto`: the suffix item (`item:14094`, bonus 12745) as its full link, the trimmed baseline
-     string and the bare item.
+     string and the bare item: `same`, `differ`, or `unreadable` when a form gave no stats (a failed
+     read is never counted as agreement).
   5. `auto`: everything worn and carried: keys, and whether the enchant-stripped and trimmed strings
-     Glass Gear reads give the same stats.
-  6. `run`: scan again after putting on an enchanted item, when step 5 found none.
+     Glass Gear reads give the same stats (or can't be read). An enchant ID of 0 is no enchant.
+  6. `run`: scan again after putting on an enchanted item, when step 5 counted none.
   7. `/reload`, to save.
 - **Fact candidates.** The key per Pawn token (inputs: none). The suffix behaviour. Where bonus
   armor goes.
