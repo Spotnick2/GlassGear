@@ -161,6 +161,12 @@ end
 H.check(profilesFrame and profilesFrame.glass ~= nil, "the profiles window opens in glass")
 H.eq(readings, 2, "...its import box is a glass reading pane (with the test's own pane)")
 
+local diagGlass = false
+for _, line in ipairs(GG.Diagnostics.Lines()) do
+    if line:find("theme: glass (pearl)", 1, true) then diagGlass = true end
+end
+H.check(diagGlass, "/gg diag names the glass preset")
+
 -- Init again in the same session changes nothing and reports nothing more.
 H.eq(T.Init(false), "glass", "the look is fixed for the session")
 H.eq(#suite.reports, 1, "...and not reported again")
@@ -240,6 +246,13 @@ H.eq(#suite.reports, 1, "...still reported (never 'asked, but no report')")
 H.eq(lastReport().built, nil, "...nothing built")
 H.eq(lastReport().declined, nil, "...not declined by us")
 H.check(GG.Options.AppearanceText():find("Glass UI's settings", 1, true) ~= nil, "the page points at Glass UI's switch")
+local function diagHas(text)
+    for _, line in ipairs(GG.Diagnostics.Lines()) do
+        if line:find(text, 1, true) then return true end
+    end
+    return false
+end
+H.check(diagHas("theme: forever (not-following)"), "/gg diag gives the fallback's reason (PR #74 review)")
 
 suite.why = "not-ready"
 look, info = fresh(true)
@@ -267,6 +280,7 @@ H.eq(lastReport().minor, 10, "...with the minor at the attempt")
 H.eq(lastReport().built, nil, "...nothing built")
 H.eq(#glass.built, 0, "...and New never called")
 H.check(GG.Options.AppearanceText():find("couldn't be built", 1, true) ~= nil, "the page says the glass couldn't be built")
+H.check(diagHas("theme: forever (library-too-old)"), "/gg diag names a failed build's reason")
 restore()
 
 glass.presets.pearl = nil      -- an r11 claim without the preset

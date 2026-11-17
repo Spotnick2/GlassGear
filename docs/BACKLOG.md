@@ -378,7 +378,7 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 - **Refs.** adr/0004.
 - **Validation:** auto (Theme decision: extend `test_load`), game.
 - **Done (auto), game P22.** `Presentation/Theme.lua` (`Theme.Init` at `ADDON_LOADED`, the shell
-  and reading-pane surfaces), `test_theme.lua` (116 checks, mutation-checked). As Stakeout and
+  and reading-pane surfaces), `test_theme.lua` (119 checks, mutation-checked). As Stakeout and
   GlassPearls do it (GlassUI #152):
   - With Glass UI loaded, Glass Gear follows it by default. The settings page's **Follow Glass UI /
     WoW Forever** switch (`appearance.followGlassUI`, shown only with Glass UI) turns that off, and
