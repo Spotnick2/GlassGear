@@ -308,7 +308,7 @@ local function build()
     local box = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     box:SetSize(632, 64)
     at(box, 12, -432)
-    backdrop(box, COLORS.pane)
+    if not GG.Theme.Reading(box) then backdrop(box, COLORS.pane) end
     local inScroll = CreateFrame("ScrollFrame", nil, box, "UIPanelScrollFrameTemplate")
     inScroll:SetPoint("TOPLEFT", box, "TOPLEFT", 8, -6)
     inScroll:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -28, 6)

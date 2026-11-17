@@ -46,6 +46,7 @@ local RULES = {
     ["setBonusWarnings"] = bool,
     ["protection.noWeights"] = oneOf("ignore", "keep"),
     ["defaults.enabled"] = bool,
+    ["appearance.followGlassUI"] = bool,
 }
 Prefs.SHIFT_REASON = L["Shift is used by item comparison"]   -- shown by the options page
 
@@ -69,6 +70,8 @@ local function changed(path)
         if GG.Reveal then GG.Reveal.Update() end
         return
     end
+    -- The look is fixed for the session (GG-115) and no policy input.
+    if path:find("^appearance%.") then return end
     GG.API._Invalidate("settings")
 end
 

@@ -17,7 +17,8 @@ GlassGearDB = {
     specArmor  = true,
     setBonusWarnings = true,
     defaults = { enabled = true },   -- GG-120: specs without an import score with Data/Defaults.lua
-    appearance = { theme = "forever" },          -- kept unchanged while Glass UI decides the look
+    appearance = { theme = "forever",            -- kept unchanged while Glass UI decides the look
+                   followGlassUI = true },       -- GG-115: false = WoW Forever even with Glass UI
   },
   ui = { windows = { profiles = { point, relPoint, x, y } } },   -- window positions (GG-105);
                                    -- per account, never synced

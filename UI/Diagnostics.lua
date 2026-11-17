@@ -65,9 +65,12 @@ function Diagnostics.Lines()
         add(L["alt upgrades: off (they need AltStable)"])
     end
     add(L["profile sync: unavailable (entry-sync library ES-001, GG-202)"])
-    local themeWhy = GG.themeInfo and GG.themeInfo.reason
-    add(themeWhy and L["theme: %s (%s)"]:format(tostring(GG.themeName), themeWhy)
-        or L["theme: %s"]:format(tostring(GG.themeName)))
+    -- The session's look and why (GG-115): the preset when glass, else the
+    -- fallback's code ("absent", "declined", "not-following", "library-too-old", ...).
+    local themeInfo = GG.Theme.Info() or {}
+    local themeWhy = GG.Theme.Active() == "glass" and themeInfo.preset or themeInfo.code
+    add(themeWhy and L["theme: %s (%s)"]:format(GG.Theme.Active(), tostring(themeWhy))
+        or L["theme: %s"]:format(GG.Theme.Active()))
     add(GG.tooltipHooked and L["tooltip rows: on"]
         or L["tooltip rows: unavailable (%s)"]:format(tostring(GG.tooltipReason)))
     add(GG.bagMarkersOn and L["bag markers: on (%s bag frames)"]:format(tostring(GG.bagMarkersInfo))

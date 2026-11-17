@@ -371,15 +371,30 @@ local function buildPreview(col)
     controls[#controls + 1] = preview.Draw
 end
 
+-- The session's look and why (GG-115), plus "/reload" when the saved switch
+-- differs from what this session built.
 function Options.AppearanceText()
-    if GG.themeName == "glass" then
-        return L["Look: Glass, following Glass UI. Change it in Glass UI's settings; /reload to apply."]
+    local info = GG.Theme.Info() or {}
+    local code, text = info.code, nil
+    if GG.Theme.Active() == "glass" then
+        local preset = tostring(info.preset or "pearl")
+        text = L["Look: %s glass, following Glass UI. Its tint and accent are set in Glass UI's settings."]
+            :format(preset:sub(1, 1):upper() .. preset:sub(2))
+    elseif code == "declined" then
+        text = L["Look: WoW Forever, by your choice."]
+    elseif code == "absent" or code == nil then
+        text = L["Look: WoW Forever. With Glass UI loaded, Glass Gear follows its look."]
+    elseif code == "not-following" then
+        text = L["Look: WoW Forever: \"Use Glass UI appearance\" is off for Glass Gear in Glass UI's settings."]
+    elseif code == "library-too-old" or code == "build-failed" then
+        text = L["Look: WoW Forever: the glass couldn't be built (%s)."]:format(code)
+    else
+        text = L["Look: WoW Forever (%s)."]:format(tostring(code))
     end
-    local why = GG.themeInfo and GG.themeInfo.reason
-    if why then
-        return L["Look: WoW Forever (%s). Glass Gear follows Glass UI once Glass UI lists it (GUI-001)."]:format(why)
+    if GG.Theme.Pending(GG.Prefs.Get("appearance.followGlassUI")) then
+        text = text .. " " .. L["/reload to apply your change."]
     end
-    return L["Look: WoW Forever. Glass Gear follows Glass UI once Glass UI lists it (GUI-001)."]
+    return text
 end
 
 local function build()
@@ -489,6 +504,11 @@ local function build()
 
     -- Appearance
     header(right, L["APPEARANCE"])
+    -- Our own switch (GlassUI #152), shown only while Glass UI is here to follow.
+    if GG.Theme.SuiteAvailable() then
+        Options.followRadios = radios(right, { { true, L["Follow Glass UI"] }, { false, L["WoW Forever"] } },
+            get("appearance.followGlassUI"), set("appearance.followGlassUI"))
+    end
     local look = note(right, Options.AppearanceText())
     controls[#controls + 1] = function() look:SetText(Options.AppearanceText()) end
     buildPreview(right)

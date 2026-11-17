@@ -1,8 +1,8 @@
 ------------------------------------------------------------
 -- UI/Window.lua - Glass Gear's own windows (the profiles window GG-105, the
--- comparison window GG-113): the WoW Forever look (the tooltip backdrop,
--- as Shatter's "forever" skin; the Glass look is GG-115) and the shared
--- widgets.
+-- comparison window GG-113): the session's look (Presentation/Theme.lua,
+-- GG-115: Glass UI's glass shell, else the WoW Forever tooltip backdrop, as
+-- Shatter's "forever" skin) and the shared widgets.
 --
 --   Window.New{ name, key, width, height, title, onShow } -> frame
 --     draggable by its title bar (position saved in GlassGearDB.ui.windows[key]),
@@ -139,7 +139,8 @@ function Window.New(opts)
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:Hide()
-    Window.Backdrop(frame, COLORS.window)
+    -- The session's look (GG-115): Glass UI's glass shell, else WoW Forever's backdrop.
+    if not GG.Theme.Window(frame, { header = 28 }) then Window.Backdrop(frame, COLORS.window) end
 
     local function savePosition()
         local point, _, relPoint, x, y = frame:GetPoint()
@@ -184,6 +185,7 @@ function Window.New(opts)
     end)
     frame.titleText = Window.Label(frame, opts.title, "GameFontNormal")
     frame.titleText:SetPoint("TOPLEFT", frame, "TOPLEFT", 14, -10)
+    GG.Theme.Accent(frame.titleText)
     local close, templated = safeFrame("Button", frame, "UIPanelCloseButton")
     if not templated then close:SetSize(22, 22); close:SetText("x") end
     close:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -4)

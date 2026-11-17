@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **The Glass look with Glass UI**: with Glass UI loaded, Glass Gear's windows follow its look
+  (Pearl glass, Glass UI's tint and accent), and Glass UI's settings show Glass Gear's state. Prefer
+  the WoW Forever look? Pick it under Appearance in Glass Gear's settings and `/reload`.
+
 ## v0.1.0
 
 The first public build, an alpha: everything here works in the addon's own tests, and the in-game

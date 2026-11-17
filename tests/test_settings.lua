@@ -209,6 +209,9 @@ local function fontText(text)
     end
 end
 
+-- Without Glass UI there is nothing to follow, so no switch (GG-115).
+H.eq(widget("Follow Glass UI"), nil, "no Follow Glass UI switch without Glass UI")
+
 -- Values are read on show.
 H.eq(widget("Ctrl"):GetChecked(), true, "reveal radio shows Ctrl")
 H.eq(widget("Current spec"):GetChecked(), true, "arrow scope radio shows Current spec")
