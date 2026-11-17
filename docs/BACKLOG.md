@@ -114,6 +114,12 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
     names (counted once). What remains: Fire/Frost/Nature/Holy confirmed, healing-only, damage-only,
     mp5, hit and crit units, suffix and enchanted links, trimmed strings (FORMATS.md).
 - **Validation:** game, then auto.
+- **Done (game 70938, auto).** `Tools/GlassGearProbe` (`/fp steps gg stats`), run 2026-11-17:
+  results in FOREVER-PROBE.md P4. Fire, Nature, Frost and Holy damage now map and score;
+  `SPELL_DAMAGE_DONE`, `SPELL_HEALING_DONE` (both on healing items) and `MANA_REGENERATION` are
+  measured; bonus armor is inside `RESISTANCE0_NAME`; ratings for hit, crit and the rest; suffix
+  full = trimmed; enchants are not in `GetItemStats`. Not measured: the rating-per-percent
+  conversion (GG-120's rescale needs it).
 
 ### GG-104: Spec mapping UI (P1, MVP)
 
@@ -189,8 +195,7 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
   - Setting `defaults.enabled` (on).
   - Rescale the per-1 % stats after GG-103.
   - Only tokens the scorer reads today. School-specific spell damage weights (the second table in
-    research/default-weights.md) wait for GG-103 to map their client keys and for the scorer to
-    read them.
+    research/default-weights.md): every school's key is mapped and scored since GG-103 (70938).
 - **Deps.** GG-103 for the rating units **and** the school-specific spell damage keys (blocking).
 - **Acceptance.** An import replaces the default; a default-based `no_upgrade` never gives `clear`;
   only default or no-weight specs relevant → `unknown`, also beside an ineligible spec; rows carry

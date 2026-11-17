@@ -44,10 +44,21 @@ H.eq(Stats.UnscoredTokens({ weights = {}, ignored = { Speed = true } }, { classI
     "an X on an unsupported token is also unscored (unresolvable)")
 H.eq(#Stats.UnscoredTokens({ weights = { ShadowSpellDamage = 1 } }, { classID = 4 }), 0,
     "measured school damage (Shadow) is read from its own key: not listed as unscored")
-H.eq(Stats.UnscoredTokens({ weights = { FireSpellDamage = 1 } }, { classID = 4 })[1], "FireSpellDamage",
-    "an unsampled school (Fire) keeps its not-scored warning (Codex, PR #45)")
-local _, fireUns = Stats.FromItemStats({ ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = 6 })
-H.eq(fireUns[1], "ITEM_MOD_FIRE_DAMAGE_DONE_SHORT", "...and a guessed Fire key on an item stays unrecognised")
+-- Measured on 70938 (GG-103, P4): every school has its own key.
+for school, token in pairs({ FIRE = "FireSpellDamage", NATURE = "NatureSpellDamage", FROST = "FrostSpellDamage",
+    HOLY = "HolySpellDamage" }) do
+    H.eq(#Stats.UnscoredTokens({ weights = { [token] = 1 } }, { classID = 4 }), 0, token .. " is scored (measured 70938)")
+    local st, un = Stats.FromItemStats({ ["ITEM_MOD_" .. school .. "_DAMAGE_DONE_SHORT"] = 6 })
+    H.eq(st[token], 6, "ITEM_MOD_" .. school .. "_DAMAGE_DONE_SHORT -> " .. token)
+    H.eq(#un, 0, "...nothing unrecognised")
+end
+-- A healing item (7049, 70938): both keys, each to its own token.
+local heal = Stats.FromItemStats({ ITEM_MOD_SPELL_HEALING_DONE_SHORT = 15, ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = 5 })
+H.eq(heal.Healing .. "/" .. heal.SpellDamage, "15/5", "a healing item: Healing 15, SpellDamage 5")
+H.eq(Stats.FromItemStats({ ITEM_MOD_MANA_REGENERATION_SHORT = 6 }).Mp5, 6, "mp5's measured key")
+-- A key seen with no Pawn token stays unrecognised, never a zero.
+local _, slay = Stats.FromItemStats({ ITEM_MOD_ATTACK_POWER_VS_BEAST_SHORT = 15 })
+H.eq(slay[1], "ITEM_MOD_ATTACK_POWER_VS_BEAST_SHORT", "a seen but unmapped key (beast slaying) stays unrecognised")
 
 -- Forever's keys as measured on 70425 (docs/FOREVER-PROBE.md P4).
 local t, uns = Stats.FromItemStats({ ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 29, ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT = 6,

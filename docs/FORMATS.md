@@ -109,8 +109,26 @@ SavedVariables; docs/FOREVER-PROBE.md P4), on wands and one mace:
 - Spirit is `ITEM_MOD_SPIRIT_SHORT`; DPS is `ITEM_MOD_DAMAGE_PER_SECOND_SHORT` (unrounded, 11.333…).
   No weapon-speed key comes back, although the tooltip shows "Speed 1.50".
 
-Not sampled yet (GG-103): healing-only and damage-only items, mana per 5, hit and crit (per cent or
-rating), suffix and enchanted links. Those rows stay "expected".
+On **1.60.1.70938** GlassGearProbe (GG-103) read one sample item per client stat type
+(docs/FOREVER-PROBE.md P4):
+
+- Fire, Nature, Frost and Holy follow the pattern: `ITEM_MOD_FIRE_DAMAGE_DONE_SHORT` (2231),
+  `_NATURE_` (7386), `_FROST_` (4324), `_HOLY_` (253899).
+- A healing item returns **both** `ITEM_MOD_SPELL_HEALING_DONE_SHORT` and
+  `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT`, the damage about a third of the healing (7049: 15 and 5).
+- Mana per 5 is `ITEM_MOD_MANA_REGENERATION_SHORT` (10659); Pawn's `ITEM_MOD_POWER_REGEN0_SHORT`
+  never appeared.
+- Bonus armor has no key: `RESISTANCE0_NAME` is the total (3844: 358 = the tooltip's 238 + 120,
+  both lines white).
+- Hit, crit, haste, expertise, defense, dodge, parry and block come back as **ratings**
+  (`ITEM_MOD_CRIT_RATING_SHORT=14` on 3854).
+- A suffix link and its trimmed string read the same; the bare item lacks the suffix. Enchants are
+  not in `GetItemStats` (two enchanted items read the same stripped).
+
+Seen and still unmapped (no Pawn token, so `UNSUPPORTED_STAT`): attack power against beasts,
+demons and undead, weapon and profession skills (`ITEM_MOD_DAGGERS_SHORT`,
+`ITEM_MOD_HERBALISM_SHORT`, `ITEM_MOD_FISHING_SHORT`), `ITEM_MOD_SPELL_RESISTANCE_ALL_SCHOOLS_SHORT`
+and `ITEM_MOD_PHYSICAL_DAMAGE_DONE_SHORT`.
 
 `Data/Stats.lua` implements this table. A test fails if the table and this doc disagree on a
 token's status.
@@ -130,7 +148,7 @@ Status meanings:
 | Stamina | `ITEM_MOD_STAMINA_SHORT` | supported |
 | Intellect | `ITEM_MOD_INTELLECT_SHORT` | supported |
 | Spirit | `ITEM_MOD_SPIRIT_SHORT` | supported |
-| Armor | `RESISTANCE0_NAME` | supported |
+| Armor | `RESISTANCE0_NAME` (bonus armor included, measured 70938) | supported |
 | HitRating | `ITEM_MOD_HIT_RATING_SHORT` | supported |
 | CritRating | `ITEM_MOD_CRIT_RATING_SHORT` | supported |
 | HasteRating | `ITEM_MOD_HASTE_RATING_SHORT` | supported (rare on Forever) |
@@ -145,12 +163,12 @@ Status meanings:
 | BlockRating | `ITEM_MOD_BLOCK_RATING_SHORT` | supported |
 | BlockValue | `ITEM_MOD_BLOCK_VALUE_SHORT` | supported |
 | Hp5 | `ITEM_MOD_HEALTH_REGEN_SHORT` | supported |
-| Mp5 | expected `ITEM_MOD_POWER_REGEN0_SHORT` (Pawn's mapping) | supported; key confirmed by GG-103 |
-| SpellDamage | `ITEM_MOD_SPELL_POWER_SHORT` (damage and healing, measured 70425); damage-only expected `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT` | supported |
-| Healing | `ITEM_MOD_SPELL_POWER_SHORT` (with SpellDamage, measured 70425); healing-only expected `ITEM_MOD_SPELL_HEALING_DONE_SHORT` | supported |
+| Mp5 | `ITEM_MOD_MANA_REGENERATION_SHORT` (measured 70938); Pawn's `ITEM_MOD_POWER_REGEN0_SHORT` also read, not seen | supported |
+| SpellDamage | `ITEM_MOD_SPELL_POWER_SHORT` (damage and healing, measured 70425); `ITEM_MOD_SPELL_DAMAGE_DONE_SHORT` (on healing items, measured 70938) | supported |
+| Healing | `ITEM_MOD_SPELL_POWER_SHORT` (with SpellDamage, measured 70425); `ITEM_MOD_SPELL_HEALING_DONE_SHORT` (measured 70938) | supported |
 | Fire/Nature/Frost/Shadow/ArcaneResist | `RESISTANCE2_NAME` … `RESISTANCE6_NAME`; the twin `ITEM_MOD_FIRE_RESISTANCE_SHORT` … counts only when the first is absent (both measured 70425) | supported |
 | Shadow/ArcaneSpellDamage | `ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT`, `ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT` (measured 70425) | supported |
-| Fire/Nature/Frost/HolySpellDamage | expected `ITEM_MOD_<SCHOOL>_DAMAGE_DONE_SHORT` (not sampled) | reported-unsupported until GG-103 sees the key |
+| Fire/Nature/Frost/HolySpellDamage | `ITEM_MOD_FIRE_DAMAGE_DONE_SHORT`, `ITEM_MOD_NATURE_DAMAGE_DONE_SHORT`, `ITEM_MOD_FROST_DAMAGE_DONE_SHORT`, `ITEM_MOD_HOLY_DAMAGE_DONE_SHORT` (measured 70938) | supported |
 
 ### Weapon tokens
 

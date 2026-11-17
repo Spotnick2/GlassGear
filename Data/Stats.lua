@@ -5,10 +5,10 @@
 -- Tokens are Pawn's scale-string names, so a Pawn string imports unchanged.
 -- Item stats come from C_Item.GetItemStats, whose keys are locale-independent
 -- global-string names (ITEM_MOD_*, RESISTANCE*_NAME). Measured on 70425
--- (Wanderful's probe log, docs/FOREVER-PROBE.md P4): spell power, school
--- damage, resistance, spirit, DPS. Keys marked "expected" are not sampled yet
--- (GG-103). An unmapped key is reported as UNSUPPORTED_STAT, never scored as
--- zero (adr/0003).
+-- (Wanderful's probe log) and 70938 (GlassGearProbe, GG-103: one sample item
+-- per client stat type, docs/FOREVER-PROBE.md P4). Keys marked "expected"
+-- were not seen. An unmapped key is reported as UNSUPPORTED_STAT, never scored
+-- as zero (adr/0003).
 ------------------------------------------------------------
 
 local GG = GlassGear
@@ -48,6 +48,8 @@ Stats.ITEM_MOD = {
     ITEM_MOD_STAMINA_SHORT = { "Stamina" },
     ITEM_MOD_INTELLECT_SHORT = { "Intellect" },
     ITEM_MOD_SPIRIT_SHORT = { "Spirit" },
+    -- Total armor: bonus armor is folded in, with no key of its own (70938:
+    -- 3844 reads 358 = its tooltip's 238 + 120; 6731 reads 198 = 168 + 30).
     RESISTANCE0_NAME = { "Armor" },
     ITEM_MOD_HIT_RATING_SHORT = { "HitRating" },
     ITEM_MOD_CRIT_RATING_SHORT = { "CritRating" },
@@ -57,25 +59,28 @@ Stats.ITEM_MOD = {
     ITEM_MOD_ATTACK_POWER_SHORT = { "Ap" },
     ITEM_MOD_RANGED_ATTACK_POWER_SHORT = { "Rap" },
     ITEM_MOD_FERAL_ATTACK_POWER_SHORT = { "FeralAp" },
-    ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = { "SpellDamage" },   -- expected, GG-103
-    ITEM_MOD_SPELL_HEALING_DONE_SHORT = { "Healing" },      -- expected, GG-103
+    -- A healing item carries both: healing and about a third of it as damage
+    -- (70938: 7049 SPELL_HEALING_DONE=15 SPELL_DAMAGE_DONE=5; 2943 13 and 4).
+    ITEM_MOD_SPELL_DAMAGE_DONE_SHORT = { "SpellDamage" },
+    ITEM_MOD_SPELL_HEALING_DONE_SHORT = { "Healing" },
     -- "Increases damage and healing done by magical spells": one spell-power key,
     -- feeding both (measured 70425: items 11287, 11288).
     ITEM_MOD_SPELL_POWER_SHORT = { "SpellDamage", "Healing" },
-    -- School damage has its own key (measured 70425: Shadow on 7001, Arcane on
-    -- 12984). Fire, Frost, Nature and Holy are NOT mapped until a probe sees
-    -- their keys (GG-103): until then their tokens stay reported-unsupported
-    -- (TOKEN_NOT_SCORED when weighted) and their item keys stay
-    -- UNSUPPORTED_STAT, so protection never clears on a guessed key.
+    -- School damage has its own key per school (measured 70425: Shadow 7001,
+    -- Arcane 12984; 70938: Fire 2231, Nature 7386, Frost 4324, Holy 253899).
     ITEM_MOD_SHADOW_DAMAGE_DONE_SHORT = { "ShadowSpellDamage" },
     ITEM_MOD_ARCANE_DAMAGE_DONE_SHORT = { "ArcaneSpellDamage" },
+    ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = { "FireSpellDamage" },
+    ITEM_MOD_NATURE_DAMAGE_DONE_SHORT = { "NatureSpellDamage" },
+    ITEM_MOD_FROST_DAMAGE_DONE_SHORT = { "FrostSpellDamage" },
+    ITEM_MOD_HOLY_DAMAGE_DONE_SHORT = { "HolySpellDamage" },
     ITEM_MOD_DEFENSE_SKILL_RATING_SHORT = { "DefenseRating" },
     ITEM_MOD_DODGE_RATING_SHORT = { "DodgeRating" },
     ITEM_MOD_PARRY_RATING_SHORT = { "ParryRating" },
     ITEM_MOD_BLOCK_RATING_SHORT = { "BlockRating" },
     ITEM_MOD_BLOCK_VALUE_SHORT = { "BlockValue" },
-    ITEM_MOD_POWER_REGEN0_SHORT = { "Mp5" },        -- expected (Pawn's mapping), GG-103
-    ITEM_MOD_MANA_REGENERATION_SHORT = { "Mp5" },   -- alternative name, GG-103
+    ITEM_MOD_MANA_REGENERATION_SHORT = { "Mp5" },   -- measured 70938 (10659)
+    ITEM_MOD_POWER_REGEN0_SHORT = { "Mp5" },        -- Pawn's name: expected, not seen on 70938
     ITEM_MOD_HEALTH_REGEN_SHORT = { "Hp5" },
     RESISTANCE2_NAME = { "FireResist" },
     RESISTANCE3_NAME = { "NatureResist" },
