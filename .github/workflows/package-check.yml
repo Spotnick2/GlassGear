@@ -66,6 +66,8 @@ jobs:
           luac5.1 -p $files
 
       - name: Unit tests
+        env:
+          FOREVERPROBE_OPTIONAL: "1"   # ForeverProbe is private and local: test_probe runs locally only
         run: |
           for f in tests/test_*.lua; do
             echo "-- $f"

@@ -4,6 +4,8 @@
     Usage:
         pwsh Tools/deploy.ps1
         pwsh Tools/deploy.ps1 -AddOnsPath "D:\Games\WoW\_forever_\Interface\AddOns"
+        pwsh Tools/deploy.ps1 -Probe        # ...and GlassGearProbe (needs ../ForeverProbe)
+        pwsh Tools/deploy.ps1 -ProbeOnly    # just GlassGearProbe (Glass Gear's deployed copy untouched)
 
     TOC-driven (Shatter's Tools/deploy.ps1 pattern): the deployed folder gets
     GlassGear.toc, LICENSE and exactly the files the TOC loads, each at its own
@@ -16,7 +18,11 @@
 #>
 
 param(
-    [string]$AddOnsPath = "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns"
+    [string]$AddOnsPath = "C:\Program Files (x86)\World of Warcraft\_forever_\Interface\AddOns",
+    # ...and GlassGearProbe (Tools\GlassGearProbe), a ForeverProbe module.
+    [switch]$Probe,
+    # Just GlassGearProbe.
+    [switch]$ProbeOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,6 +33,37 @@ if ($AddOnsPath -match '_anniversary_') {
 }
 if (-not (Test-Path -LiteralPath $AddOnsPath)) {
     throw "AddOns path not found: $AddOnsPath"
+}
+
+$ForeverProbe = if ($env:FOREVERPROBE) { $env:FOREVERPROBE } else { Join-Path (Split-Path -Parent $RepoRoot) "ForeverProbe" }
+
+# GlassGearProbe is a ForeverProbe module: the host goes first, and a refusal
+# leaves the probe as it was (ForeverProbe docs/GUIDE.md, section 6).
+function Deploy-Probe {
+    if (-not (Test-Path -LiteralPath (Join-Path $ForeverProbe "Tools\deploy.ps1"))) {
+        throw "ForeverProbe checkout not found at $ForeverProbe (or set `$env:FOREVERPROBE)"
+    }
+    & pwsh -NoProfile -File (Join-Path $ForeverProbe "Tools\deploy.ps1") -AddOnsPath $AddOnsPath
+    if ($LASTEXITCODE -ne 0) { throw "ForeverProbe deploy refused; GlassGearProbe was not touched" }
+    $dest = Join-Path $AddOnsPath "GlassGearProbe"
+    Write-Host "Deploying GlassGearProbe -> $dest" -ForegroundColor Cyan
+    New-Item -ItemType Directory -Force -Path $dest | Out-Null
+    $files = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot "Tools\GlassGearProbe") -File -Include *.toc, *.lua -Recurse)
+    foreach ($f in $files) {
+        Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $dest $f.Name) -Force
+        Write-Host "  $($f.Name)"
+    }
+    $keep = $files | ForEach-Object Name
+    Get-ChildItem -LiteralPath $dest -File | Where-Object { $keep -notcontains $_.Name } | ForEach-Object {
+        Write-Host "  removing stale $($_.Name)" -ForegroundColor DarkYellow
+        Remove-Item -LiteralPath $_.FullName -Force
+    }
+    Write-Host "  in game: /reload, then /fp steps gg stats" -ForegroundColor Yellow
+}
+
+if ($ProbeOnly) {
+    Deploy-Probe
+    exit 0
 }
 
 $tocPath = Join-Path $RepoRoot "GlassGear.toc"
@@ -97,6 +134,8 @@ $deployedToc = Join-Path $dest "GlassGear.toc"
 (Get-Content -LiteralPath $deployedToc -Raw).Replace('@project-version@', $label) |
     Set-Content -LiteralPath $deployedToc -NoNewline
 Write-Host "  version -> $label (deployed copy only)" -ForegroundColor DarkGray
+
+if ($Probe) { Deploy-Probe }
 
 Write-Host "Done." -ForegroundColor Green
 Write-Host ""
