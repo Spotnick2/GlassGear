@@ -16,14 +16,16 @@ needs to find out, and records the result here with the build once it is run.
 - **Before measuring:** check `PORTING-TBC-TO-FOREVER.md`, the 70532 dump and `/fp facts`.
   Per-client measurements are facts (`ForeverProbe:DefineFact`). Anything that depends on the
   character or its gear is a log line.
-- **What isn't here yet:** the probe module itself. It is written with the first M1 spike (GG-101).
+- **The module:** `Tools/GlassGearProbe`, born with P4 (GG-103). Deploy it alone with
+  `pwsh Tools/deploy.ps1 -ProbeOnly` (Glass Gear's deployed copy untouched). `tests/test_probe.lua`
+  runs it on the real host, locally only (CI skips it: ForeverProbe is private).
 
 | # | Check | Backlog | Procedure | Status |
 |---|---|---|---|---|
 | P1 | Load and `/gg diag` | GG-001, GG-004 | `/fp steps gg load` | narrowed |
 | P2 | Spec group and talent-tree points | GG-101 | `gg spec` | narrowed |
 | P3 | Loot window and group roll frames | GG-102 | `gg loot` | narrowed |
-| P4 | `GetItemStats` on suffix/enchanted links; item-data timing | GG-103 | `gg stats` | narrowed |
+| P4 | `GetItemStats` on suffix/enchanted links; item-data timing | GG-103 | `/fp steps gg stats` | ready (module built) |
 | P5 | Transfer rules | GG-116 | `gg transfer` | narrowed |
 | P6 | Tooltip post-call on bag, loot and link tooltips | GG-107, GG-111 | `gg tips` | narrowed |
 | P7 | Modifier state and keyboard focus | GG-110 | `gg reveal` | narrowed |
@@ -168,12 +170,27 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
   - Does `GetItemStats` then return data? It returns nothing on a miss:
     `AltStable/docs/forever-api-notes.md:1070`.
 - **Why.** The score inputs and the pending state. A wrong key silently zeroes a stat.
-- **Steps**
-  1. `run` over the owner's equipped and bag items: log every key `GetItemStats` returns, per link.
-  2. Repeat with a known suffix item, an enchanted item, a wand, a caster item with spell damage,
-     a healing item, and an item with bonus armor.
-  3. `run`: request an uncached item ID (from a list the probe carries), then use a `wait` step on
-     the load event with a 10 s timeout; log the delay.
+- **What the client tables say (wago.tools ItemSparse 70532).** On Forever these are item stats
+  (`StatModifier_bonusStat_N`), not equip spells: no item carries an "Increase Fire Dam" spell any
+  more. The types seen: 41 healing, 42 spell damage, 43 mp5, 45 spell power, 46 hp5, 47 spell
+  penetration, 48 block value, 50 bonus armor (Green Iron Hauberk 3844, Ironforge Breastplate 6731),
+  51-56 resistances, 84-89 school damage (85 fire, 86 nature, 87 frost, 88 shadow, 89 arcane; 84 is
+  likely holy), and slaying, weapon and profession skills (124-136, 90-92, 112-117). The probe
+  carries one or two items per type, so the keys don't depend on what the owner carries.
+- **Steps** (`/fp steps gg stats`)
+  1. `auto`: request the samples and the suffix item, timed to `ITEM_DATA_LOAD_RESULT` and
+     `GET_ITEM_INFO_RECEIVED` (cached or not at request).
+  2. `wait` (20 s): every sample and the suffix item answer `GetItemInfo` and `GetItemStats`.
+  3. `auto`: each sample's keys, the ones Glass Gear's own `Data/Stats.lua` can't map
+     (`UNSUPPORTED_STAT`), and the tooltip's armor lines with their colour for bonus armor;
+     a `SUMMARY` line gives the keys per stat type.
+  4. `auto`: the suffix item (`item:14094`, bonus 12745) as its full link, the trimmed baseline
+     string and the bare item: `same`, `differ`, or `unreadable` when a form gave no stats (a failed
+     read is never counted as agreement).
+  5. `auto`: everything worn and carried: keys, and whether the enchant-stripped and trimmed strings
+     Glass Gear reads give the same stats (or can't be read). An enchant ID of 0 is no enchant.
+  6. `run`: scan again after putting on an enchanted item, when step 5 counted none.
+  7. `/reload`, to save.
 - **Fact candidates.** The key per Pawn token (inputs: none). The suffix behaviour. Where bonus
   armor goes.
 

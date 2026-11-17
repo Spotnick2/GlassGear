@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: GlassGearProbe
+## Notes: Throwaway probe for Glass Gear: GetItemStats keys, link forms and item-data timing (GG-103, P4). A ForeverProbe module: /fp gg
+## Author: Spotnick
+## Version: dev
+## Dependencies: ForeverProbe
+## OptionalDeps: GlassGear
+## SavedVariables: GlassGearProbeDB
+
+GlassGearProbe.lua
