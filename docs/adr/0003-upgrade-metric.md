@@ -120,8 +120,8 @@ The comparison **enumerates the legal resulting configurations** instead of pick
 Baselines are kept per character × spec, with sources in this precedence:
 
 1. the **equipment set** the owner mapped to the spec (`C_EquipmentSet`, `/gg set`), else the set the
-   client itself assigned to that spec's group (`GetEquipmentSetForSpec`); `/gg set <spec> none`
-   turns both off. A set slot names an item ID only: the instance (and its suffix) is the one worn or
+   client itself assigned to that spec's group (`GetEquipmentSetForSpec`), else a set named after the
+   spec, its name or key in any case (GG-124); `/gg set <spec> none` turns all three off. A set slot names an item ID only: the instance (and its suffix) is the one worn or
    in the bags; two different instances, or none, make the slot `unknown`. An ignored slot keeps what
    is worn. Since the instance found can change without any set or worn-gear event, a bag change
    (`BAG_UPDATE_DELAYED`) that changes which instances the sets in use resolve to invalidates
