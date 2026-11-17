@@ -111,6 +111,28 @@ WoW.flush()
 WoW.showItem(bright, { type = 0, id = 68, hyperlink = WoW.link(68) })
 fold = line(bright, "+ 2 other specs")
 H.eq(fold and fold.right, "Discipline +50.0%", "two hidden upgrades: the larger one is named")
+-- The folded upgrade keeps its warnings (PR #78 review): a lost set bonus,
+-- stale or estimated gear that exist only on that hidden spec are still said.
+local function r(spec, status, pct, extra)
+    local x = { status = status, spec = spec, score = pct and { pct = pct } or nil, reasons = {}, limitations = {},
+        eligibility = { equipNow = true, reasons = {} } }
+    for k, v in pairs(extra or {}) do x[k] = v end
+    return x
+end
+local folded = GG.TooltipView.Build({ results = {
+    r("PRIEST.SHADOW", "no_upgrade", -0.1, { current = true }),
+    r("PRIEST.HOLY", "upgrade", 0.2, { limitations = { "SET_BONUS_LOST:500:2" }, reasons = { "BASELINE_STALE" } }),
+    r("PRIEST.DISCIPLINE", "upgrade", 0.05, { reasons = { "BASELINE_FALLBACK" } }),
+} }, { specs = "current", reveal = "CTRL" }, { currentSpec = "PRIEST.SHADOW" })
+local foldedText = {}
+for _, l in ipairs(folded) do foldedText[#foldedText + 1] = l.left .. (l.right and (" | " .. l.right) or "") end
+foldedText = table.concat(foldedText, "\n")
+H.check(foldedText:find("+ 2 other specs (hold Ctrl) | Holy +20.0%", 1, true) ~= nil, "folded: Holy's upgrade is named: " .. foldedText)
+H.check(foldedText:find("Breaks a 2-piece set bonus (not scored)", 1, true) ~= nil, "...with its lost set bonus")
+H.check(foldedText:find("Gear recorded over 14 days ago: Holy", 1, true) ~= nil, "...and its stale gear")
+H.check(foldedText:find("other specs vs current gear", 1, true) == nil,
+    "a spec still folded (Discipline, not named) adds no warning of its own")
+
 -- Selected specs: the unselected ones fold.
 GG.db.settings.tooltip.specs = "selected"
 GG.db.settings.tooltip.selected = { ["PRIEST.HOLY"] = true }
@@ -126,6 +148,28 @@ GG.db.settings.reveal.modifier = "NONE"
 WoW.showItem(tip, bagData(), WoW.bagButton(0, 1))
 H.check(line(tip, "other spec") == nil and line(tip, "Holy") == nil, "reveal key none: the scope as chosen, no fold line")
 GG.db.settings.reveal.modifier = "CTRL"
+-- A tooltip is a reveal surface on its own (PR #78 review): with no bag or
+-- loot window open, a focus change while the key is held still unfolds it.
+H.eq(next(GG.Reveal._surfaces), nil, "no bag or loot surface open")
+local chatLink = WoW.newTooltip("ItemRefTooltip")
+function chatLink:HookScript(event, fn) self.hooks = self.hooks or {}; self.hooks[event] = fn end
+WoW.showItem(chatLink, { type = 0, id = 60, hyperlink = WoW.link(60) })
+H.eq(GG.Reveal._surfaces[chatLink], true, "the tooltip is a reveal surface while shown")
+H.check(GG.Reveal._Poller()._scripts.OnUpdate ~= nil, "...so the reveal poll runs")
+WoW.focus = {}                                     -- typing in chat
+WoW.keys.CTRL = true
+WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
+H.check(line(chatLink, "+ 2 other specs") ~= nil, "Ctrl while typing: still folded")
+WoW.focus = nil                                    -- focus leaves the box, Ctrl still held
+GG.Reveal._Poller()._scripts.OnUpdate(GG.Reveal._Poller(), 0.2)
+H.check(line(chatLink, "Holy") ~= nil and line(chatLink, "+ 2 other specs") == nil,
+    "the poll sees the focus leave and the tooltip unfolds")
+WoW.keys.CTRL = nil
+WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 0)
+chatLink:Hide()
+chatLink.hooks.OnHide(chatLink)
+H.eq(GG.Reveal._surfaces[chatLink], nil, "hidden: no longer a surface")
+H.eq(GG.Reveal._Poller()._scripts.OnUpdate, nil, "...and the poll stops")
 -- No current spec: nothing to fold to, every spec shows.
 local function res(spec) return { status = "no_upgrade", spec = spec, score = { pct = 0 }, reasons = {}, limitations = {} } end
 local noCur = GG.TooltipView.Build({ results = { res("PRIEST.HOLY"), res("PRIEST.SHADOW") } },

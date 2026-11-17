@@ -228,14 +228,20 @@ function View.Build(response, settings, ctx)
         if row.emphasis then left = left .. "  " .. View.BADGE end
         lines[#lines + 1] = { left = left, right = right, lc = row.emphasis and C.current or C.spec, rc = rc }
     end
+    -- The best upgrade among the folded specs: named on the folded line, and
+    -- its warnings (set bonus, unscored effects, stale or estimated gear) kept
+    -- with the shown rows' (PR #78 review).
+    local best
+    for _, h in ipairs(hidden) do
+        if h.status == "upgrade" and (not best or (h.pct or 0) > (best.pct or 0)) then best = h end
+    end
+    local shown = {}
+    for _, row in ipairs(rows) do shown[#shown + 1] = row end
+    if best then shown[#shown + 1] = best end
     for i, row in ipairs(rows) do
         add(row)
         -- The folded specs, right under the current one; the best upgrade among them on the right.
         if i == 1 and #hidden > 0 then
-            local best
-            for _, h in ipairs(hidden) do
-                if h.status == "upgrade" and (not best or (h.pct or 0) > (best.pct or 0)) then best = h end
-            end
             local text = #hidden == 1 and L["+ 1 other spec (hold %s)"]:format(KEY_NAME[settings.reveal])
                 or L["+ %d other specs (hold %s)"]:format(#hidden, KEY_NAME[settings.reveal])
             local l = { left = text, lc = C.muted }
@@ -245,6 +251,8 @@ function View.Build(response, settings, ctx)
             end
             lines[#lines + 1] = l
         end
+    end
+    for _, row in ipairs(shown) do
         if row.kind == "alt" then
             if has(row.reasons, "BASELINE_FALLBACK") then altVsLastSeen = true end
         elseif not row.emphasis and has(row.reasons, "BASELINE_FALLBACK")
@@ -252,7 +260,7 @@ function View.Build(response, settings, ctx)
             offSpecVsCurrentGear = true
         end
     end
-    for _, n in ipairs(notes(rows, (settings or {}).setBonusWarnings ~= false)) do
+    for _, n in ipairs(notes(shown, (settings or {}).setBonusWarnings ~= false)) do
         lines[#lines + 1] = { left = n, lc = C.later }
     end
     -- Better gear already owned (GG-122): name it.
@@ -265,7 +273,7 @@ function View.Build(response, settings, ctx)
     end
     -- A spec compared with gear recorded too long ago says so (GG-108).
     local stale = {}
-    for _, row in ipairs(rows) do
+    for _, row in ipairs(shown) do
         if has(row.reasons, "BASELINE_STALE") then stale[#stale + 1] = rowName(row) end
     end
     if #stale > 0 then
