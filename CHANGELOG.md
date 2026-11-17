@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.0-alpha2
 
 - **Fire, Frost, Nature and Holy spell damage count**: items with "+N Fire Spell Damage" and the
   like now score for the specs that weigh them, measured in game (they were left out, with a
