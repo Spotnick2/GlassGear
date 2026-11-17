@@ -467,3 +467,24 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** On the alt: `/gg import` its weights, play its spec a minute. On this character:
   `/gg characters`, tick the alt's spec; hover a BoE in the bags that it wants; open the bags; open
   Shatter's list; mail it to the alt and back on another realm or faction if you have one.
+
+## P22: The Glass look through Glass UI (GG-115, GUI-001)
+
+- **Question.**
+  - With Glass UI loaded and following (the default): do the profiles, comparison and characters
+    windows open in Pearl glass, with the suite's tint and the accent on their titles, readable and
+    with no Lua error?
+  - Does Glass UI's page show Glass Gear's card as "Following (Pearl)", and `/glassui suite` the
+    same (not "asked, but no report")? Does its Settings button open Glass Gear's page?
+  - Glass Gear's "WoW Forever" switch, then `/reload`: WoW Forever windows, and Glass UI shows "its
+    own look by its choice (WoW Forever)"? Before the reload, does Glass Gear's page say `/reload`?
+  - Glass UI's "Use Glass UI appearance" off for Glass Gear, then `/reload`: WoW Forever, and the
+    card shows Glass Gear's own look, no failure?
+  - A suite tint change (Glass UI's "Suite look"): does Glass UI say "/reload to apply" for Glass
+    Gear, and does the reload pick it up? With the class tint, is it the class colour after login?
+  - Without Glass UI: WoW Forever, no switch on Glass Gear's page, no error.
+- **Why.** The decision, the report and the surfaces are built against fakes of Glass UI and
+  LibGlass; the glass recipe is measured in Stakeout and GlassPearls, not here.
+- **Steps.** `/reload` with Glass UI; open `/gg profiles`, `/gg compare`, `/gg characters`;
+  screenshots; Glass UI's page and `/glassui suite`; the two switches, each with a `/reload`; the
+  suite tint (smoked, class); disable Glass UI and `/reload`.

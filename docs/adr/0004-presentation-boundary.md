@@ -15,6 +15,9 @@
       `ADDON_LOADED` with `## OptionalDeps: GlassUI`.
     - Glass Gear reports `declined` when the player opts out, and `live = false` (a switch needs
       `/reload`).
+    - GG-115 (2026-11-16): the opt-out is Glass Gear's own **Follow Glass UI / WoW Forever** switch,
+      as Stakeout and GlassPearls have it (GlassUI #152). Glass UI's own "Use Glass UI appearance"
+      switch also stops it, reported as Glass UI's answer, not as declined.
 - **Glass UI not following.** While Glass UI is absent, or while the player doesn't follow the suite,
   the `forever` theme is used. Glass Gear's own appearance settings are kept and come back unchanged
   (`GlassUI/docs/SUITE.md:30-33`).

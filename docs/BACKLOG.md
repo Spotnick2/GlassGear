@@ -377,6 +377,22 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 - **Acceptance.** Opt-in, opt-out and reload behave as Glass UI's SUITE.md says.
 - **Refs.** adr/0004.
 - **Validation:** auto (Theme decision: extend `test_load`), game.
+- **Done (auto), game P22.** `Presentation/Theme.lua` (`Theme.Init` at `ADDON_LOADED`, the shell
+  and reading-pane surfaces), `test_theme.lua` (116 checks, mutation-checked). As Stakeout and
+  GlassPearls do it (GlassUI #152):
+  - With Glass UI loaded, Glass Gear follows it by default. The settings page's **Follow Glass UI /
+    WoW Forever** switch (`appearance.followGlassUI`, shown only with Glass UI) turns that off, and
+    the report says `declined = "WoW Forever"`.
+  - Following: the suite's preset (Pearl), its body (tint, backing, wash) on the window shells and
+    its accent on the window titles, pulled once. Reported with `built`, `minor`, `live = false`,
+    `look = { tint, accent }`, `own` for a key the suite couldn't answer, and `options` (opens the
+    settings page).
+  - Every other answer (Glass UI's switch off, not ready, an error, LibGlass older than r11 or
+    failing) keeps WoW Forever and still reports, so Glass UI never shows "asked, but no report".
+  - Bag and loot arrows keep their look: they are marks, not surfaces. The settings page stays
+    Blizzard's.
+  - Not live: a suite change waits for `/reload`. Following `LookChanged` live is a later step
+    (GlassChat's and GlassPearls' model).
 
 ### GG-116: Spike, transfer rules (P0, SPIKE)
 
@@ -580,7 +596,7 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 | Saved off-spec equipment and unavailable baselines | `test_evaluate` (precedence, missing slot data → unknown, stale/fallback reasons); GG-108 | auto + game |
 | Unknown or pending item data | `test_evaluate` (pending), `test_api_contract` (pending → `EvaluationReady`, timeout → `ITEM_DATA_UNAVAILABLE`) | auto + game (P4) |
 | Dependency absence and incompatible API versions | `test_load` (no AltStable, no Glass UI, newer schema → read-only); `test_api_contract` (capabilities/unavailable); `RosterProvider.DetectAltStable`; GG-201 | auto |
-| Default theme and Glass UI opt-in/opt-out | `test_load` (forever without Glass UI); GG-115 + GUI-001 | auto + game |
+| Default theme and Glass UI opt-in/opt-out | `test_load` (forever without Glass UI); `test_theme` (follow, decline, every fallback, the report); GG-115 + GUI-001 | auto + game (P22) |
 | Shatter protection despite hidden off-spec arrows | `test_policy` ("off-spec upgrade protects although its arrow is hidden"); GG-301, SH-001 | auto + game |
 | Queue changes, stale assessments, manual overrides | `test_policy` (stale/fallback/effects → unknown); API token and `expiresAt` contract; GG-301, SH-001, SH-002 | auto + game |
 | Missing weights shown as unavailable | `test_evaluate`, `test_policy` (rows "no weights"; protection unchecked) | auto |

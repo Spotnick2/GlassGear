@@ -18,7 +18,8 @@ DB.DEFAULTS = {
         specArmor = true,
         setBonusWarnings = true,
         defaults = { enabled = true },      -- GG-120: Glass Gear's default weights
-        appearance = { theme = "forever" },
+        -- followGlassUI (GG-115): with Glass UI loaded, follow its look (false: WoW Forever).
+        appearance = { theme = "forever", followGlassUI = true },
     },
     ui = { windows = {} },      -- window positions (GG-105); never synced
 }

@@ -333,6 +333,7 @@ retirement on receipt (`Catalog.lua:89`, `:542`, `:580`). Link is internal to Al
   - Turning follow off is saved by Glass UI and takes effect after `/reload`.
 - **Dependencies:** none. GG-115 consumes it.
 - **Validation:** GlassUI `test_suite`-style unit test; in game, the card and the reload.
+- **Done:** GlassUI #190 (merged, `3f7f639`). Glass Gear's side is GG-115.
 
 ---
 

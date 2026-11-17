@@ -41,8 +41,10 @@ function handlers.ADDON_LOADED(name)
     else
         GG.db, GG.charDB = GlassGearDB, GlassGearChar
     end
-    GG.suite = GG.Integrations.GlassUI.Ask()
-    GG.themeName, GG.themeInfo = GG.Theme.Decide(GG.suite)
+    -- The look, once a session, before any window exists (GG-115): asks Glass
+    -- UI and reports what was built. Glass UI's link to our settings opens them.
+    GG.themeName, GG.themeInfo = GG.Theme.Init(GG.db.settings.appearance.followGlassUI,
+        function() return GG.Options.Open() end)
 end
 
 function handlers.PLAYER_LOGIN()

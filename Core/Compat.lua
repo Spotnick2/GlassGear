@@ -209,6 +209,21 @@ function Compat.Player()
         canDualWield = CanDualWield(), current = true }
 end
 
+-- The player's class colour as r, g, b (C_ClassColor.GetClassColor, dump
+-- 70938 :773), for the glass look's class tint (GG-115); nil while it can't
+-- be read (early in a login) or the client has no such API.
+function Compat.ClassColor()
+    local ok, _, class = pcall(UnitClass, "player")
+    if not ok or type(class) ~= "string" then return nil end
+    local cc = rawget(_G, "C_ClassColor")
+    if type(cc) ~= "table" or type(cc.GetClassColor) ~= "function" then return nil end
+    local okC, c = pcall(cc.GetClassColor, class)
+    if not okC or type(c) ~= "table" then return nil end
+    local r, g, b = c.r, c.g, c.b
+    if type(r) ~= "number" or type(g) ~= "number" or type(b) ~= "number" then return nil end
+    return r, g, b
+end
+
 -- Milliseconds, for measuring (debugprofilestop, dump :6605; os.clock where
 -- the client's timer is missing, as in the tests).
 -- Resolved once at load (no per-call lookup); without either timer it

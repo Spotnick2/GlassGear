@@ -93,8 +93,6 @@ return {
     -- Integrations/GlassUI.lua
     "Glass UI not loaded",
     "Glass UI error",
-    -- Presentation/Theme.lua
-    "not following Glass UI",
     -- Presentation/TooltipView.lua
     "CURRENT",
     "default weights",
@@ -359,9 +357,13 @@ return {
     "Current spec: %s",
     "Current spec: not set. Choose the spec of your active group.",
     "Transferable item (not bound)",
-    "Look: Glass, following Glass UI. Change it in Glass UI's settings; /reload to apply.",
-    "Look: WoW Forever (%s). Glass Gear follows Glass UI once Glass UI lists it (GUI-001).",
-    "Look: WoW Forever. Glass Gear follows Glass UI once Glass UI lists it (GUI-001).",
+    "Look: %s glass, following Glass UI. Its tint and accent are set in Glass UI's settings.",
+    "Look: WoW Forever, by your choice.",
+    "Look: WoW Forever. With Glass UI loaded, Glass Gear follows its look.",
+    "Look: WoW Forever: \"Use Glass UI appearance\" is off for Glass Gear in Glass UI's settings.",
+    "Look: WoW Forever: the glass couldn't be built (%s).",
+    "Look: WoW Forever (%s).",
+    "/reload to apply your change.",
     "Weight profiles...",
     "SPECS",
     "Which spec each spec group is. Automatic detection comes after the in-game probe (GG-101).",
@@ -402,6 +404,8 @@ return {
     "Keep",
     "Hiding a marker does not disable disenchant protection.",
     "APPEARANCE",
+    "Follow Glass UI",
+    "WoW Forever",
     "Defaults",
     -- UI/ProfilesWindow.lua
     "Click Delete again to delete this profile",
