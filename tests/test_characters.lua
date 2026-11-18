@@ -6,8 +6,8 @@
 -- "Open AltStable", the unavailable state, and following roster changes.
 ------------------------------------------------------------
 
-local H = dofile("tests/harness.lua")
 dofile("tests/wow_stubs.lua")
+local H = dofile("tests/harness.lua")
 
 local ME = "Player-1-0000AAAA"
 local NOW = 1793500000
@@ -52,39 +52,39 @@ local Win = GG.CharactersWindow
 
 -- Groups: this account first, other accounts by their label.
 local groups = Win.Groups(GG.API.GetCharacters())
-H.eq(groups[1].title, "This account (Account 1)", "this account first, with its label")
-H.eq(#groups[1].chars, 3, "...the current character, Elegia and the hidden bank alt")
-H.eq(groups[2].title, "Account 2", "the other account, by its label (display only)")
-H.eq(groups[2].chars[1].name, "Drakuza", "...Drakuza")
-for _, g in ipairs(groups) do for _, c in ipairs(g.chars) do H.check(c.name ~= "Friendo", "never a third-party character: " .. c.name) end end
-H.eq(GG.Integrations.RosterProvider.Gear("Player-1-FRIEND"), nil, "a third-party character's gear is never read")
-H.eq(GG.Integrations.RosterProvider.Gear(ME), nil, "...nor the current one's from AltStable (Glass Gear reads it live)")
-H.eq(GG.Integrations.RosterProvider.Gear("Player-1-ALT2").capturedAt, NOW - 2 * 3600, "an own alt's gear is")
+eq(groups[1].title, "This account (Account 1)", "this account first, with its label")
+eq(#groups[1].chars, 3, "...the current character, Elegia and the hidden bank alt")
+eq(groups[2].title, "Account 2", "the other account, by its label (display only)")
+eq(groups[2].chars[1].name, "Drakuza", "...Drakuza")
+for _, g in ipairs(groups) do for _, c in ipairs(g.chars) do check(c.name ~= "Friendo", "never a third-party character: " .. c.name) end end
+eq(GG.Integrations.RosterProvider.Gear("Player-1-FRIEND"), nil, "a third-party character's gear is never read")
+eq(GG.Integrations.RosterProvider.Gear(ME), nil, "...nor the current one's from AltStable (Glass Gear reads it live)")
+eq(GG.Integrations.RosterProvider.Gear("Player-1-ALT2").capturedAt, NOW - 2 * 3600, "an own alt's gear is")
 
 SlashCmdList.GLASSGEAR("characters")
 local frame = Win._Frame()
 local Wd = Win._W
-H.check(frame and frame:IsShown(), "/gg characters opens the page")
-H.eq(Wd.status:GetText(), "AltStable connected", "AltStable connected")
-H.eq(Wd.count, 4, "four rows: you, Elegia, Banky, Drakuza")
+check(frame and frame:IsShown(), "/gg characters opens the page")
+eq(Wd.status:GetText(), "AltStable connected", "AltStable connected")
+eq(Wd.count, 4, "four rows: you, Elegia, Banky, Drakuza")
 local function row(name)
     for _, r in ipairs(Wd.rows) do if r:IsShown() and r.char and r.char.name == name then return r end end
 end
 local me = row("Karuzo")
-H.check(me.name:GetText():find("(you)", 1, true) ~= nil, "the current character is marked")
-H.eq(me.checks[1].label:GetText(), "Discipline", "its specs as boxes")
-H.eq(me.checks[3]:GetChecked(), true, "...the current character's specs tracked by default")
-H.check(me.status:GetText():find("1 of 3 specs with weights", 1, true) ~= nil, "...weights counted")
+check(me.name:GetText():find("(you)", 1, true) ~= nil, "the current character is marked")
+eq(me.checks[1].label:GetText(), "Discipline", "its specs as boxes")
+eq(me.checks[3]:GetChecked(), true, "...the current character's specs tracked by default")
+check(me.status:GetText():find("1 of 3 specs with weights", 1, true) ~= nil, "...weights counted")
 local el = row("Elegia")
-H.check(el.status:GetText():find("Gear snapshot 21 days old: refresh by playing this character", 1, true) ~= nil, "stale gear: said, with the fix")
-H.check(el.status:GetText():find("no weights", 1, true) ~= nil, "no weights: said")
-H.eq(el.checks[1]:GetChecked(), false, "an alt isn't tracked until ticked")
+check(el.status:GetText():find("Gear snapshot 21 days old: refresh by playing this character", 1, true) ~= nil, "stale gear: said, with the fix")
+check(el.status:GetText():find("no weights", 1, true) ~= nil, "no weights: said")
+eq(el.checks[1]:GetChecked(), false, "an alt isn't tracked until ticked")
 local dr = row("Drakuza")
-H.check(dr.status:GetText():find("Gear 2 h ago", 1, true) ~= nil, "fresh gear: its age")
-H.check(dr.sub:GetText():find("seen by Tilly", 1, true) ~= nil, "an own-account character: who vouched for it")
+check(dr.status:GetText():find("Gear 2 h ago", 1, true) ~= nil, "fresh gear: its age")
+check(dr.sub:GetText():find("seen by Tilly", 1, true) ~= nil, "an own-account character: who vouched for it")
 local bank = row("Banky")
-H.check(bank.name:GetText():find("hidden in AltStable", 1, true) ~= nil, "a hidden alt: shown, dimmed")
-H.check(bank.status:GetText():find("No gear recorded", 1, true) ~= nil, "...no gear recorded")
+check(bank.name:GetText():find("hidden in AltStable", 1, true) ~= nil, "a hidden alt: shown, dimmed")
+check(bank.status:GetText():find("No gear recorded", 1, true) ~= nil, "...no gear recorded")
 
 -- Without alt rows (an AltStable lacking AS-001/AS-003): alt boxes are
 -- inactive, and the page says protection covers this character only.
@@ -92,60 +92,60 @@ local realActive = Win.AltProtectionActive
 Win.AltProtectionActive = function() return false end
 Win.Refresh()
 dr = row("Drakuza")
-H.eq(dr.checks[1]:IsEnabled(), false, "alts unavailable: an alt's spec box can't be ticked")
-H.check(dr.checks[1].alpha < 1, "...and is shown dimmed")
-H.eq(row("Karuzo").checks[1]:IsEnabled(), true, "the current character's boxes work")
-H.check(Wd.note:GetText():find("this character's ticked specs; alts can't be protected yet", 1, true) ~= nil,
+eq(dr.checks[1]:IsEnabled(), false, "alts unavailable: an alt's spec box can't be ticked")
+check(dr.checks[1]:GetAlpha() < 1, "...and is shown dimmed")
+eq(row("Karuzo").checks[1]:IsEnabled(), true, "the current character's boxes work")
+check(Wd.note:GetText():find("this character's ticked specs; alts can't be protected yet", 1, true) ~= nil,
     "the page says protection covers this character only")
 Win.SetTracked(dr, 1, true)
-H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), false, "...and an alt tick is refused, never stored")
+eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), false, "...and an alt tick is refused, never stored")
 Win.AltProtectionActive = realActive
 
 -- With AltStable's extensions, alts are assessed (GG-203): ticking an alt's spec tracks it.
-H.eq(GG.API.GetCapabilities().features.alts, true, "features.alts with AltStable AS-001 + AS-003")
-H.eq(Win.AltProtectionActive(), true, "alt protection active")
+eq(GG.API.GetCapabilities().features.alts, true, "features.alts with AltStable AS-001 + AS-003")
+eq(Win.AltProtectionActive(), true, "alt protection active")
 Win.Refresh()
 dr = row("Drakuza")
-H.eq(dr.checks[1]:IsEnabled(), true, "...the alt's boxes work")
-H.check(Wd.note:GetText():find("keeps upgrades for the ticked specs", 1, true) ~= nil, "...and the note covers every ticked spec")
-H.check(Wd.note:GetText():find("amber bag arrows, for items you can mail it", 1, true) ~= nil, "...and says alts get tooltip rows and arrows")
+eq(dr.checks[1]:IsEnabled(), true, "...the alt's boxes work")
+check(Wd.note:GetText():find("keeps upgrades for the ticked specs", 1, true) ~= nil, "...and the note covers every ticked spec")
+check(Wd.note:GetText():find("amber bag arrows, for items you can mail it", 1, true) ~= nil, "...and says alts get tooltip rows and arrows")
 dr.checks[1]:Click()
-H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), true, "ticking Arcane tracks it")
-H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), false, "...and only it")
+eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.ARCANE"), true, "ticking Arcane tracks it")
+eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), false, "...and only it")
 
 -- At most LIMITS.targets specs in all (each is a row on every bag item).
 local limit = GG.API.LIMITS.targets
 GG.API.LIMITS.targets = 5                       -- the priest's 3 + Arcane: one more fits
 dr.checks[2]:Click()
-H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), true, "below the limit: another alt spec ticks")
+eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), true, "below the limit: another alt spec ticks")
 dr = row("Drakuza")
 dr.checks[3]:Click()
-H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FROST"), false, "at the limit: refused, never stored")
-H.check(Wd.note:GetText():find("At most 5 specs in all", 1, true) ~= nil, "...and the page says why")
+eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FROST"), false, "at the limit: refused, never stored")
+check(Wd.note:GetText():find("At most 5 specs in all", 1, true) ~= nil, "...and the page says why")
 dr = row("Drakuza")
 dr.checks[2]:Click()
-H.eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), false, "unticking always works")
+eq(GG.Prefs.IsTracked("Player-1-ALT2", "MAGE.FIRE"), false, "unticking always works")
 GG.API.LIMITS.targets = limit
 Win.Refresh()
 me = row("Karuzo")
 me.checks[1]:Click()
-H.eq(GG.Prefs.IsTracked(ME, "PRIEST.DISCIPLINE"), false, "unticking one of your own specs")
-H.eq(GG.Prefs.IsTracked(ME, "PRIEST.SHADOW"), true, "...keeps the others tracked")
+eq(GG.Prefs.IsTracked(ME, "PRIEST.DISCIPLINE"), false, "unticking one of your own specs")
+eq(GG.Prefs.IsTracked(ME, "PRIEST.SHADOW"), true, "...keeps the others tracked")
 
 -- Open AltStable: OpenSheet (only opens), never ToggleSheet (would close an open sheet).
 Wd.openAltStable:Click()
-H.eq(opened, 1, "Open AltStable opens AltStable's sheet")
-H.eq(toggled, 0, "...with OpenSheet, never ToggleSheet")
+eq(opened, 1, "Open AltStable opens AltStable's sheet")
+eq(toggled, 0, "...with OpenSheet, never ToggleSheet")
 
 -- Changes made elsewhere show: a tracked spec set from the settings page.
 GG.Prefs.SetTracked("Player-1-ALT1", "PALADIN.HOLY", true, { "PALADIN.HOLY", "PALADIN.PROTECTION", "PALADIN.RETRIBUTION" })
 WoW.flush()
-H.eq(row("Elegia").checks[1]:GetChecked(), true, "a spec tracked elsewhere shows ticked without reopening")
+eq(row("Elegia").checks[1]:GetChecked(), true, "a spec tracked elsewhere shows ticked without reopening")
 -- An alt's gear refreshed by a sync.
 gear["Player-1-ALT1"] = { capturedAt = NOW - 3600 }
 fire("GearChanged", { "Player-1-ALT1" })
 WoW.flush()
-H.check(row("Elegia").status:GetText():find("Gear 1 h ago", 1, true) ~= nil, "an alt's new gear shows without reopening")
+check(row("Elegia").status:GetText():find("Gear 1 h ago", 1, true) ~= nil, "an alt's new gear shows without reopening")
 
 -- Groups: the label never proves an account.
 local g2 = Win.Groups({
@@ -155,20 +155,20 @@ local g2 = Win.Groups({
     { name = "D", provenance = "own-account", account = "" },
     { name = "E", provenance = "own-account", account = "3" },
 })
-H.eq(g2[1].title, "This account (Account 1)", "this account, with its label")
-H.eq(g2[2].title, "Your other accounts", "an own account labelled like this one: not shown as this one")
-H.eq(#g2[2].chars, 2, "...it shares the honest heading with the unlabelled one")
-H.eq(g2[3].title, "Account 3", "a distinct label names its group")
+eq(g2[1].title, "This account (Account 1)", "this account, with its label")
+eq(g2[2].title, "Your other accounts", "an own account labelled like this one: not shown as this one")
+eq(#g2[2].chars, 2, "...it shares the honest heading with the unlabelled one")
+eq(g2[3].title, "Account 3", "a distinct label names its group")
 
 -- A row limit: no empty headings, and the rest counted.
 local saved = Win.MAX_ROWS
 Win.MAX_ROWS = 2
 Win.Refresh()
-H.eq(Wd.count, 2, "two rows at a limit of two")
-H.check(Wd.hidden > 0 and Wd.more:GetText():find("more character", 1, true) ~= nil, "...the rest counted and said")
+eq(Wd.count, 2, "two rows at a limit of two")
+check(Wd.hidden > 0 and Wd.more:GetText():find("more character", 1, true) ~= nil, "...the rest counted and said")
 local shownHeads = 0
-for _, head in ipairs(Wd.heads) do if head.shown ~= false then shownHeads = shownHeads + 1 end end
-H.eq(shownHeads, 1, "...and no heading without rows")
+for _, head in ipairs(Wd.heads) do if head._shown ~= false then shownHeads = shownHeads + 1 end end
+eq(shownHeads, 1, "...and no heading without rows")
 Win.MAX_ROWS = saved
 Win.Refresh()
 
@@ -176,24 +176,24 @@ Win.Refresh()
 chars[4].provenance = "own-account"
 fire("ProvenanceChanged")
 WoW.flush()
-H.eq(Wd.count, 5, "a character proven own appears without reopening")
+eq(Wd.count, 5, "a character proven own appears without reopening")
 
 -- The settings page's button.
 frame:Hide()
 GG.Options._Panel():Show()
 GG.Options.charactersButton:Click()
-H.eq(frame:IsShown(), true, "the settings page's button opens it")
+eq(frame:IsShown(), true, "the settings page's button opens it")
 
 -- Unavailable.
 AS.PUBLIC_API_FEATURES = { provenance = true }
 GG.Integrations.RosterProvider._Reset()
 GG.Integrations.RosterProvider.Refresh()
 Win.Refresh()
-H.eq(Wd.status:GetText(), "AltStable unavailable", "AltStable without AS-003: unavailable")
-H.check(Wd.unavailable:GetText():find("Current-character comparisons still work", 1, true) ~= nil, "...current-character comparisons still work")
-H.check(Wd.unavailable:GetText():find("AS-003", 1, true) ~= nil, "...naming what is missing")
-H.eq(Wd.count, 1, "...only you")
-H.eq(Wd.openAltStable:IsEnabled(), true, "...Open AltStable stays available (its sheet is where to fix it)")
+eq(Wd.status:GetText(), "AltStable unavailable", "AltStable without AS-003: unavailable")
+check(Wd.unavailable:GetText():find("Current-character comparisons still work", 1, true) ~= nil, "...current-character comparisons still work")
+check(Wd.unavailable:GetText():find("AS-003", 1, true) ~= nil, "...naming what is missing")
+eq(Wd.count, 1, "...only you")
+eq(Wd.openAltStable:IsEnabled(), true, "...Open AltStable stays available (its sheet is where to fix it)")
 
 -- Usable but failing: never "connected".
 AS.PUBLIC_API_FEATURES = { provenance = true, gear = true }
@@ -201,8 +201,8 @@ AS.GetCharacters = function() error("down") end
 GG.Integrations.RosterProvider._Reset()
 GG.Integrations.RosterProvider.Refresh()
 Win.Refresh()
-H.check(Wd.status:GetText():find("GetCharacters failed", 1, true) ~= nil, "GetCharacters failing: the status says so, not 'connected'")
+check(Wd.status:GetText():find("GetCharacters failed", 1, true) ~= nil, "GetCharacters failing: the status says so, not 'connected'")
 WoW.errors = {}
 
-H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
-H.done("test_characters")
+eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
+done("test_characters")

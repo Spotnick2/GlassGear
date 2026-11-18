@@ -14,8 +14,8 @@
 --   * roster and gear changes invalidate; the target limit is never cut.
 ------------------------------------------------------------
 
-local H = dofile("tests/harness.lua")
 dofile("tests/wow_stubs.lua")
+local H = dofile("tests/harness.lua")
 
 local INT, SP = "ITEM_MOD_INTELLECT_SHORT", "ITEM_MOD_SPELL_DAMAGE_DONE_SHORT"
 local function shoulder(name, stats, extra)
@@ -45,7 +45,7 @@ local ME = "Player-1-0000AAAA"
 local WANDA, DRAK, HORDE, FAR, LOW, BARE = "Player-1-WANDA", "Player-1-DRAK", "Player-1-HORDE", "Player-1-FAR",
     "Player-1-LOW", "Player-1-BARE"
 local NOW = 1793500000
-WoW.time = NOW
+WoW.now = NOW
 local chars = {
     { guid = ME, name = "Karuzo Elegia", realm = "Forever", faction = "Alliance", class = "PRIEST", level = 60, provenance = "self" },
     { guid = WANDA, name = "Wanda Frostweave", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60, provenance = "self" },
@@ -108,50 +108,50 @@ end
 ------------------------------------------------------------
 -- Rows: who, in which order, and why.
 ------------------------------------------------------------
-H.eq(api.GetCapabilities().features.alts, true, "features.alts with AltStable AS-001 + AS-003")
-H.eq(api.GetCapabilities().features.scopes["own+tracked"], true, "...and the own+tracked scope")
+eq(api.GetCapabilities().features.alts, true, "features.alts with AltStable AS-001 + AS-003")
+eq(api.GetCapabilities().features.scopes["own+tracked"], true, "...and the own+tracked scope")
 local r, by = rows({ bag = 0, slot = 1 })
 local order = {}
 for _, x in ipairs(r.results) do order[#order + 1] = x.character.name:match("^%S+") .. ":" .. x.spec:match("%.(.+)") end
-H.eq(table.concat(order, ","),
+eq(table.concat(order, ","),
     "Karuzo:SHADOW,Karuzo:DISCIPLINE,Karuzo:HOLY,Wanda:FROST,Drakuza:ARCANE,Hordey:FROST,Farry:FROST,Lowbie:FROST,Bare:FROST",
     "every own spec first (current first), then the tracked alts' specs in the roster's order")
-for _, x in ipairs(r.results) do H.check(x.character.key ~= "Player-1-FRIEND", "a third-party character never gets a row") end
+for _, x in ipairs(r.results) do check(x.character.key ~= "Player-1-FRIEND", "a third-party character never gets a row") end
 local w = by[WANDA .. "/MAGE.FROST"]
-H.eq(w.status, "upgrade", "Wanda (Frost) gets an upgrade from the BoE in the bags")
-H.eq(w.character.current, false, "...an alt row (character.current false)")
-H.eq(by[ME .. "/PRIEST.SHADOW"].character.current, true, "...the current character's rows say current")
-H.eq(w.transfer.state, "eligible", "...it can be mailed to her")
-H.eq(w.transfer.reasons[1], "MAIL_SAME_REALM_FACTION", "...same realm and faction (proposed until GG-116)")
-H.eq(w.baseline.source, "fallback-current", "...compared with what AltStable last saw her wear")
-H.check(H.has(w.reasons, "BASELINE_FALLBACK"), "...said so")
-H.eq(string.format("%.2f", w.score.pct), "1.50", "...her Intellect weight: 25 against 10")
-H.eq(by[ME .. "/PRIEST.SHADOW"].status, "no_upgrade", "the priest's Shadow: no upgrade")
-H.eq(by[DRAK .. "/MAGE.ARCANE"].reasons[1], "NO_WEIGHTS", "the other account's alt: no weights here until sync")
+eq(w.status, "upgrade", "Wanda (Frost) gets an upgrade from the BoE in the bags")
+eq(w.character.current, false, "...an alt row (character.current false)")
+eq(by[ME .. "/PRIEST.SHADOW"].character.current, true, "...the current character's rows say current")
+eq(w.transfer.state, "eligible", "...it can be mailed to her")
+eq(w.transfer.reasons[1], "MAIL_SAME_REALM_FACTION", "...same realm and faction (proposed until GG-116)")
+eq(w.baseline.source, "fallback-current", "...compared with what AltStable last saw her wear")
+check(H.has(w.reasons, "BASELINE_FALLBACK"), "...said so")
+eq(string.format("%.2f", w.score.pct), "1.50", "...her Intellect weight: 25 against 10")
+eq(by[ME .. "/PRIEST.SHADOW"].status, "no_upgrade", "the priest's Shadow: no upgrade")
+eq(by[DRAK .. "/MAGE.ARCANE"].reasons[1], "NO_WEIGHTS", "the other account's alt: no weights here until sync")
 local hz = by[HORDE .. "/MAGE.FROST"]
-H.eq(hz.status, "ineligible", "another faction: ineligible")
-H.eq(hz.reasons[1], "NOT_TRANSFERABLE", "...NOT_TRANSFERABLE")
-H.eq(hz.transfer.reasons[1], "OTHER_FACTION", "...because of the faction")
-H.eq(by[FAR .. "/MAGE.FROST"].transfer.reasons[1], "OTHER_REALM", "another realm: OTHER_REALM")
-H.eq(by[BARE .. "/MAGE.FROST"].reasons[1], "NO_ALT_GEAR", "an alt AltStable has no gear for: unknown, NO_ALT_GEAR")
+eq(hz.status, "ineligible", "another faction: ineligible")
+eq(hz.reasons[1], "NOT_TRANSFERABLE", "...NOT_TRANSFERABLE")
+eq(hz.transfer.reasons[1], "OTHER_FACTION", "...because of the faction")
+eq(by[FAR .. "/MAGE.FROST"].transfer.reasons[1], "OTHER_REALM", "another realm: OTHER_REALM")
+eq(by[BARE .. "/MAGE.FROST"].reasons[1], "NO_ALT_GEAR", "an alt AltStable has no gear for: unknown, NO_ALT_GEAR")
 local reads0 = gearReads
 rows({ bag = 0, slot = 4 })
-H.eq(gearReads - reads0, 0, "...another item in the same generation: no new AltStable read, not even for her (none is remembered)")
+eq(gearReads - reads0, 0, "...another item in the same generation: no new AltStable read, not even for her (none is remembered)")
 local _, late = rows({ bag = 0, slot = 5 })
-H.eq(late[LOW .. "/MAGE.FROST"].status, "ineligible", "a level 20 alt and a level 50 item: its own level counts")
-H.eq(late[WANDA .. "/MAGE.FROST"].status, "upgrade", "...a level 60 one gets it")
+eq(late[LOW .. "/MAGE.FROST"].status, "ineligible", "a level 20 alt and a level 50 item: its own level counts")
+eq(late[WANDA .. "/MAGE.FROST"].status, "upgrade", "...a level 60 one gets it")
 
 -- A bound copy: its alts are ineligible at once, at no cost.
 local e0 = GG.API._state.stats.evaluations
 local _, bound = rows({ bag = 0, slot = 2 })
-H.eq(bound[WANDA .. "/MAGE.FROST"].status, "ineligible", "the same item bound: ineligible for Wanda")
-H.eq(bound[WANDA .. "/MAGE.FROST"].transfer.reasons[1], "SOULBOUND", "...SOULBOUND")
-H.eq(GG.API._state.stats.evaluations - e0, 3, "...and only the own three specs were evaluated")
+eq(bound[WANDA .. "/MAGE.FROST"].status, "ineligible", "the same item bound: ineligible for Wanda")
+eq(bound[WANDA .. "/MAGE.FROST"].transfer.reasons[1], "SOULBOUND", "...SOULBOUND")
+eq(GG.API._state.stats.evaluations - e0, 3, "...and only the own three specs were evaluated")
 local _, boa = rows({ bag = 0, slot = 3 })
-H.eq(boa[WANDA .. "/MAGE.FROST"].transfer.state, "unknown", "an account-bound item: transfer unknown (unprobed)")
-H.eq(boa[WANDA .. "/MAGE.FROST"].status, "upgrade", "...still evaluated")
+eq(boa[WANDA .. "/MAGE.FROST"].transfer.state, "unknown", "an account-bound item: transfer unknown (unprobed)")
+eq(boa[WANDA .. "/MAGE.FROST"].status, "upgrade", "...still evaluated")
 local _, link = rows(WoW.link(61))
-H.eq(link[WANDA .. "/MAGE.FROST"].transfer.state, "unknown", "a link with no instance (chat, vendor): transfer unknown")
+eq(link[WANDA .. "/MAGE.FROST"].transfer.state, "unknown", "a link with no instance (chat, vendor): transfer unknown")
 
 ------------------------------------------------------------
 -- The tooltip and the bag arrow.
@@ -165,15 +165,15 @@ local function lines(ref, key)
     return table.concat(out, "\n")
 end
 local t1 = lines({ bag = 0, slot = 1 }, "b1")
-H.check(t1:find("Wanda \194\183 Frost = +150.0%", 1, true) ~= nil, "the tooltip lists Wanda's upgrade, first name and spec: " .. t1)
-H.check(t1:find("Alts: compared with the gear AltStable last saw them wear", 1, true) ~= nil, "...and says what she is compared with")
+check(t1:find("Wanda \194\183 Frost = +150.0%", 1, true) ~= nil, "the tooltip lists Wanda's upgrade, first name and spec: " .. t1)
+check(t1:find("Alts: compared with the gear AltStable last saw them wear", 1, true) ~= nil, "...and says what she is compared with")
 for _, who in ipairs({ "Drakuza", "Hordey", "Farry", "Bare" }) do
-    H.check(t1:find(who, 1, true) == nil, "...no row for " .. who .. " (not an upgrade it can receive)")
+    check(t1:find(who, 1, true) == nil, "...no row for " .. who .. " (not an upgrade it can receive)")
 end
-H.check(lines({ bag = 0, slot = 2 }, "b2"):find("Wanda", 1, true) == nil, "a bound copy: no alt row")
-H.check(lines({ bag = 0, slot = 3 }, "b3"):find("Wanda", 1, true) == nil, "an account-bound item: no alt row (transfer unknown)")
+check(lines({ bag = 0, slot = 2 }, "b2"):find("Wanda", 1, true) == nil, "a bound copy: no alt row")
+check(lines({ bag = 0, slot = 3 }, "b3"):find("Wanda", 1, true) == nil, "an account-bound item: no alt row (transfer unknown)")
 settings.alts = false
-H.check(lines({ bag = 0, slot = 1 }, "b1"):find("Wanda", 1, true) == nil, "tooltip.alts off: no alt rows")
+check(lines({ bag = 0, slot = 1 }, "b1"):find("Wanda", 1, true) == nil, "tooltip.alts off: no alt rows")
 settings.alts = true
 
 local bag = ContainerFrameContainer.ContainerFrames[1]
@@ -183,15 +183,15 @@ local function mark(i)
 end
 WoW.showBag(bag, { { 0, 1 }, { 0, 2 }, { 0, 3 }, { 0, 4 } })
 WoW.flush()
-H.eq(mark(1), "amber", "the BoE that is Wanda's upgrade: an amber arrow (transferable upgrades)")
-H.eq(mark(2), nil, "...the bound copy: none")
-H.eq(mark(3), nil, "...the account-bound one: none (it may not reach her)")
-H.eq(mark(4), nil, "...nobody's upgrade: none")
+eq(mark(1), "amber", "the BoE that is Wanda's upgrade: an amber arrow (transferable upgrades)")
+eq(mark(2), nil, "...the bound copy: none")
+eq(mark(3), nil, "...the account-bound one: none (it may not reach her)")
+eq(mark(4), nil, "...nobody's upgrade: none")
 -- Ctrl reveals own off-spec upgrades: an alt's row is never one of those.
 WoW.keys.CTRL = true
 WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
 WoW.flush()
-H.eq(mark(3), nil, "Ctrl held: still no arrow on the account-bound item (an alt row is not an own spec)")
+eq(mark(3), nil, "Ctrl held: still no arrow on the account-bound item (an alt row is not an own spec)")
 WoW.keys.CTRL = nil
 WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 0)
 WoW.flush()
@@ -202,17 +202,17 @@ WoW.flush()
 for _, who in ipairs({ HORDE, FAR, LOW, BARE }) do GG.Prefs.SetTracked(who, "MAGE.FROST", false, MAGE) end
 GG.Prefs.SetTracked(DRAK, "MAGE.ARCANE", false, MAGE)
 SlashCmdList.GLASSGEAR("")
-H.check(WoW.chat():find("alt upgrades: 1 alt specs ticked", 1, true) ~= nil, "/gg counts the ticked alt specs")
+check(WoW.chatText():find("alt upgrades: 1 alt specs ticked", 1, true) ~= nil, "/gg counts the ticked alt specs")
 local p = api.AssessProtection({ bag = 0, slot = 1 })
-H.eq(p.verdict, "protect", "the BoE that is Wanda's upgrade is kept")
-H.eq(p.recipients[1] and p.recipients[1].character.key, WANDA, "...for Wanda")
-H.eq(api.AssessProtection({ bag = 0, slot = 2 }).verdict, "clear", "the bound copy: Wanda has no say, the priest doesn't want it")
+eq(p.verdict, "protect", "the BoE that is Wanda's upgrade is kept")
+eq(p.recipients[1] and p.recipients[1].character.key, WANDA, "...for Wanda")
+eq(api.AssessProtection({ bag = 0, slot = 2 }).verdict, "clear", "the bound copy: Wanda has no say, the priest doesn't want it")
 local boaP = api.AssessProtection({ bag = 0, slot = 3 })
-H.eq(boaP.verdict, "unknown", "account-bound, Wanda's upgrade: kept, never protect or clear")
-H.check(H.has(boaP.reasons, "TRANSFER_UNKNOWN"), "...TRANSFER_UNKNOWN")
+eq(boaP.verdict, "unknown", "account-bound, Wanda's upgrade: kept, never protect or clear")
+check(H.has(boaP.reasons, "TRANSFER_UNKNOWN"), "...TRANSFER_UNKNOWN")
 local dim = api.AssessProtection({ bag = 0, slot = 4 })
-H.eq(dim.verdict, "unknown", "nobody's upgrade, but Wanda compared with AltStable's last scan: never cleared")
-H.check(H.has(dim.reasons, "BASELINE_NOT_TRUSTED"), "...BASELINE_NOT_TRUSTED")
+eq(dim.verdict, "unknown", "nobody's upgrade, but Wanda compared with AltStable's last scan: never cleared")
+check(H.has(dim.reasons, "BASELINE_NOT_TRUSTED"), "...BASELINE_NOT_TRUSTED")
 local tok = dim.token
 
 -- Wanda played Frost with Glass Gear on this account: that gear is her baseline.
@@ -225,11 +225,11 @@ end)() }, "MAGE.FROST", "observed", NOW - 600, 1)
 assert(GG.store:Create(GG.Capture.ID(WANDA, "MAGE.FROST"), "baseline", snap, "self"))
 GG.API._Invalidate("baselines", { WANDA })
 local _, obs = rows({ bag = 0, slot = 4 })
-H.eq(obs[WANDA .. "/MAGE.FROST"].baseline.source, "observed", "her recorded Frost gear wins over AltStable's scan")
+eq(obs[WANDA .. "/MAGE.FROST"].baseline.source, "observed", "her recorded Frost gear wins over AltStable's scan")
 dim = api.AssessProtection({ bag = 0, slot = 4 })
-H.eq(dim.verdict, "clear", "...a trusted baseline and no upgrade: clear")
-H.check(dim.token ~= tok, "...with a new token")
-H.check(lines({ bag = 0, slot = 1 }, "b1x"):find("AltStable last saw", 1, true) == nil, "...and the tooltip no longer says last seen")
+eq(dim.verdict, "clear", "...a trusted baseline and no upgrade: clear")
+check(dim.token ~= tok, "...with a new token")
+check(lines({ bag = 0, slot = 1 }, "b1x"):find("AltStable last saw", 1, true) == nil, "...and the tooltip no longer says last seen")
 
 -- No weights beside specs that can't use it is still nothing checked.
 local PR = GG.Engine.Policy.Protection({
@@ -237,8 +237,8 @@ local PR = GG.Engine.Policy.Protection({
     { status = "unknown", reasons = { "NO_WEIGHTS" }, spec = "B" },
     { status = "ineligible", spec = "C", character = { current = false }, transfer = { state = "ineligible" } },
 }, { noWeights = "ignore" })
-H.eq(PR.verdict, "unknown", "no weights everywhere but an alt the item can't reach: unknown, never clear")
-H.eq(GG.Engine.Policy.Protection({ { status = "ineligible", spec = "A" } }).verdict, "clear",
+eq(PR.verdict, "unknown", "no weights everywhere but an alt the item can't reach: unknown, never clear")
+eq(GG.Engine.Policy.Protection({ { status = "ineligible", spec = "A" } }).verdict, "clear",
     "...while an item no tracked spec can use stays clear")
 
 ------------------------------------------------------------
@@ -253,63 +253,63 @@ api.RegisterCallback("EvaluationReady", function(_, payload)
     if pr and payload.requestId == pr.requestId then ready = payload end      -- this request's answer
 end, "test_alts")
 pr, pby = rows({ bag = 0, slot = 1 })
-H.eq(pby[WANDA .. "/MAGE.FROST"].status, "pending", "her gear loading: pending")
-H.eq(pby[WANDA .. "/MAGE.FROST"].reasons[1], "BASELINE_ITEM_DATA_PENDING", "...BASELINE_ITEM_DATA_PENDING")
-H.eq(pby[ME .. "/PRIEST.SHADOW"].status, "no_upgrade", "...the priest's rows aren't held up")
+eq(pby[WANDA .. "/MAGE.FROST"].status, "pending", "her gear loading: pending")
+eq(pby[WANDA .. "/MAGE.FROST"].reasons[1], "BASELINE_ITEM_DATA_PENDING", "...BASELINE_ITEM_DATA_PENDING")
+eq(pby[ME .. "/PRIEST.SHADOW"].status, "no_upgrade", "...the priest's rows aren't held up")
 local pendingReads = gearReads
 rows({ bag = 0, slot = 4 })
 rows({ bag = 0, slot = 5 })
-H.eq(gearReads - pendingReads, 0, "...more items while her gear loads: AltStable read once, hydration retried")
+eq(gearReads - pendingReads, 0, "...more items while her gear loads: AltStable read once, hydration retried")
 WoW.cacheMiss[51] = nil
 WoW.fire("ITEM_DATA_LOAD_RESULT", 51, true)
 WoW.flush()
-H.eq(ready and ready.requestId, pr.requestId, "it arrives: EvaluationReady")
-local done
-for _, x in ipairs(ready.response.results) do if x.character.key == WANDA then done = x end end
-H.eq(done and done.status, "upgrade", "...with her upgrade")
+eq(ready and ready.requestId, pr.requestId, "it arrives: EvaluationReady")
+local wanda
+for _, x in ipairs(ready.response.results) do if x.character.key == WANDA then wanda = x end end
+eq(wanda and wanda.status, "upgrade", "...with her upgrade")
 
 -- AltStable reads stay bounded: once per alt per generation, not per item.
 local g0 = gearReads
 for slot = 1, 5 do rows({ bag = 0, slot = slot }) end
-H.eq(gearReads - g0, 0, "five items in one generation: AltStable's gear read once per alt at most")
+eq(gearReads - g0, 0, "five items in one generation: AltStable's gear read once per alt at most")
 
 -- Her gear changed (AltStable GearChanged): answers are dropped.
 gear[WANDA] = gearWith({ [3] = 65 })
 fire("GearChanged", { WANDA })
 WoW.flush()
-H.eq(select(2, rows({ bag = 0, slot = 1 }))[WANDA .. "/MAGE.FROST"].status, "no_upgrade",
+eq(select(2, rows({ bag = 0, slot = 1 }))[WANDA .. "/MAGE.FROST"].status, "no_upgrade",
     "she now wears better: no upgrade (GearChanged invalidated)")
 -- Her level changed (CharactersChanged): rows follow.
 chars[2].level = 40
 fire("CharactersChanged")
 WoW.flush()
-H.eq(select(2, rows({ bag = 0, slot = 5 }))[WANDA .. "/MAGE.FROST"].status, "ineligible", "level 40 now: the level 50 item is out")
+eq(select(2, rows({ bag = 0, slot = 5 }))[WANDA .. "/MAGE.FROST"].status, "ineligible", "level 40 now: the level 50 item is out")
 chars[2].level = 60
 fire("CharactersChanged")
 WoW.flush()
 
 -- Explicit targets name an alt; an unknown one is refused.
 local tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = WANDA, spec = "MAGE.FROST" } } })
-H.eq(#tr.results, 1, "scope targets: an alt's spec")
-H.eq(tr.results[1].character.key, WANDA, "...hers")
+eq(#tr.results, 1, "scope targets: an alt's spec")
+eq(tr.results[1].character.key, WANDA, "...hers")
 tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = WANDA, spec = "MAGE.NOPE" } } })
-H.eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...an unknown spec: unsupported")
+eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...an unknown spec: unsupported")
 tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = WANDA, spec = "PRIEST.SHADOW" } } })
-H.eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...another class's spec for her: unsupported")
+eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...another class's spec for her: unsupported")
 tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = ME, spec = "MAGE.FROST" } } })
-H.eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...the current character too: a mage spec for the priest is refused")
+eq(tr.results[1].reasons[1], "UNKNOWN_SPEC", "...the current character too: a mage spec for the priest is refused")
 local okMissing, missingSpec = pcall(api.Evaluate, { item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = ME } } })
-H.eq(okMissing and missingSpec.results[1].reasons[1], "UNKNOWN_SPEC", "...a target without a spec: unsupported, never an error")
+eq(okMissing and missingSpec.results[1].reasons[1], "UNKNOWN_SPEC", "...a target without a spec: unsupported, never an error")
 tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = "Player-1-FRIEND", spec = "MAGE.FROST" } } })
-H.eq(tr.results[1].reasons[1], "UNKNOWN_CHARACTER", "...a third-party character: unsupported")
+eq(tr.results[1].reasons[1], "UNKNOWN_CHARACTER", "...a third-party character: unsupported")
 
 -- The scope over the target limit is refused, never cut.
 local limit = api.LIMITS.targets
 api.LIMITS.targets = 3
 tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "own+tracked" })
-H.eq(tr.status, "unsupported", "own+tracked over the limit: unsupported")
-H.eq(tr.results[1].reasons[1], "TOO_MANY_TARGETS", "...TOO_MANY_TARGETS")
-H.eq(api.AssessProtection({ bag = 0, slot = 1 }).verdict, "unknown", "...protection over the limit keeps the item")
+eq(tr.status, "unsupported", "own+tracked over the limit: unsupported")
+eq(tr.results[1].reasons[1], "TOO_MANY_TARGETS", "...TOO_MANY_TARGETS")
+eq(api.AssessProtection({ bag = 0, slot = 1 }).verdict, "unknown", "...protection over the limit keeps the item")
 api.LIMITS.targets = limit
 
 -- Dual wield: told by the off-hand an alt wears.
@@ -317,17 +317,17 @@ local function dual(oh)
     local b = { slots = { [17] = oh } }
     return GG.Alts.Recipient(chars[2], b).canDualWield
 end
-H.eq(dual({ state = "occupied", classID = 2 }), true, "a weapon in the off-hand: dual wield")
-H.eq(dual({ state = "occupied", classID = 4 }), false, "a shield: no")
-H.eq(dual({ state = "empty" }), false, "nothing: no")
+eq(dual({ state = "occupied", classID = 2 }), true, "a weapon in the off-hand: dual wield")
+eq(dual({ state = "occupied", classID = 4 }), false, "a shield: no")
+eq(dual({ state = "empty" }), false, "nothing: no")
 
 -- Without AltStable: own specs only.
 rawset(_G, "AltStable", nil)
 GG.Integrations.RosterProvider._Reset()
 GG.Integrations.RosterProvider.Refresh()
 GG.API._Invalidate("test")
-H.eq(#api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "own+tracked" }).results, 3, "no AltStable: the own three specs")
-H.eq(api.GetCapabilities().features.alts, false, "...features.alts false")
+eq(#api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "own+tracked" }).results, 3, "no AltStable: the own three specs")
+eq(api.GetCapabilities().features.alts, false, "...features.alts false")
 
-H.eq(#WoW.errors, 0, "no errors" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
-H.done("test_alts")
+eq(#WoW.errors, 0, "no errors" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
+done("test_alts")

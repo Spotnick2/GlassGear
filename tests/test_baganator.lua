@@ -8,8 +8,8 @@
 -- says where the mark is (or that the player removed it).
 ------------------------------------------------------------
 
-local H = dofile("tests/harness.lua")
 dofile("tests/wow_stubs.lua")
+local H = dofile("tests/harness.lua")
 
 local INT, HEAL = "ITEM_MOD_INTELLECT_SHORT", "ITEM_MOD_SPELL_HEALING_DONE_SHORT"
 local function shoulder(name, stats) return { name = name, equipLoc = "INVTYPE_SHOULDER", classID = 4, subclassID = 1, stats = stats } end
@@ -56,24 +56,24 @@ SlashCmdList.GLASSGEAR('import PRIEST.SHADOW ( Pawn: v1: "Shadow": Class=Priest,
 SlashCmdList.GLASSGEAR('import PRIEST.HOLY ( Pawn: v1: "Holy": Class=Priest, Healing=1 )')
 WoW.flush()
 
-H.eq(GG.BagAddons.active, "Baganator", "Baganator detected at login")
-H.check(widgets.glassgear ~= nil, "...a corner widget registered through its API (no hook)")
-H.eq(widgets.glassgear.label, "Glass Gear upgrades", "...labelled for Baganator's corner settings")
-H.eq(widgets.glassgear.position.corner, "top_left", "...top left by default, like Blizzard's arrow")
+eq(GG.BagAddons.active, "Baganator", "Baganator detected at login")
+check(widgets.glassgear ~= nil, "...a corner widget registered through its API (no hook)")
+eq(widgets.glassgear.label, "Glass Gear upgrades", "...labelled for Baganator's corner settings")
+eq(widgets.glassgear.position.corner, "top_left", "...top left by default, like Blizzard's arrow")
 SlashCmdList.GLASSGEAR("")
-H.check(WoW.chat():find("bag addon: Baganator (markers in an icon corner: 'Glass Gear upgrades')", 1, true) ~= nil, "/gg names it")
+check(WoW.chatText():find("bag addon: Baganator (markers in an icon corner: 'Glass Gear upgrades')", 1, true) ~= nil, "/gg names it")
 
 -- Green, amber, nothing: as on Blizzard's bags.
 local up, off = newButton(), newButton()
 local wUp = redraw(up, live(0, 1, 60))
 local wOff = redraw(off, live(0, 2, 70))
-H.eq(shown(wUp), "green", "a current-spec upgrade: green")
-H.eq(wUp.parent, up, "...the mark is our own frame, made for Baganator's button")
-H.eq(shown(wOff), nil, "a soulbound off-spec upgrade: quiet")
+eq(shown(wUp), "green", "a current-spec upgrade: green")
+eq(wUp._parent, up, "...the mark is our own frame, made for Baganator's button")
+eq(shown(wOff), nil, "a soulbound off-spec upgrade: quiet")
 WoW.flush(1)
-H.eq(GG.Reveal._surfaces[window], true, "Baganator's open window is a reveal surface")
+eq(GG.Reveal._surfaces[window], true, "Baganator's open window is a reveal surface")
 window:Hide()
-H.eq(GG.Reveal._surfaces[window], nil, "...closed: not any more")
+eq(GG.Reveal._surfaces[window], nil, "...closed: not any more")
 window:Show()
 
 -- The reveal key: Baganator is asked to redraw its widgets (nothing else).
@@ -81,49 +81,49 @@ refreshes = {}
 WoW.keys.CTRL = true
 WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
 WoW.flush()
-H.check(#refreshes > 0, "Ctrl held: a widget refresh is requested")
-H.eq(type(refreshes[1]) == "table" and refreshes[1][1], "ItemWidgets", "...widgets only (no search or layout work)")
-H.eq(shown(redraw(off, live(0, 2, 70))), "amber", "...and the off-spec upgrade shows amber")
+check(#refreshes > 0, "Ctrl held: a widget refresh is requested")
+eq(type(refreshes[1]) == "table" and refreshes[1][1], "ItemWidgets", "...widgets only (no search or layout work)")
+eq(shown(redraw(off, live(0, 2, 70))), "amber", "...and the off-spec upgrade shows amber")
 WoW.keys.CTRL = nil
 WoW.fire("MODIFIER_STATE_CHANGED", "LCTRL", 0)
 WoW.flush()
-H.eq(shown(redraw(off, live(0, 2, 70))), nil, "...released: gone")
+eq(shown(redraw(off, live(0, 2, 70))), nil, "...released: gone")
 
 -- Another character's bags: Baganator still fills itemLocation from this
 -- character's bags. Never marked unless the item there is the one shown.
 local alt = newButton()
-H.eq(shown(redraw(alt, { itemLink = WoW.link(70), itemID = 70, itemLocation = { bagID = 0, slotIndex = 1 } })), nil,
+eq(shown(redraw(alt, { itemLink = WoW.link(70), itemID = 70, itemLocation = { bagID = 0, slotIndex = 1 } })), nil,
     "another character's item over a slot where this one holds an upgrade: no mark")
-H.eq(shown(redraw(alt, { itemLink = WoW.link(60), itemID = 60 })), nil, "no location (an offline view): no mark")
-H.eq(shown(redraw(alt, { itemLink = WoW.link(60), itemID = 60, itemLocation = { bagID = 0, slotIndex = 9 } })), nil,
+eq(shown(redraw(alt, { itemLink = WoW.link(60), itemID = 60 })), nil, "no location (an offline view): no mark")
+eq(shown(redraw(alt, { itemLink = WoW.link(60), itemID = 60, itemLocation = { bagID = 0, slotIndex = 9 } })), nil,
     "an empty slot here: no mark")
-H.eq(shown(redraw(alt, {})), nil, "an empty button: no mark")
-H.eq(widgets.glassgear.onUpdate(alt.cornerPlugins.glassgear, nil), false, "no details at all: false, never an error")
+eq(shown(redraw(alt, {})), nil, "an empty button: no mark")
+eq(widgets.glassgear.onUpdate(alt.cornerPlugins.glassgear, nil), false, "no details at all: false, never an error")
 
 -- Data still loading: no mark now, a widget refresh when it arrives.
 WoW.items[80] = shoulder("Late Mantle", { [INT] = 40 })
 WoW.cacheMiss[80] = true
 WoW.bags[0][3] = { itemID = 80, isBound = true }
 local late = newButton()
-H.eq(shown(redraw(late, live(0, 3, 80))), nil, "data still loading: no mark yet")
+eq(shown(redraw(late, live(0, 3, 80))), nil, "data still loading: no mark yet")
 refreshes = {}
 WoW.cacheMiss[80] = nil
 WoW.fire("ITEM_DATA_LOAD_RESULT", 80, true)
 WoW.flush()
-H.check(#refreshes > 0, "...it arrives: Baganator is asked to redraw its widgets")
-H.eq(#refreshes, 1, "...once")
-H.eq(shown(redraw(late, live(0, 3, 80))), "green", "...and then it is green")
+check(#refreshes > 0, "...it arrives: Baganator is asked to redraw its widgets")
+eq(#refreshes, 1, "...once")
+eq(shown(redraw(late, live(0, 3, 80))), "green", "...and then it is green")
 
 -- A pooled button reused for another item follows it.
 WoW.bags[0][4] = { itemID = 50, isBound = true }
-H.eq(shown(redraw(up, live(0, 4, 50))), nil, "a button reused for an item that isn't an upgrade: cleared")
+eq(shown(redraw(up, live(0, 4, 50))), nil, "a button reused for an item that isn't an upgrade: cleared")
 
 -- The player removed the widget from Baganator's corners.
 cornerOn = false
-H.check(GG.BagAddons.Status():find("markers off (add 'Glass Gear upgrades' to an icon corner", 1, true) ~= nil,
+check(GG.BagAddons.Status():find("markers off (add 'Glass Gear upgrades' to an icon corner", 1, true) ~= nil,
     "the widget removed in Baganator: /gg says how to bring it back")
 cornerOn = true
 
-H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
-for name in pairs(WoW.globalWrites) do H.check(false, "undeclared global written: " .. name) end
-H.done("test_baganator")
+eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
+for name in pairs(WoW.globalWrites) do check(false, "undeclared global written: " .. name) end
+done("test_baganator")

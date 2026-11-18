@@ -65,6 +65,12 @@ jobs:
           [ -n "$files" ] || { echo "no Lua files found"; exit 1; }
           luac5.1 -p $files
 
+      # The tests run on WowTestKit at the commit tests/kit.pin names.
+      - name: Fetch WowTestKit at its pin
+        run: |
+          bash tests/fetch_kit.sh "$RUNNER_TEMP/WowTestKit"
+          echo "WOWTESTKIT=$RUNNER_TEMP/WowTestKit" >> "$GITHUB_ENV"
+
       - name: Unit tests
         env:
           FOREVERPROBE_OPTIONAL: "1"   # ForeverProbe is private and local: test_probe runs locally only

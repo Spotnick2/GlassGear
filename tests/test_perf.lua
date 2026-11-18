@@ -7,8 +7,8 @@
 -- this interpreter is printed (an indication, not a promise for the client).
 ------------------------------------------------------------
 
-local H = dofile("tests/harness.lua")
 dofile("tests/wow_stubs.lua")
+local H = dofile("tests/harness.lua")
 
 local INT, SP, STA = "ITEM_MOD_INTELLECT_SHORT", "ITEM_MOD_SPELL_POWER_SHORT", "ITEM_MOD_STAMINA_SHORT"
 local LOCS = { "INVTYPE_HEAD", "INVTYPE_SHOULDER", "INVTYPE_CHEST", "INVTYPE_WAIST", "INVTYPE_LEGS",
@@ -35,71 +35,71 @@ local S = GG.API._state
 -- A full bag: 80 pieces x 3 specs = 240 rows, over a 200-row frame budget.
 local slots = {}
 for b = 0, 4 do for s = 1, 16 do if WoW.bags[b][s] then slots[#slots + 1] = { b, s } end end end
-H.eq(#slots, 80, "80 pieces of gear in the bags")
+eq(#slots, 80, "80 pieces of gear in the bags")
 local bag = ContainerFrameContainer.ContainerFrames[1]
 local refreshes = 0
 local realRefresh = GG.BagMarkers.Refresh
 GG.BagMarkers.Refresh = function(...) refreshes = refreshes + 1; return realRefresh(...) end
-WoW.time = WoW.time + 1
+WoW.now = WoW.now + 1
 local e0, d0 = S.stats.evaluations, S.stats.deferredRows
 WoW.showBag(bag, slots)
 local first = S.stats.evaluations - e0
-H.check(first <= GG.API.LIMITS.perFrame, "opening a full bag computes at most the frame budget at once (" .. first .. " rows)")
-H.check(S.stats.deferredRows - d0 > 0, "...the rest are put off to later frames")
+check(first <= GG.API.LIMITS.perFrame, "opening a full bag computes at most the frame budget at once (" .. first .. " rows)")
+check(S.stats.deferredRows - d0 > 0, "...the rest are put off to later frames")
 local frames = 0
 while next(S.jobs) and frames < 10 do
-    WoW.time = WoW.time + 0.02
+    WoW.now = WoW.now + 0.02
     WoW.flush(1)
     frames = frames + 1
 end
-H.eq(next(S.jobs), nil, "...and every row completes within a few frames (" .. frames .. ")")
+eq(next(S.jobs), nil, "...and every row completes within a few frames (" .. frames .. ")")
 local computed = S.stats.evaluations - e0
 -- Each row once; a row put off for its owned checks (GG-122) is computed
 -- again on the next frame: at most one a frame.
-H.check(computed >= 240 and computed <= 240 + frames + 1,
+check(computed >= 240 and computed <= 240 + frames + 1,
     "...240 rows computed once each, at most one a frame redone (" .. computed .. ")")
-H.check(refreshes <= frames + 1, "...one marker redraw per frame at most (" .. refreshes .. " for " .. frames .. " frames)")
+check(refreshes <= frames + 1, "...one marker redraw per frame at most (" .. refreshes .. " for " .. frames .. " frames)")
 
 -- Reopening the bags and redrawing tooltips: no recomputation.
 local e0r = S.stats.evaluations
 bag:Hide()
 WoW.showBag(bag, slots)
-H.eq(S.stats.evaluations - e0r, 0, "reopening the bags recomputes nothing")
+eq(S.stats.evaluations - e0r, 0, "reopening the bags recomputes nothing")
 local e1 = S.stats.evaluations
 local tip = WoW.newTooltip("GameTooltip")
 for i = 1, 20 do WoW.showItem(tip, { type = 0, id = 1000 + i, hyperlink = WoW.link(1000 + i) }) end
 for _ = 1, 3 do for i = 1, 20 do WoW.showItem(tip, { type = 0, id = 1000 + i, hyperlink = WoW.link(1000 + i) }) end end
 local tipFirst = S.stats.evaluations - e1
-H.check(tipFirst <= 60, "20 new tooltip links cost 60 rows at most (" .. tipFirst .. ")")
+check(tipFirst <= 60, "20 new tooltip links cost 60 rows at most (" .. tipFirst .. ")")
 local e2 = S.stats.evaluations
 for _ = 1, 10 do for i = 1, 20 do WoW.showItem(tip, { type = 0, id = 1000 + i, hyperlink = WoW.link(1000 + i) }) end end
-H.eq(S.stats.evaluations - e2, 0, "200 more tooltip redraws: nothing recomputed")
-H.check(GG.API._cache.size <= GG.API.LIMITS.cache, "the cache stays within its limit (" .. GG.API._cache.size .. ")")
+eq(S.stats.evaluations - e2, 0, "200 more tooltip redraws: nothing recomputed")
+check(GG.API._cache.size <= GG.API.LIMITS.cache, "the cache stays within its limit (" .. GG.API._cache.size .. ")")
 
 -- /gg stats.
 SlashCmdList.GLASSGEAR("stats")
-H.check(WoW.chat():find("stats: %d+ evaluations, %d+ answers from the cache") ~= nil, "/gg stats reports the counters")
-H.check(WoW.chat():find("limits: 200 rows per frame", 1, true) ~= nil, "...and the limits")
-H.check((S.stats.maxFrameMs or 0) > 0, "the time spent comparing in the busiest frame is measured (" ..
+check(WoW.chatText():find("stats: %d+ evaluations, %d+ answers from the cache") ~= nil, "/gg stats reports the counters")
+check(WoW.chatText():find("limits: 200 rows per frame", 1, true) ~= nil, "...and the limits")
+check((S.stats.maxFrameMs or 0) > 0, "the time spent comparing in the busiest frame is measured (" ..
     string.format("%.1f", S.stats.maxFrameMs or 0) .. " ms here)")
-H.check(WoW.chat():find("the most time spent comparing in one frame: ", 1, true) ~= nil, "...and /gg stats reports it")
+check(WoW.chatText():find("the most time spent comparing in one frame: ", 1, true) ~= nil, "...and /gg stats reports it")
 
 -- The deferred runner starts a new frame window for the time too.
 local Sx = GG.API._state
 GG.API.LIMITS.perFrame = 1
-WoW.time = WoW.time + 1
+WoW.now = WoW.now + 1
 GG.API._cache.clear()
 GG.API.Evaluate({ item = WoW.link(1033), scope = "own" })   -- 1 row now, 2 put off
 Sx.frameMs = 999                                             -- this frame was already busy
 WoW.flush(1)                                                 -- the deferred runner, a later frame
-H.check((Sx.frameMs or 0) < 999, "a deferred frame's time starts from zero, not the frame before's")
+check((Sx.frameMs or 0) < 999, "a deferred frame's time starts from zero, not the frame before's")
 GG.API.LIMITS.perFrame = 200
-for _ = 1, 4 do WoW.time = WoW.time + 1; WoW.flush(1) end
+for _ = 1, 4 do WoW.now = WoW.now + 1; WoW.flush(1) end
 
 -- /gg stats reset.
 SlashCmdList.GLASSGEAR("stats reset")
-H.eq(Sx.stats.evaluations, 0, "/gg stats reset: counters from zero")
-H.eq(Sx.stats.maxFrameMs, 0, "...the busiest frame too")
+eq(Sx.stats.evaluations, 0, "/gg stats reset: counters from zero")
+eq(Sx.stats.maxFrameMs, 0, "...the busiest frame too")
 
 -- The cost of one evaluation here (an indication for the docs, not a test of the client).
 local link = WoW.link(1005)
@@ -113,8 +113,8 @@ for _ = 1, N do
         profile = profile, baseline = baseline, settings = {}, transfer = { state = "eligible", reasons = {} } })
 end
 local per = (GG.Compat.Clock() - t0) / N * 1e3
-print(string.format("  info: one Evaluate.One here: %.1f microseconds (%d runs); 200 rows ~ %.2f ms", per, N, per * 200 / 1000))
-H.check(per < 5000, "an evaluation stays well under 5 ms even in a plain interpreter")
+io.write(string.format("  info: one Evaluate.One here: %.1f microseconds (%d runs); 200 rows ~ %.2f ms", per, N, per * 200 / 1000) .. "\n")
+check(per < 5000, "an evaluation stays well under 5 ms even in a plain interpreter")
 
-H.eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
-H.done("test_perf")
+eq(#WoW.errors, 0, "no error reached the error handler" .. (WoW.errors[1] and (": " .. tostring(WoW.errors[1])) or ""))
+done("test_perf")
