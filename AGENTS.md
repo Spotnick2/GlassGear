@@ -47,11 +47,19 @@ The single global is `GlassGear`, and `GlassGear.API` is the public v1 contract
   `python -I Tools/locale_catalogue.py` (tests/test_locale.lua checks `Locales/enUS.lua`).
 - **Tests.** Every new test is mutation-checked once: break the code and watch the test fail.
   Stubs (`tests/wow_stubs.lua`) model Forever, and every stubbed name must exist in the dump.
+- **WowTestKit.** The test scaffolding is WowTestKit (`C:\Projects\WoW\WowTestKit`; its README is
+  the reference) at the commit and client build `tests\kit.pin` names. `tests\run.ps1` puts that
+  commit in `%LOCALAPPDATA%\WowTestKit\<sha>` and hands off to the kit's runner; CI fetches it
+  with `tests\fetch_kit.sh`. `tests\kit.lua`, `kit.ps1` and `fetch_kit.sh` are the kit's
+  bootstrap copies: never edit them here. A kit need is an issue on the kit, worked around in
+  `tests\wow_stubs.lua` with a `-- WowTestKit #N:` comment meanwhile. `tests\run.ps1 -KitDev`
+  runs against the `..\WowTestKit` working copy instead of the pin. A test that loads the addon
+  dofiles `tests/wow_stubs.lua` first; a pure engine test dofiles only `tests/harness.lua`.
 
 ## Build, test, deploy
 
 ```
-pwsh tests/run.ps1          # luac -p on every file + tests/test_*.lua (Lua 5.1)
+pwsh tests/run.ps1          # luac -p on every file + tests/test_*.lua (Lua 5.1, WowTestKit)
 pwsh Tools/deploy.ps1       # -> _forever_\Interface\AddOns\GlassGear (+ LibGlass from ..\LibGlass)
 ```
 

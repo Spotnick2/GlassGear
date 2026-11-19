@@ -1,0 +1,5 @@
+# WowTestKit for these tests: the commit, and the client build to test against.
+# build: Core/Init.lua's MEASURED_ON_BUILD (70888), which the kit has data for.
+sha=3cba24fd68e35758c19671bcedfefa9ad228c60f
+build=70888
+api=2

@@ -9,23 +9,12 @@
 -- saved appearance keys untouched.
 ------------------------------------------------------------
 
-local H = dofile("tests/harness.lua")
 dofile("tests/wow_stubs.lua")
+local H = dofile("tests/harness.lua")
 
--- Masks are LibGlass's (Theme only hands a mask to AddMaskTexture): this
--- file's textures take one. Kept here, not in the shared stubs (#65).
+-- Masks are LibGlass's (Theme only hands a mask to AddMaskTexture): the
+-- kit's textures keep each one in _masks.
 local baseCreateFrame = CreateFrame
-rawset(_G, "CreateFrame", function(...)
-    local f = baseCreateFrame(...)
-    local createTexture = f.CreateTexture
-    f.CreateTexture = function(self, ...)
-        local t = createTexture(self, ...)
-        t.layer = select(2, ...)
-        t.AddMaskTexture = function(tex, m) tex.mask = m end
-        return t
-    end
-    return f
-end)
 
 ------------------------------------------------------------
 -- The fakes
@@ -104,72 +93,72 @@ local function lastReport() local r = suite.reports[#suite.reports]; return r an
 
 local GG = WoW.loadAddon()
 local T = GG.Theme
-H.eq(suite.askedFor, "GlassGear", "Glass Gear asks the suite under its roster name")
-H.eq(suite.asked, 1, "asked once, at ADDON_LOADED")
-H.eq(GG.themeName, "glass", "following Glass UI: the glass look")
-H.eq(GG.themeInfo.code, "following", "...recorded as following")
-H.eq(#suite.reports, 1, "one report")
-H.eq(suite.reports[1].addon, "GlassGear", "reported under the roster name")
+eq(suite.askedFor, "GlassGear", "Glass Gear asks the suite under its roster name")
+eq(suite.asked, 1, "asked once, at ADDON_LOADED")
+eq(GG.themeName, "glass", "following Glass UI: the glass look")
+eq(GG.themeInfo.code, "following", "...recorded as following")
+eq(#suite.reports, 1, "one report")
+eq(suite.reports[1].addon, "GlassGear", "reported under the roster name")
 local r = lastReport()
-H.eq(r.api, 1, "report api 1")
-H.eq(r.built, "pearl", "report: Pearl built")
-H.eq(r.minor, 12, "report: LibGlass's minor at the build")
-H.eq(r.live, false, "report: not live (a change waits for /reload)")
-H.eq(r.declined, nil, "report: not declined")
-H.eq(r.reason, nil, "report: no failure")
-H.eq(r.look and r.look.tint, "smoked", "report: the tint it built")
-H.eq(r.look and r.look.accent, "ice", "report: the accent it built")
-H.eq(r.own, nil, "report: nothing of its own")
-H.eq(type(r.options), "function", "report: an options opener")
-H.eq(glass.built[1].preset, "pearl", "the instance is the suite's preset")
-H.eq(GlassGearDB.settings.appearance.theme, "forever", "the saved appearance is untouched")
-H.eq(GlassGearDB.settings.appearance.followGlassUI, true, "following is the default")
+eq(r.api, 1, "report api 1")
+eq(r.built, "pearl", "report: Pearl built")
+eq(r.minor, 12, "report: LibGlass's minor at the build")
+eq(r.live, false, "report: not live (a change waits for /reload)")
+eq(r.declined, nil, "report: not declined")
+eq(r.reason, nil, "report: no failure")
+eq(r.look and r.look.tint, "smoked", "report: the tint it built")
+eq(r.look and r.look.accent, "ice", "report: the accent it built")
+eq(r.own, nil, "report: nothing of its own")
+eq(type(r.options), "function", "report: an options opener")
+eq(glass.built[1].preset, "pearl", "the instance is the suite's preset")
+eq(GlassGearDB.settings.appearance.theme, "forever", "the saved appearance is untouched")
+eq(GlassGearDB.settings.appearance.followGlassUI, true, "following is the default")
 
 -- Glass UI's link to our settings opens them.
 local opened = 0
 local realOpen = GG.Options.Open
 GG.Options.Open = function() opened = opened + 1; return true end
-H.eq(r.options(), true, "the options function opens the settings")
-H.eq(opened, 1, "...through Options.Open")
+eq(r.options(), true, "the options function opens the settings")
+eq(opened, 1, "...through Options.Open")
 GG.Options.Open = realOpen
 
 -- A window in glass: shell, backing in the suite's body, reflection under the title, accent title.
 local win = GG.Window.New({ name = "GlassGearThemeTestWindow", key = "themetest", width = 300, height = 200, title = "T" })
-H.check(win.glass ~= nil, "the window gets a glass shell")
-H.eq(win.backdrop, nil, "...and no WoW Forever backdrop")
+check(win.glass ~= nil, "the window gets a glass shell")
+eq(win._backdrop, nil, "...and no WoW Forever backdrop")
 local g = win.glass
-H.eq(g.size, "large", "a large shell")
-H.eq(g.backing.mask, g.mask, "the backing is clipped by the glass mask")
-H.eq(g.backing.color[4], 0.92, "the backing is the suite's (smoked) body")
-H.eq(g.tint[4], 0.62, "the tint is the suite's body")
-H.check(math.abs(g.wash - 0.10 * 0.14) < 1e-9, "the wash is the body's factor of the preset's own")
-H.eq(g.reflect.opts.header, 28, "the reflection lights the title bar")
-H.eq(g.edge[1], 0, "no edge: the reflection's top line replaces it")
-H.eq(win.titleText.color[1], 0.65, "the title wears the suite's accent")
+eq(g.size, "large", "a large shell")
+eq((g.backing._masks or {})[1], g.mask, "the backing is clipped by the glass mask")
+eq(g.backing._color[4], 0.92, "the backing is the suite's (smoked) body")
+eq(g.tint[4], 0.62, "the tint is the suite's body")
+check(math.abs(g.wash - 0.10 * 0.14) < 1e-9, "the wash is the body's factor of the preset's own")
+eq(g.reflect.opts.header, 28, "the reflection lights the title bar")
+eq(g.edge[1], 0, "no edge: the reflection's top line replaces it")
+eq(win.titleText._textColor[1], 0.65, "the title wears the suite's accent")
 local pane = baseCreateFrame("Frame")
 pane.CreateTexture = win.CreateTexture
-H.eq(T.Reading(pane), true, "a reading pane in glass")
-H.eq(pane.glassReading.mask.file, "thin_small_mask", "...masked")
+eq(T.Reading(pane), true, "a reading pane in glass")
+eq(pane.glassReading._masks[1].file, "thin_small_mask", "...masked")
 
 -- The real windows: the profiles window's shell and its import box as a reading pane.
 GG.ProfilesWindow.Open()
 local profilesFrame, readings = nil, 0
 for _, f in ipairs(WoW.frames) do
     if f.glassReading then readings = readings + 1 end
-    if f.name == GG.ProfilesWindow.NAME then profilesFrame = f end
+    if f._name == GG.ProfilesWindow.NAME then profilesFrame = f end
 end
-H.check(profilesFrame and profilesFrame.glass ~= nil, "the profiles window opens in glass")
-H.eq(readings, 2, "...its import box is a glass reading pane (with the test's own pane)")
+check(profilesFrame and profilesFrame.glass ~= nil, "the profiles window opens in glass")
+eq(readings, 2, "...its import box is a glass reading pane (with the test's own pane)")
 
 local diagGlass = false
 for _, line in ipairs(GG.Diagnostics.Lines()) do
     if line:find("theme: glass (pearl)", 1, true) then diagGlass = true end
 end
-H.check(diagGlass, "/gg diag names the glass preset")
+check(diagGlass, "/gg diag names the glass preset")
 
 -- Init again in the same session changes nothing and reports nothing more.
-H.eq(T.Init(false), "glass", "the look is fixed for the session")
-H.eq(#suite.reports, 1, "...and not reported again")
+eq(T.Init(false), "glass", "the look is fixed for the session")
+eq(#suite.reports, 1, "...and not reported again")
 
 ------------------------------------------------------------
 -- 2. The switch in our settings: saved, pending until /reload, no invalidation
@@ -177,34 +166,34 @@ H.eq(#suite.reports, 1, "...and not reported again")
 
 local invalid = 0
 GG.API.RegisterCallback("EvaluationInvalidated", function() invalid = invalid + 1 end, "test_theme")
-H.eq(GG.Prefs.Set("appearance.followGlassUI", false), true, "the switch is a setting")
+eq(GG.Prefs.Set("appearance.followGlassUI", false), true, "the switch is a setting")
 WoW.flush()
-H.eq(invalid, 0, "...that invalidates nothing")
-H.eq(GlassGearDB.settings.appearance.followGlassUI, false, "...saved")
-H.eq(GG.themeName, "glass", "...and this session keeps its look")
-H.check(GG.Options.AppearanceText():find("/reload", 1, true) ~= nil, "the page says /reload")
-H.eq(select(2, GG.Prefs.Set("appearance.followGlassUI", "yes")), "invalid value", "a junk value is refused")
+eq(invalid, 0, "...that invalidates nothing")
+eq(GlassGearDB.settings.appearance.followGlassUI, false, "...saved")
+eq(GG.themeName, "glass", "...and this session keeps its look")
+check(GG.Options.AppearanceText():find("/reload", 1, true) ~= nil, "the page says /reload")
+eq(select(2, GG.Prefs.Set("appearance.followGlassUI", "yes")), "invalid value", "a junk value is refused")
 GG.Prefs.Set("appearance.followGlassUI", true)
-H.check(GG.Options.AppearanceText():find("/reload", 1, true) == nil, "switched back: nothing pending")
-H.check(GG.Options.AppearanceText():find("Pearl glass", 1, true) ~= nil, "the page names the Pearl glass")
+check(GG.Options.AppearanceText():find("/reload", 1, true) == nil, "switched back: nothing pending")
+check(GG.Options.AppearanceText():find("Pearl glass", 1, true) ~= nil, "the page names the Pearl glass")
 
 -- The switch on the page, shown because Glass UI is here (Glass UI #152's own-switch rule).
 SlashCmdList.GLASSGEAR("options")
 local function widget(text)
     for _, f in ipairs(WoW.frames) do
-        if f.label and f.label.text == text then return f end
+        if f.label and f.label._text == text then return f end
     end
 end
 local followRadio, foreverRadio = widget("Follow Glass UI"), widget("WoW Forever")
-H.check(followRadio ~= nil and foreverRadio ~= nil, "the page offers Follow Glass UI / WoW Forever")
-H.eq(followRadio:GetChecked(), true, "...Follow Glass UI selected by default")
+check(followRadio ~= nil and foreverRadio ~= nil, "the page offers Follow Glass UI / WoW Forever")
+eq(followRadio:GetChecked(), true, "...Follow Glass UI selected by default")
 foreverRadio:Click()
-H.eq(GlassGearDB.settings.appearance.followGlassUI, false, "choosing WoW Forever saves the switch")
-H.eq(foreverRadio:GetChecked(), true, "...and the page shows it")
+eq(GlassGearDB.settings.appearance.followGlassUI, false, "choosing WoW Forever saves the switch")
+eq(foreverRadio:GetChecked(), true, "...and the page shows it")
 followRadio:Click()
-H.eq(GlassGearDB.settings.appearance.followGlassUI, true, "and back")
+eq(GlassGearDB.settings.appearance.followGlassUI, true, "and back")
 WoW.flush()
-H.eq(invalid, 0, "the page's switch invalidates nothing either")
+eq(invalid, 0, "the page's switch invalidates nothing either")
 
 ------------------------------------------------------------
 -- 3. Every other answer: WoW Forever, and what's reported
@@ -224,79 +213,79 @@ end
 
 -- Declined in our settings: no question, WoW Forever, reported by its name.
 local look, info = fresh(false)
-H.eq(look, "forever", "declined: WoW Forever")
-H.eq(info.code, "declined", "...by choice")
-H.eq(suite.asked, 0, "...without asking the suite")
-H.eq(lastReport().declined, "WoW Forever", "reported as declined, with our look's name")
-H.eq(lastReport().built, nil, "...nothing built")
-H.eq(lastReport().reason, nil, "...not a failure")
-H.check(GG.Options.AppearanceText():find("your choice", 1, true) ~= nil, "the page says it's the player's choice")
+eq(look, "forever", "declined: WoW Forever")
+eq(info.code, "declined", "...by choice")
+eq(suite.asked, 0, "...without asking the suite")
+eq(lastReport().declined, "WoW Forever", "reported as declined, with our look's name")
+eq(lastReport().built, nil, "...nothing built")
+eq(lastReport().reason, nil, "...not a failure")
+check(GG.Options.AppearanceText():find("your choice", 1, true) ~= nil, "the page says it's the player's choice")
 local w2 = GG.Window.New({ name = "GlassGearThemeTestWindow2", key = "themetest2", width = 300, height = 200, title = "T" })
-H.eq(w2.glass, nil, "declined: no glass on a window")
-H.check(w2.backdrop ~= nil, "...the WoW Forever backdrop instead")
-H.eq(w2.titleText.color, nil, "...and the title keeps its font's colour")
-H.eq(T.Reading(pane), false, "...and no glass reading pane")
+eq(w2.glass, nil, "declined: no glass on a window")
+check(w2._backdrop ~= nil, "...the WoW Forever backdrop instead")
+eq(w2.titleText._textColor, nil, "...and the title keeps its font's colour")
+eq(T.Reading(pane), false, "...and no glass reading pane")
 
 -- Glass UI's own switch off for us: its reason, a plain report.
 suite.answer, suite.why = nil, "not-following"
 look, info = fresh(true)
-H.eq(look, "forever", "not following in Glass UI: WoW Forever")
-H.eq(info.code, "not-following", "...with Glass UI's reason")
-H.eq(#suite.reports, 1, "...still reported (never 'asked, but no report')")
-H.eq(lastReport().built, nil, "...nothing built")
-H.eq(lastReport().declined, nil, "...not declined by us")
-H.check(GG.Options.AppearanceText():find("Glass UI's settings", 1, true) ~= nil, "the page points at Glass UI's switch")
+eq(look, "forever", "not following in Glass UI: WoW Forever")
+eq(info.code, "not-following", "...with Glass UI's reason")
+eq(#suite.reports, 1, "...still reported (never 'asked, but no report')")
+eq(lastReport().built, nil, "...nothing built")
+eq(lastReport().declined, nil, "...not declined by us")
+check(GG.Options.AppearanceText():find("Glass UI's settings", 1, true) ~= nil, "the page points at Glass UI's switch")
 local function diagHas(text)
     for _, line in ipairs(GG.Diagnostics.Lines()) do
         if line:find(text, 1, true) then return true end
     end
     return false
 end
-H.check(diagHas("theme: forever (not-following)"), "/gg diag gives the fallback's reason (PR #74 review)")
+check(diagHas("theme: forever (not-following)"), "/gg diag gives the fallback's reason (PR #74 review)")
 
 suite.why = "not-ready"
 look, info = fresh(true)
-H.eq(info.code, "not-ready", "a not-ready suite falls back too")
+eq(info.code, "not-ready", "a not-ready suite falls back too")
 
 suite.answer, suite.throw = { name = "pearl", preset = "pearl" }, true
 look, info = fresh(true)
-H.eq(look, "forever", "Theme throwing: WoW Forever")
-H.eq(info.code, "error", "...recorded as an error")
-H.eq(#suite.reports, 1, "...and reported")
+eq(look, "forever", "Theme throwing: WoW Forever")
+eq(info.code, "error", "...recorded as an error")
+eq(#suite.reports, 1, "...and reported")
 restore()
 
 suite.answer = { name = "pearl" }   -- junk: no preset
 look = fresh(true)
-H.eq(look, "forever", "an answer without a preset is not following")
+eq(look, "forever", "an answer without a preset is not following")
 restore()
 
 -- LibGlass too old, missing, or failing.
 glass.minor = 10
 look, info = fresh(true)
-H.eq(look, "forever", "LibGlass older than r11: WoW Forever")
-H.eq(info.code, "library-too-old", "...library-too-old")
-H.eq(lastReport().reason, "library-too-old", "...reported as the reason")
-H.eq(lastReport().minor, 10, "...with the minor at the attempt")
-H.eq(lastReport().built, nil, "...nothing built")
-H.eq(#glass.built, 0, "...and New never called")
-H.check(GG.Options.AppearanceText():find("couldn't be built", 1, true) ~= nil, "the page says the glass couldn't be built")
-H.check(diagHas("theme: forever (library-too-old)"), "/gg diag names a failed build's reason")
+eq(look, "forever", "LibGlass older than r11: WoW Forever")
+eq(info.code, "library-too-old", "...library-too-old")
+eq(lastReport().reason, "library-too-old", "...reported as the reason")
+eq(lastReport().minor, 10, "...with the minor at the attempt")
+eq(lastReport().built, nil, "...nothing built")
+eq(#glass.built, 0, "...and New never called")
+check(GG.Options.AppearanceText():find("couldn't be built", 1, true) ~= nil, "the page says the glass couldn't be built")
+check(diagHas("theme: forever (library-too-old)"), "/gg diag names a failed build's reason")
 restore()
 
 glass.presets.pearl = nil      -- an r11 claim without the preset
 look, info = fresh(true)
-H.eq(info.code, "library-too-old", "an unknown preset is library-too-old")
+eq(info.code, "library-too-old", "an unknown preset is library-too-old")
 glass.presets.pearl = true
 
 glass.throw = "kaboom"
 look, info = fresh(true)
-H.eq(info.code, "build-failed", "New throwing anything else: build-failed")
-H.eq(lastReport().reason, "build-failed", "...reported")
+eq(info.code, "build-failed", "New throwing anything else: build-failed")
+eq(lastReport().reason, "build-failed", "...reported")
 restore()
 
 glass.minor = nil
 look, info = fresh(true)
-H.eq(info.code, "build-failed", "no LibGlass at all: build-failed")
+eq(info.code, "build-failed", "no LibGlass at all: build-failed")
 restore()
 
 -- Glass UI absent, or not speaking API 1: nothing asked, nothing reported.
@@ -305,13 +294,13 @@ for label, g2 in pairs({ absent = false, ["no Suite"] = {}, ["Suite not a table"
         ["Report missing"] = { Suite = (function() local s = makeSuite(); s.Report = nil; return s end)() } }) do
     rawset(_G, "GlassUI", g2 or nil)
     look, info = fresh(true)
-    H.eq(look, "forever", label .. ": WoW Forever")
-    H.eq(info.code, "absent", label .. ": counts as absent")
-    H.eq(suite.asked, 0, label .. ": nothing asked")
-    H.eq(#suite.reports, 0, label .. ": nothing reported")
+    eq(look, "forever", label .. ": WoW Forever")
+    eq(info.code, "absent", label .. ": counts as absent")
+    eq(suite.asked, 0, label .. ": nothing asked")
+    eq(#suite.reports, 0, label .. ": nothing reported")
 end
-H.eq(T.Pending(false), false, "without Glass UI the switch is never pending")
-H.check(GG.Options.AppearanceText():find("With Glass UI loaded", 1, true) ~= nil, "the page says Glass UI isn't loaded")
+eq(T.Pending(false), false, "without Glass UI the switch is never pending")
+check(GG.Options.AppearanceText():find("With Glass UI loaded", 1, true) ~= nil, "the page says Glass UI isn't loaded")
 restore()
 
 ------------------------------------------------------------
@@ -321,24 +310,24 @@ restore()
 local S = GlassUI.Suite
 S.Look, S.Body, S.Accent = nil, nil, nil
 look = fresh(true)
-H.eq(look, "glass", "an API-1 suite without Look still gives Pearl")
-H.eq(lastReport().own and lastReport().own.tint, true, "...the tint reported as our own")
-H.eq(lastReport().own and lastReport().own.accent, true, "...and the accent")
+eq(look, "glass", "an API-1 suite without Look still gives Pearl")
+eq(lastReport().own and lastReport().own.tint, true, "...the tint reported as our own")
+eq(lastReport().own and lastReport().own.accent, true, "...and the accent")
 local w3 = GG.Window.New({ name = "GlassGearThemeTestWindow3", key = "themetest3", width = 300, height = 200, title = "T" })
-H.eq(w3.glass.tint[4], T._test.SHELL.tint[4], "...the shell in the recipe's tint")
-H.eq(w3.glass.backing.color[4], T._test.SHELL.backing[4], "...and the recipe's backing")
-H.eq(w3.titleText.color, nil, "...the title keeps its colour")
+eq(w3.glass.tint[4], T._test.SHELL.tint[4], "...the shell in the recipe's tint")
+eq(w3.glass.backing._color[4], T._test.SHELL.backing[4], "...and the recipe's backing")
+eq(w3.titleText._textColor, nil, "...the title keeps its colour")
 restore()
 
 suite.look = { tint = "class", accent = "gold" }
 rawset(_G, "C_ClassColor", nil)        -- unreadable early in a login
 look = fresh(true)
 local w4 = GG.Window.New({ name = "GlassGearThemeTestWindow4", key = "themetest4", width = 300, height = 200, title = "T" })
-H.eq(w4.glass.tint[1], nil, "class tint unreadable: the built colour kept (SetSurfaceTint with nothing)")
+eq(w4.glass.tint[1], nil, "class tint unreadable: the built colour kept (SetSurfaceTint with nothing)")
 rawset(_G, "C_ClassColor", { GetClassColor = function(c) return c == "PRIEST" and { r = 1, g = 1, b = 1 } or nil end })
 T.Retry()
-H.check(math.abs((w4.glass.tint[1] or 0) - 0.6) < 1e-9, "...painted at the retry: the class colour by its shade")
-H.eq(w4.titleText.color[2], 0.82, "the gold accent on the title")
-H.eq(lastReport().look.tint, "class", "the class tint reported")
+check(math.abs((w4.glass.tint[1] or 0) - 0.6) < 1e-9, "...painted at the retry: the class colour by its shade")
+eq(w4.titleText._textColor[2], 0.82, "the gold accent on the title")
+eq(lastReport().look.tint, "class", "the class tint reported")
 
-H.done("test_theme")
+done("test_theme")

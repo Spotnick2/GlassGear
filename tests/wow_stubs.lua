@@ -3,33 +3,39 @@
 -- loads and runs under stock Lua 5.1. Drive it through `WoW`:
 --
 --     dofile("tests/wow_stubs.lua")      -- FIRST, in every test file that loads the addon
+--     local H = dofile("tests/harness.lua")
 --     WoW.items[19019] = { name = "...", equipLoc = "INVTYPE_WEAPON", ... }
 --     WoW.loadAddon()                    -- TOC order, ADDON_LOADED, PLAYER_LOGIN
 --
--- Strict like Shatter's stubs (Shatter/tests/wow_stubs.lua):
---   * Reading a global this file doesn't define is an error, except the
---     addon's own declared globals. Every name here is in the API dump
---     References/Forever/api/forever-api-1.60.1.70888.md (or Blizzard's Lua
---     in wow-ui-source for ItemLocation, DEFAULT_CHAT_FRAME, SlashCmdList).
+-- The mechanics are WowTestKit's (tests/kit.lua, at the commit and build
+-- tests/kit.pin names): widgets that record every method called
+-- (Kit.checkMethods), events checked against the build, strict globals,
+-- timers and the clock (WoW.now, WoW.flushTimers), WoW.fire, WoW.tick,
+-- print (WoW.chat) and check / eq / done. This file adds Glass Gear's own
+-- client APIs, the templates it uses, and its drivers. Every name here is in
+-- the API dump References/Forever/api/forever-api-1.60.1.70888.md (or
+-- Blizzard's Lua in wow-ui-source for ItemLocation, DEFAULT_CHAT_FRAME,
+-- SlashCmdList and the templates).
+--   * Reading a global nobody defines is an error (Kit.strict, last line),
+--     except the addon's own declared globals.
 --   * Writing a global other than the addon's own is recorded in
 --     WoW.globalWrites; test_load fails on anything undeclared.
 -- Never add something because a test failed; confirm it exists first.
 ------------------------------------------------------------
 
-WoW = {}
-local WoW = WoW
+dofile("tests/kit.lua")
+local Methods = WoW.Methods
 
 local OWN_GLOBALS = { GlassGear = true, GlassGearDB = true, GlassGearChar = true,
     SLASH_GLASSGEAR1 = true, SLASH_GLASSGEAR2 = true }
 
 UISpecialFrames = {}      -- Blizzard's Escape list (addons append entries to it)    -- FrameXML
 
-function WoW.reset()
-    WoW.time = 1000
+-- Glass Gear's state; the kit's own (frames, chat, timers, combat, locale)
+-- is cleared by WoW.reset before this runs.
+local function reset()
+    WoW.now = 1000        -- GetTime(); the tests' times are relative to it
     WoW.epoch = 1793500000
-    WoW.timers = {}
-    WoW.frames = {}
-    WoW.chatLines = {}
     WoW.globalWrites = {}
     WoW.errors = {}       -- errors caught by xpcall (geterrorhandler)
     WoW.itemRequests = {}
@@ -49,7 +55,6 @@ function WoW.reset()
     WoW.keys = {}         -- { CTRL = true, ALT = true } held modifiers
     WoW.focus = nil       -- the edit box with keyboard focus
     for i = #UISpecialFrames, 1, -1 do UISpecialFrames[i] = nil end
-    WoW.combat = false
     WoW.atlases = { ["bags-greenarrow"] = true }
     WoW.missingTemplates = {}
     WoW.openedCategory = nil
@@ -58,11 +63,17 @@ function WoW.reset()
     if WoW.makeBagFrames then WoW.makeBagFrames() end
     if WoW.makeLootFrames then WoW.makeLootFrames() end
 end
+table.insert(WoW.onReset, reset)
 
--- The player types into an edit box: focus, text (userInput), then Enter.
+-- The player types into an edit box: focus, text (OnTextChanged with
+-- userInput true, as typing fires it), then Enter. Typing stops at the box's
+-- SetMaxLetters.
 function WoW.type(box, text, enter)
     box:SetFocus()
-    box:SetText(text, true)
+    text = tostring(text)
+    if box._maxLetters and box._maxLetters > 0 and #text > box._maxLetters then text = text:sub(1, box._maxLetters) end
+    box._text = text
+    if box._scripts.OnTextChanged then box._scripts.OnTextChanged(box, true) end
     if enter ~= false and box._scripts.OnEnterPressed then box._scripts.OnEnterPressed(box) end
 end
 
@@ -76,237 +87,124 @@ local function idOf(info)
     if type(info) == "string" then return tonumber(info:match("item:(%d+)")) end
 end
 
--- Timers: C_Timer.After callbacks run on WoW.flush().
+-- Timers: every C_Timer.After callback runs on WoW.flush(), whatever its
+-- delay; one scheduled while flushing runs in the next round.
 function WoW.flush(rounds)
     for _ = 1, rounds or 5 do
-        local due = WoW.timers
-        WoW.timers = {}
-        if #due == 0 then return end
-        for _, t in ipairs(due) do t() end
+        if #WoW.timers == 0 then return end
+        WoW.flushTimers()
     end
 end
 
--- Fire an event at every frame that registered it.
-function WoW.fire(event, ...)
-    for _, f in ipairs(WoW.frames) do
-        if f._events[event] and f._scripts.OnEvent then f._scripts.OnEvent(f, event, ...) end
-    end
-end
-
-function WoW.chat() return table.concat(WoW.chatLines, "\n") end
+-- Everything the addon sent to the chat frame, as one string.
+function WoW.chatText() return table.concat(WoW.chat, "\n") end
 
 ------------------------------------------------------------
--- Widgets (only the methods Glass Gear calls)
+-- Widgets: what the core doesn't have, and the templates
 ------------------------------------------------------------
-local function newFontString()
-    local fs = { shown = true }
-    function fs:SetPoint() end
-    function fs:SetText(t) self.text = t end
-    function fs:GetText() return self.text end
-    function fs:SetJustifyH() end
-    function fs:SetWidth() end
-    function fs:GetStringHeight() return 14 end
-    function fs:SetTextColor(r, g, b) self.color = { r, g, b } end
-    function fs:Show() self.shown = true end
-    function fs:Hide() self.shown = false end
-    function fs:SetShown(v) self.shown = v and true or false end
-    function fs:IsShown() return self.shown end
-    return fs
+
+-- Whether a frame was made in combat (the markers must never make one then).
+-- A record for the tests, not a client field.
+local coreCreateFrame = CreateFrame
+function CreateFrame(...)
+    local w = coreCreateFrame(...)
+    w._madeInCombat = WoW.combat
+    return w
 end
 
-local function newTexture()
-    local t = { shown = true }
-    function t:SetAllPoints() end
-    function t:SetPoint() end
-    function t:SetAtlas(a) self.atlas = a end
-    function t:SetDesaturated(d) self.desaturated = d end
-    function t:SetVertexColor(r, g, b, a) self.vertex = { r, g, b, a } end
-    function t:SetColorTexture(r, g, b, a) self.color = { r, g, b, a } end
-    function t:Show() self.shown = true end
-    function t:Hide() self.shown = false end
-    function t:SetSize() end
-    function t:SetHeight() end
-    function t:SetTexture(p) self.texture = p end
-    function t:SetTexCoord() end
-    return t
-end
-
--- What a Blizzard template adds that Glass Gear checks or uses (UICheckButtonTemplate
--- and UIRadioButtonTemplate: .text; UIPanelButtonTemplate: .Text; UIPanelScrollFrameTemplate:
--- .ScrollBar). WoW.missingTemplates[name] = true makes CreateFrame return a bare frame.
-local TEMPLATE_FIELDS = {
-    UICheckButtonTemplate = "text", UIRadioButtonTemplate = "text",
-    UIPanelButtonTemplate = "Text", UIPanelScrollFrameTemplate = "ScrollBar",
-}
-
-function CreateFrame(kind, name, parent, template)
-    local f = { _events = {}, _scripts = {}, _hooks = {}, kind = kind, name = name, parent = parent,
-        shown = true, inCombatCreate = WoW.combat, template = template, enabled = true, alpha = 1 }
-    local field = template and TEMPLATE_FIELDS[template]
-    if field and not WoW.missingTemplates[template] then f[field] = field == "ScrollBar" and {} or newFontString() end
-    function f:RegisterEvent(e) self._events[e] = true end
-    function f:UnregisterEvent(e) self._events[e] = nil end
-    function f:SetScript(s, fn) self._scripts[s] = fn end
-    function f:GetScript(s) return self._scripts[s] end
-    function f:HookScript(s, fn)
-        self._hooks[s] = self._hooks[s] or {}
-        table.insert(self._hooks[s], fn)
-    end
-    function f:CreateFontString()
-        local fs = newFontString()
-        self._fs = self._fs or {}
-        self._fs[#self._fs + 1] = fs
-        return fs
-    end
-    function f:CreateTexture() return newTexture() end
-    function f:SetSize() end
-    function f:ClearAllPoints() end
-    function f:SetParent(p) self.parent = p end
-    function f:GetParent() return self.parent end
-    function f:EnableMouse() end
-    function f:SetID(id) self._id = id end
-    function f:GetID() return self._id end
-    function f:IsShown() return self.shown end
-    function f:IsVisible()
-        local p = self
-        while type(p) == "table" do
-            if p.shown == false then return false end
-            p = p.parent
-        end
-        return true
-    end
-    function f:Show()
-        local was = self.shown
-        self.shown = true
-        if not was then
-            if self._scripts.OnShow then self._scripts.OnShow(self) end
-            for _, fn in ipairs(self._hooks.OnShow or {}) do fn(self) end
-        end
-    end
-    function f:Hide()
-        local was = self.shown
-        self.shown = false
-        if was then
-            if self._scripts.OnHide then self._scripts.OnHide(self) end
-            for _, fn in ipairs(self._hooks.OnHide or {}) do fn(self) end
-        end
-    end
-    function f:SetShown(v) if v then self:Show() else self:Hide() end end
-    -- Options page widgets (UI/Options.lua).
-    function f:SetWidth() end
-    function f:SetHeight(h) self.height = h end
-    function f:SetAlpha(a) self.alpha = a end
-    function f:SetEnabled(v) self.enabled = v and true or false end
-    function f:IsEnabled() return self.enabled end
-    function f:SetChecked(v) self.checked = v and true or false end
-    function f:GetChecked() return self.checked == true end
-    function f:SetText(t) self.label_text = t end
-    function f:SetNormalTexture() end
-    function f:SetPushedTexture() end
-    function f:SetHighlightTexture() end
-    function f:SetCheckedTexture() end
-    function f:GetNormalTexture() return newTexture() end
-    function f:GetCheckedTexture() return newTexture() end
-    function f:GetHighlightTexture() return newTexture() end
-    -- A click as the client does it: a check button toggles, then OnClick and hooks run.
-    function f:Click()
-        if not self.enabled then return end
-        if self.kind == "CheckButton" then self.checked = not self.checked end
-        if self._scripts.OnClick then self._scripts.OnClick(self, "LeftButton", false) end
-    end
-    function f:SetScrollChild(c) self.scrollChild = c end
-    function f:EnableMouseWheel() end
-    function f:GetVerticalScrollRange() return 0 end
-    function f:GetVerticalScroll() return 0 end
-    function f:SetVerticalScroll() end
-    function f:SetOrientation() end
-    function f:SetMinMaxValues(lo, hi) self.min, self.max = lo, hi end
-    function f:SetValueStep(s) self.step = s end
-    function f:SetObeyStepOnDrag() end
-    function f:SetThumbTexture() end
-    function f:GetValue() return self.value end
-    function f:SetValue(v)
-        if self.min then v = math.max(self.min, math.min(self.max, v)) end
-        self.value = v
-        if self._scripts.OnValueChanged then self._scripts.OnValueChanged(self, v) end
-    end
-    -- Windows (UI/ProfilesWindow.lua).
-    function f:SetPoint(...) self.point = { ... } end
-    function f:GetPoint()
-        local p = self.point or {}
-        return p[1], p[2], p[3], p[4], p[5]
-    end
-    function f:SetFrameStrata() end
-    function f:SetToplevel() end
-    function f:SetClampedToScreen() end
-    function f:SetMovable(v) self.movable = v end
-    function f:RegisterForDrag() end
-    function f:StartMoving() self.moving = true end
-    function f:StopMovingOrSizing() self.moving = false end
-    if template == "BackdropTemplate" then      -- a mixin: only frames made with it have these
-        function f:SetBackdrop(b) self.backdrop = b end
-        function f:SetBackdropColor(r, g, b, a) self.backdropColor = { r, g, b, a } end
-        function f:SetBackdropBorderColor() end
-    end
-    if kind == "EditBox" then
-        function f:SetAutoFocus() end
-        function f:SetFontObject() end
-        function f:SetMultiLine(v) self.multiLine = v end
-        function f:SetMaxLetters(n) self.maxLetters = n end
-        function f:SetTextInsets() end
-        function f:GetText() return self.text or "" end
-        -- SetText fires OnTextChanged (userInput false); WoW.type passes true.
-        function f:SetText(t, userInput)
-            t = tostring(t or "")
-            if self.maxLetters and self.maxLetters > 0 and #t > self.maxLetters then t = t:sub(1, self.maxLetters) end
-            self.text = t
-            if self._scripts.OnTextChanged then self._scripts.OnTextChanged(self, userInput == true) end
-        end
-        function f:HighlightText(from, to) self.highlighted = not (from == 0 and to == 0) end
-        function f:SetFocus()
-            if WoW.focus == self then return end
-            if type(WoW.focus) == "table" and WoW.focus.ClearFocus then WoW.focus:ClearFocus() end
-            WoW.focus = self
-            if self._scripts.OnEditFocusGained then self._scripts.OnEditFocusGained(self) end
-        end
-        function f:ClearFocus()
-            if WoW.focus ~= self then return end
-            WoW.focus = nil
-            if self._scripts.OnEditFocusLost then self._scripts.OnEditFocusLost(self) end
-        end
-        function f:HasFocus() return WoW.focus == self end
-    end
-    WoW.frames[#WoW.frames + 1] = f
-    return f
-end
-
--- Run every frame's OnUpdate for one frame of `dt` seconds.
-function WoW.tick(dt)
-    WoW.time = WoW.time + dt
-    for _, f in ipairs(WoW.frames) do
-        if f._scripts.OnUpdate then f._scripts.OnUpdate(f, dt) end
+-- What a Blizzard template adds that Glass Gear checks or uses.
+-- WoW.missingTemplates[name] = true makes CreateFrame return a bare frame.
+local function template(name, build)
+    WoW.templates[name] = function(w, t)
+        if not WoW.missingTemplates[name] then build(w, t) end
     end
 end
+-- Blizzard_SharedXML/Shared/Button/CheckButtonTemplates.xml (wow-ui-source
+-- forever, 70959): UICheckButtonTemplate's $parentText (parentKey Text,
+-- GameFontNormalSmall), which its OnLoad also sets as .text
+-- (UICheckButtonFontString_SetParentKeyAlias, Mainline/SharedUIPanelTemplates.lua:1088);
+-- UIRadioButtonTemplate's (parentKey text). Their state textures aren't modelled.
+template("UICheckButtonTemplate", function(w)
+    w.Text = Methods.CreateFontString(w, nil, "ARTWORK", "GameFontNormalSmall")
+    w.text = w.Text
+end)
+template("UIRadioButtonTemplate", function(w)
+    w.text = Methods.CreateFontString(w, nil, "BACKGROUND", "GameFontNormalSmall")
+end)
+-- UIPanelButtonNoTooltipTemplate's ButtonText, parentKey Text
+-- (Blizzard_SharedXML/SecureUIPanelTemplates.xml:39).
+template("UIPanelButtonTemplate", function(w)
+    w.Text = Methods.CreateFontString(w, nil, "ARTWORK", "GameFontNormal")
+end)
+-- The core's scroll frame (ScrollBar and its buttons), behind the switch.
+local coreScroll = WoW.templates.UIPanelScrollFrameTemplate
+template("UIPanelScrollFrameTemplate", coreScroll)
+-- BackdropTemplate's mixin (Blizzard_SharedXML/Backdrop.xml:5, mixin
+-- BackdropTemplateMixin, Backdrop.lua:336, 406, 429). A mixin is copied onto
+-- the frame, so only frames made with the template have these, and the
+-- addon's `if f.SetBackdrop` reads nil on the others, as on the client. Each
+-- call is recorded as Frame:<name>; test_methods allows the three.
+template("BackdropTemplate", function(w)
+    local function mixin(name, fn)
+        w[name] = function(self, ...)
+            WoW.methodsCalled[self._type .. ":" .. name] = true
+            return fn(self, ...)
+        end
+    end
+    mixin("SetBackdrop", function(self, b) self._backdrop = b end)
+    mixin("SetBackdropColor", function(self, r, g, b, a) self._backdropColor = { r, g, b, a } end)
+    mixin("SetBackdropBorderColor", function(self, r, g, b, a) self._backdropBorderColor = { r, g, b, a } end)
+end)
+-- InputBoxTemplate is not modelled (its Left/Right/Middle textures): an edit
+-- box made with it is a bare EditBox here, and the addon draws its own.
 
--- The client's secure hook (wraps t[name]).
-function hooksecurefunc(t, name, fn)                                                                   -- 23013
-    if type(t) == "string" then t, name, fn = _G, t, name end
-    local orig = t[name]
-    rawset(t, name, function(...)
-        local r = { orig(...) }
-        fn(...)
-        return unpack(r)
-    end)
+-- FontString (each in the dump's SimpleFontStringAPI). A wrapped string's
+-- height isn't laid out here: one line.
+function Methods.GetStringHeight() return 14 end
+function Methods.SetJustifyH(fs, j) fs._justifyH = j end
+
+-- ScrollFrame (SimpleScrollFrameAPI): nothing scrolls here.
+function Methods.SetScrollChild(sf, c) sf._scrollChild = c end
+function Methods.GetVerticalScrollRange() return 0 end
+function Methods.GetVerticalScroll() return 0 end
+
+-- EditBox (SimpleEditBoxAPI). Keyboard focus is WoW.focus.
+function Methods.SetMultiLine(eb, v) eb._multiLine = v end
+function Methods.SetMaxLetters(eb, n) eb._maxLetters = n end
+function Methods.HighlightText(eb, from, to) eb._highlighted = not (from == 0 and to == 0) end
+function Methods.SetFocus(eb)
+    if WoW.focus == eb then return end
+    if type(WoW.focus) == "table" then Methods.ClearFocus(WoW.focus) end
+    WoW.focus = eb
+    if eb._scripts.OnEditFocusGained then eb._scripts.OnEditFocusGained(eb) end
 end
+function Methods.ClearFocus(eb)
+    if WoW.focus ~= eb then return end
+    WoW.focus = nil
+    if eb._scripts.OnEditFocusLost then eb._scripts.OnEditFocusLost(eb) end
+end
+function Methods.HasFocus(eb) return WoW.focus == eb end
+
+-- WowTestKit #87: a click on a CheckButton toggles its checked state before
+-- its OnClick runs, which reads the new state (Blizzard_GlueXML/Mainline/
+-- CinematicsMenu.lua:276, wow-ui-source forever 70959). The core's Click
+-- doesn't toggle; the options tests click check and radio buttons.
+function Methods.Click(b, button, down)
+    if b._disabled then return end
+    if b._type == "CheckButton" then b._checked = not b._checked end
+    WoW.click(b, button, down)
+end
+
+-- Frame (SimpleFrameAPI): moving is the player's drag; nothing moves here.
+function Methods.SetMovable(f, v) f._movable = v end
+function Methods.StartMoving(f) f._moving = true end
+function Methods.StopMovingOrSizing(f) f._moving = false end
 
 ------------------------------------------------------------
 -- API surface (dump line numbers in comments)
 ------------------------------------------------------------
-C_Timer = { After = function(_, fn) WoW.timers[#WoW.timers + 1] = fn end }   -- 3764
-function GetTime() return WoW.time end
 function time() return WoW.epoch end
 function GetBuildInfo() return "1.60.1", "70888", "Nov  9 2026", 16001 end    -- 4726
-function GetLocale() return WoW.locale or "enUS" end                                     -- 4986
 function geterrorhandler() return function(e) WoW.errors[#WoW.errors + 1] = e end end
 
 function UnitName(u) if u == "player" then return WoW.player.name end end
@@ -373,7 +271,6 @@ end
 function IsControlKeyDown() return WoW.keys.CTRL == true end                                          -- 5450
 function IsAltKeyDown() return WoW.keys.ALT == true end                                                 -- 5435
 function GetCurrentKeyBoardFocus() return WoW.focus end                                                 -- 19064
-function InCombatLockdown() return WoW.combat end                                                       -- 20015
 C_Texture = {                                                                                          -- 3752, 3754
     GetAtlasExists = function(name) return WoW.atlases[name] == true end,
     GetAtlasInfo = function(name) if WoW.atlases[name] then return { width = 16 } end end,
@@ -519,7 +416,7 @@ end
 -- EnumerateValidItems (:575), item buttons with GetBagID (:1830) and GetID.
 local function newBagFrame(name)
     local f = CreateFrame("Frame", name)
-    f.shown = false
+    WoW.setShown(f, false)
     f.Items, f._size = {}, 0
     f.EnumerateValidItems = function(self)
         local i = 0
@@ -537,10 +434,9 @@ function WoW.makeBagFrames()
     -- The same frames are the ContainerFrame1..N globals (ContainerFrame.lua:141).
     for i = 1, 6 do
         container.ContainerFrames[i] = newBagFrame("ContainerFrame" .. i)
-        rawset(_G, "ContainerFrame" .. i, container.ContainerFrames[i])
     end
     rawset(_G, "ContainerFrameContainer", container)
-    rawset(_G, "ContainerFrameCombinedBags", newBagFrame("ContainerFrameCombinedBags"))
+    newBagFrame("ContainerFrameCombinedBags")
 end
 -- Show `frame` holding `slots` ({ {bag, slot}, ... }, pooled buttons reused in
 -- order), then run its UpdateItems as Blizzard does.
@@ -573,7 +469,7 @@ ScrollUtil = {
 }
 function WoW.makeLootFrames()
     local lf = CreateFrame("Frame", "LootFrame")
-    lf.shown = false
+    WoW.setShown(lf, false)
     local sb = { _callbacks = {}, _frames = {}, _size = 0 }
     function sb:RegisterCallback(event, fn, owner)
         self._callbacks[event] = self._callbacks[event] or {}
@@ -583,12 +479,10 @@ function WoW.makeLootFrames()
         for i = 1, self._size do fn(self._frames[i], { slotIndex = self._frames[i]._slot }) end
     end
     lf.ScrollBox = sb
-    rawset(_G, "LootFrame", lf)
     for i = 1, 4 do
         local f = CreateFrame("Frame", "GroupLootFrame" .. i)
-        f.shown = false
+        WoW.setShown(f, false)
         f.IconFrame = CreateFrame("Button", nil, f)
-        rawset(_G, "GroupLootFrame" .. i, f)
     end
 end
 -- Open the loot window on `slots` (loot slot indices), as LootFrame:Open does:
@@ -628,7 +522,9 @@ function WoW.startRoll(i, rollID)
     f:Show()
 end
 
-DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) WoW.chatLines[#WoW.chatLines + 1] = msg end }
+-- Every line the addon writes to chat goes through the kit's print: in
+-- WoW.chat, and checked for a stray "|" by done().
+DEFAULT_CHAT_FRAME = { AddMessage = function(_, msg) print(msg) end }
 SlashCmdList = {}
 
 ------------------------------------------------------------
@@ -654,8 +550,6 @@ function WoW.loadAddon(opts)
 end
 
 WoW.reset()
-UIParent = CreateFrame("Frame", "UIParent")                                               -- FrameXML
-WoW.frames = {}           -- UIParent isn't an addon frame
 
 -- Every global defined above, by identity: test_load fails if the addon
 -- replaces one (assigning an existing key never reaches __newindex).
@@ -670,14 +564,10 @@ function WoW.replacedGlobals()
     return out
 end
 
--- Strict globals from here on.
-setmetatable(_G, {
-    __index = function(_, k)
-        if OWN_GLOBALS[k] then return nil end
-        error("undefined global read: " .. tostring(k), 2)
-    end,
-    __newindex = function(t, k, v)
-        if not OWN_GLOBALS[k] then WoW.globalWrites[k] = true end
-        rawset(t, k, v)
-    end,
-})
+-- Strict globals from here on; a write of a global other than the addon's
+-- own is recorded (the kit's strict reads only).
+Kit.strict(OWN_GLOBALS)
+getmetatable(_G).__newindex = function(t, k, v)
+    if not OWN_GLOBALS[k] then WoW.globalWrites[k] = true end
+    rawset(t, k, v)
+end
