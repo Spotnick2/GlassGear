@@ -9,7 +9,7 @@ PR code review is done **manually by the owner**. Don't run Codex (or any automa
 and don't post review comments, unless asked.
 
 For a second opinion on a plan or design, when the owner asks for one, use **Codex** through the
-`/codex-consult` skill, with `-m gpt-6-astra -c model_reasoning_effort=high` (the owner's choice
+`/codex-consult` skill, with `-m gpt-6.2-astra -c model_reasoning_effort=high` (the owner's choice
 for this repo). The foundation plan went through nine rounds until consensus:
 `docs/reviews/plan/`.
 
