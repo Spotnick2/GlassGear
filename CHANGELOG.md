@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.1.0-alpha3
+
+- **Alt upgrades work again after the 2026-11-20 server hotfix.** WoW Forever no longer tells
+  addons which realm you're on, and Glass Gear read that as "another realm": an item that could be
+  mailed to one of your alts got no amber arrow and no protection. Glass Gear now goes by faction
+  and ruleset (PvE, PvP, Roleplay, Hardcore), like AltStable. It needs **AltStable v1.11.0** or
+  newer for the rulesets; with an older AltStable, alt upgrades show as unknown rather than wrong.
+- Mail between two realms of the same ruleset hasn't been tested yet, so Glass Gear assumes it
+  works.
+
 ## v0.1.0-alpha2
 
 - **Fire, Frost, Nature and Holy spell damage count**: items with "+N Fire Spell Damage" and the
