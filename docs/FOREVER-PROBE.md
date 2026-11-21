@@ -228,7 +228,9 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 
 - **Question.**
   - Can an unbound BoE be mailed to a same-realm character of the **other faction**?
-  - Can it be mailed to another realm?
+  - Can it be mailed to another realm? Since the 2026-11-20 hotfix the client hides the realm (#88),
+    so the rule compares rulesets: can it go to an alt on **another realm of the same ruleset**
+    (the owner has PvE characters on Realm 1 and Realm 7), and is it refused across rulesets?
   - Do connected realms exist?
   - Which bind types occur: `C_Item.GetItemInfo` `bindType`, `Enum.ItemBind`?
   - Does any account-bound item exist? If so, does it move between the owner's two WoW accounts
@@ -240,7 +242,7 @@ everything; P12 the atlas and the replacement addons; P13 `OpenToCategory` and t
 - **Steps.** Everything is owner actions with `ask` steps and screenshots. The probe never sends
   mail itself.
   1. Address a mail to an other-faction alt and attach a cheap BoE: was it refused? Take a screenshot.
-  2. Address one to an alt on another realm.
+  2. Address one to an alt on another realm of the same ruleset, then to one on another ruleset.
   3. `run`: log the bind values for a sample of bag items.
 
 ## P6: Tooltip post-call coverage (GG-107, GG-111)

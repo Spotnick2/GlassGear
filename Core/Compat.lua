@@ -200,11 +200,16 @@ function Compat.ClassName(token)
     if type(name) == "string" and name ~= "" then return name end
 end
 
+-- `realm` is nil when the client won't say: Forever hides it since the
+-- 2026-11-20 server hotfix (GetRealmName() is "", #88). The ruleset comes
+-- from AltStable (RosterProvider.Refresh), never from the realm name.
 function Compat.Player()
     local name = UnitName("player")
     local _, class = UnitClass("player")
     local faction = UnitFactionGroup("player")
-    return { key = UnitGUID("player"), guid = UnitGUID("player"), name = name, realm = GetRealmName(),
+    local realm = GetRealmName()
+    if type(realm) ~= "string" or realm == "" then realm = nil end
+    return { key = UnitGUID("player"), guid = UnitGUID("player"), name = name, realm = realm,
         class = class, level = UnitLevel("player"), faction = faction, provenance = "self",
         canDualWield = CanDualWield(), current = true }
 end

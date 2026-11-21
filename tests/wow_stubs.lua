@@ -39,7 +39,7 @@ local function reset()
     WoW.globalWrites = {}
     WoW.errors = {}       -- errors caught by xpcall (geterrorhandler)
     WoW.itemRequests = {}
-    WoW.player = { name = "Karuzo", realm = "Forever", class = "PRIEST", className = "Priest",
+    WoW.player = { name = "Karuzo", realm = "", class = "PRIEST", className = "Priest",
         level = 60, faction = "Alliance", guid = "Player-1-0000AAAA", dualWield = false }
     WoW.specGroup = 1
     WoW.numSpecGroups = 2   -- GetNumSpecGroups (1 without dual spec)
@@ -212,6 +212,7 @@ function UnitClass(u) if u == "player" then return WoW.player.className, WoW.pla
 function UnitGUID(u) if u == "player" then return WoW.player.guid end end                             -- 6441
 function UnitLevel(u) if u == "player" then return WoW.player.level end end                           -- 6521
 function UnitFactionGroup(u) if u == "player" then return WoW.player.faction, WoW.player.faction end end -- 6439
+-- WoW.player.realm is "": Forever hides the realm since the 2026-11-20 hotfix (#88).
 function GetRealmName() return WoW.player.realm end                                                    -- 5160
 function CanDualWield() return WoW.player.dualWield end                                                -- 4461
 function GetInventoryItemLink(unit, slot)                                                              -- 19226

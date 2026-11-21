@@ -40,7 +40,7 @@ end
 |---|---|---|
 | `GetCapabilities()` | `{apiVersion, build, features = {evaluate, evaluateBatch, assessProtection, alts, sync, frameBudget, resultCache, ...}, limits = {perFrame, jobs, requests, cache, ...}, unavailable = {[feature] = reason}}` | yes |
 | `IsReady()` | boolean | yes |
-| `GetCharacters()` | list of `{key, guid, name, realm, faction, class, level, provenance, current, hidden, account, provenanceVia}`: the current character first, then the player's own others from AltStable (GG-201; `provenance` `self` or `own-account`, never `third-party`). The current character only without AltStable AS-001 + AS-003 (`features.roster`) | yes (local) |
+| `GetCharacters()` | list of `{key, guid, name, realm, faction, class, level, provenance, current, hidden, account, provenanceVia}`: the current character first, then the player's own others from AltStable (GG-201; `provenance` `self` or `own-account`, never `third-party`). The current character only without AltStable AS-001 + AS-003 (`features.roster`). `realm` is nil when unknown: Forever hides it since 2026-11-20 (#88) | yes (local) |
 | `GetSpecs(charKey)` | list of `{key, name, current, hasProfile}` in tree order, for the current character or an own alt (an alt's `current` is always false: its spec isn't known). `key` is the stable identifier; `name` is for display, in the client's language (GG-403) | yes |
 | `GetProfile(charKey, specKey)` | The spec's **active** profile (of up to 4; SCHEMA, latest `activeAt`): `{id, specKey, name, source, origin, version, updatedAt, weights = {[token] = n}}` or `nil, reason` (`NO_WEIGHTS`; `UNKNOWN_CHARACTER` / `UNKNOWN_SPEC` for a pair `GetSpecs` doesn't list). With no import, the spec's default (`source = "default"`, GG-120) | yes (local) |
 | `Evaluate(request)` | response (below) | yes (current character, local baselines) |
@@ -109,10 +109,25 @@ end
 - **Order:** current spec, then the character's other specs in tree order, then the tracked alts'
   specs (AltStable's roster order, then tree order).
 - **Alt rows** (GG-203): `character.current` is `false` (`true` on the current character's rows).
-  - `transfer` decides first: an item that can't reach that alt (bound, another realm or faction) is
-    `ineligible`, `NOT_TRANSFERABLE`, with the cause in `transfer.reasons`, and costs no evaluation.
-    An unbound item on the same realm and faction is `eligible`, `MAIL_SAME_REALM_FACTION` (proposed
-    until probed, GG-116). Account-bound kinds and links with no instance are `unknown`.
+  - `transfer` decides first: an item that can't reach that alt is `ineligible`, `NOT_TRANSFERABLE`,
+    with the cause in `transfer.reasons`, and costs no evaluation. Account-bound kinds and links
+    with no instance are `unknown`. For an unbound item to an own alt, the current character and the
+    alt are compared on ruleset, realm and faction. A value counts only when both sides have it.
+    The first match wins:
+    1. rulesets differ: `ineligible`, `OTHER_RULESET`;
+    2. realms differ: `ineligible`, `OTHER_REALM`;
+    3. factions differ: `ineligible`, `OTHER_FACTION`;
+    4. same faction and same realm: `eligible`, `MAIL_SAME_REALM_FACTION`;
+    5. same faction and same ruleset: `eligible`, `MAIL_SAME_RULESET_FACTION`;
+    6. otherwise (a faction missing, or neither a realm nor a ruleset on both sides): `unknown`,
+       `RECIPIENT_LOCATION_UNKNOWN`.
+
+    So a known difference is enough to say no, even when the ruleset is missing. A missing value
+    only makes the result `unknown` when nothing known says no and nothing proves a match. Both
+    `eligible` results are proposed until probed (`transfer.proposed`, GG-116). Forever hides the
+    realm since the 2026-11-20 server hotfix (#88), so a realm is usually nil and rules 5 and 6
+    decide. The ruleset comes from AltStable (v1.11.0, its `ruleset` field), for the current
+    character too, from its own entry.
   - Baseline: what the alt wore while it played that spec with Glass Gear on this WoW account
     (`observed`), else AltStable's last scan of its gear (`fallback-current`, reason
     `BASELINE_FALLBACK`); `unknown`, `NO_ALT_GEAR` when AltStable has none.
