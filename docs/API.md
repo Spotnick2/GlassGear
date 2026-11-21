@@ -109,15 +109,25 @@ end
 - **Order:** current spec, then the character's other specs in tree order, then the tracked alts'
   specs (AltStable's roster order, then tree order).
 - **Alt rows** (GG-203): `character.current` is `false` (`true` on the current character's rows).
-  - `transfer` decides first: an item that can't reach that alt (bound, another ruleset, realm or
-    faction: `OTHER_RULESET`, `OTHER_REALM`, `OTHER_FACTION`) is `ineligible`, `NOT_TRANSFERABLE`,
-    with the cause in `transfer.reasons`, and costs no evaluation. An unbound item for an alt of the
-    same faction and ruleset is `eligible`, `MAIL_SAME_RULESET_FACTION`, or `MAIL_SAME_REALM_FACTION`
-    when both realms are known (proposed until probed, GG-116). Forever hides the realm since the
-    2026-11-20 server hotfix (#88), so a realm is usually nil and the ruleset decides. It comes from
-    AltStable (v1.11.0, its `ruleset` field): for the current character too, from its own entry.
-    Without one on either side, the transfer is `unknown`, `RECIPIENT_LOCATION_UNKNOWN`.
-    Account-bound kinds and links with no instance are `unknown`.
+  - `transfer` decides first: an item that can't reach that alt is `ineligible`, `NOT_TRANSFERABLE`,
+    with the cause in `transfer.reasons`, and costs no evaluation. Account-bound kinds and links
+    with no instance are `unknown`. For an unbound item to an own alt, the current character and the
+    alt are compared on ruleset, realm and faction. A value counts only when both sides have it.
+    The first match wins:
+    1. rulesets differ: `ineligible`, `OTHER_RULESET`;
+    2. realms differ: `ineligible`, `OTHER_REALM`;
+    3. factions differ: `ineligible`, `OTHER_FACTION`;
+    4. same faction and same realm: `eligible`, `MAIL_SAME_REALM_FACTION`;
+    5. same faction and same ruleset: `eligible`, `MAIL_SAME_RULESET_FACTION`;
+    6. otherwise (a faction missing, or neither a realm nor a ruleset on both sides): `unknown`,
+       `RECIPIENT_LOCATION_UNKNOWN`.
+
+    So a known difference is enough to say no, even when the ruleset is missing. A missing value
+    only makes the result `unknown` when nothing known says no and nothing proves a match. Both
+    `eligible` results are proposed until probed (`transfer.proposed`, GG-116). Forever hides the
+    realm since the 2026-11-20 server hotfix (#88), so a realm is usually nil and rules 5 and 6
+    decide. The ruleset comes from AltStable (v1.11.0, its `ruleset` field), for the current
+    character too, from its own entry.
   - Baseline: what the alt wore while it played that spec with Glass Gear on this WoW account
     (`observed`), else AltStable's last scan of its gear (`fallback-current`, reason
     `BASELINE_FALLBACK`); `unknown`, `NO_ALT_GEAR` when AltStable has none.
