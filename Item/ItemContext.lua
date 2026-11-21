@@ -31,9 +31,18 @@ end
 -- Transfer from the current character to `recipient`.
 --   binding   = ItemContext.Classify(...)
 --   bindType  = the item's bind type (for hypothetical links)
---   from      = { realm, faction }
---   recipient = { provenance, realm, faction, current = bool }
--- Mail rules (same realm + same faction) are PROPOSED until GG-116 measures them.
+--   from      = { realm, ruleset, faction }
+--   recipient = { provenance, realm, ruleset, faction, current = bool }
+-- `ruleset` is AltStable's ("Normal", "PvP", "RP", "RPPvP", "Hardcore").
+-- Forever hides the realm since the 2026-11-20 server hotfix (GetRealmName()
+-- is "", #88), so a realm is nil for most characters: mail goes by faction
+-- and ruleset, as AltStable's own rule does. A realm still decides when both
+-- are known. Each check needs both sides known; nothing known claims nothing.
+-- Mail rules (same faction + same ruleset or realm) are PROPOSED until GG-116
+-- measures them: across rulesets is the owner's word from play, and between
+-- two realms of one ruleset is untried.
+local function differ(a, b) return a ~= nil and b ~= nil and a ~= b end
+local function same(a, b) return a ~= nil and a == b end
 function ItemContext.Transfer(binding, bindType, from, recipient)
     local out = { state = "unknown", reasons = {} }
     local function done(state, reason)
@@ -53,13 +62,18 @@ function ItemContext.Transfer(binding, bindType, from, recipient)
     end
     if binding ~= "unbound" then return done("unknown", "BIND_STATE_UNKNOWN") end
 
-    if not (from and recipient.realm and recipient.faction and from.realm and from.faction) then
-        return done("unknown", "RECIPIENT_LOCATION_UNKNOWN")
+    from = from or {}
+    if differ(from.ruleset, recipient.ruleset) then return done("ineligible", "OTHER_RULESET") end
+    if differ(from.realm, recipient.realm) then return done("ineligible", "OTHER_REALM") end
+    if differ(from.faction, recipient.faction) then return done("ineligible", "OTHER_FACTION") end
+    local why
+    if same(from.faction, recipient.faction) then
+        if same(from.realm, recipient.realm) then why = "MAIL_SAME_REALM_FACTION"
+        elseif same(from.ruleset, recipient.ruleset) then why = "MAIL_SAME_RULESET_FACTION" end
     end
-    if recipient.realm ~= from.realm then return done("ineligible", "OTHER_REALM") end
-    if recipient.faction ~= from.faction then return done("ineligible", "OTHER_FACTION") end
+    if not why then return done("unknown", "RECIPIENT_LOCATION_UNKNOWN") end
     out.proposed = true   -- rule pending GG-116
-    return done("eligible", "MAIL_SAME_REALM_FACTION")
+    return done("eligible", why)
 end
 
 return ItemContext

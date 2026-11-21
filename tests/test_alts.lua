@@ -4,7 +4,8 @@
 -- its docs/PUBLIC-API.md.
 --
 --   * only tracked alts, in the roster's order; a bound item costs them nothing;
---   * transfer: same realm and faction (the proposed mail rule, GG-116),
+--   * transfer: same ruleset and faction (the proposed mail rule, GG-116; the
+--     realm is hidden since the 2026-11-20 hotfix, #88),
 --     account-bound kinds unknown, a third-party character never;
 --   * an alt's gear: its observed baseline for the spec, else AltStable's
 --     last scan (fallback-current); loading items make a pending row;
@@ -47,13 +48,13 @@ local WANDA, DRAK, HORDE, FAR, LOW, BARE = "Player-1-WANDA", "Player-1-DRAK", "P
 local NOW = 1793500000
 WoW.now = NOW
 local chars = {
-    { guid = ME, name = "Karuzo Elegia", realm = "Forever", faction = "Alliance", class = "PRIEST", level = 60, provenance = "self" },
-    { guid = WANDA, name = "Wanda Frostweave", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60, provenance = "self" },
-    { guid = DRAK, name = "Drakuza", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60, provenance = "own-account" },
-    { guid = HORDE, name = "Hordey", realm = "Forever", faction = "Horde", class = "MAGE", level = 60, provenance = "self" },
-    { guid = FAR, name = "Farry", realm = "Elsewhere", faction = "Alliance", class = "MAGE", level = 60, provenance = "self" },
-    { guid = LOW, name = "Lowbie", realm = "Forever", faction = "Alliance", class = "MAGE", level = 20, provenance = "self" },
-    { guid = BARE, name = "Bare", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60, provenance = "self" },
+    { guid = ME, ruleset = "Normal", name = "Karuzo Elegia", realm = "Forever", faction = "Alliance", class = "PRIEST", level = 60, provenance = "self" },
+    { guid = WANDA, ruleset = "Normal", name = "Wanda Frostweave", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60, provenance = "self" },
+    { guid = DRAK, ruleset = "Normal", name = "Drakuza", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60, provenance = "own-account" },
+    { guid = HORDE, ruleset = "Normal", name = "Hordey", realm = "Forever", faction = "Horde", class = "MAGE", level = 60, provenance = "self" },
+    { guid = FAR, ruleset = "PvP", name = "Farry", realm = "Elsewhere", faction = "Alliance", class = "MAGE", level = 60, provenance = "self" },
+    { guid = LOW, ruleset = "Normal", name = "Lowbie", realm = "Forever", faction = "Alliance", class = "MAGE", level = 20, provenance = "self" },
+    { guid = BARE, ruleset = "Normal", name = "Bare", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60, provenance = "self" },
     { guid = "Player-1-FRIEND", name = "Friendo", realm = "Forever", faction = "Alliance", class = "MAGE", level = 60,
       provenance = "third-party" },
 }
@@ -122,7 +123,7 @@ eq(w.status, "upgrade", "Wanda (Frost) gets an upgrade from the BoE in the bags"
 eq(w.character.current, false, "...an alt row (character.current false)")
 eq(by[ME .. "/PRIEST.SHADOW"].character.current, true, "...the current character's rows say current")
 eq(w.transfer.state, "eligible", "...it can be mailed to her")
-eq(w.transfer.reasons[1], "MAIL_SAME_REALM_FACTION", "...same realm and faction (proposed until GG-116)")
+eq(w.transfer.reasons[1], "MAIL_SAME_RULESET_FACTION", "...same ruleset and faction (proposed until GG-116), the realm hidden")
 eq(w.baseline.source, "fallback-current", "...compared with what AltStable last saw her wear")
 check(H.has(w.reasons, "BASELINE_FALLBACK"), "...said so")
 eq(string.format("%.2f", w.score.pct), "1.50", "...her Intellect weight: 25 against 10")
@@ -132,7 +133,7 @@ local hz = by[HORDE .. "/MAGE.FROST"]
 eq(hz.status, "ineligible", "another faction: ineligible")
 eq(hz.reasons[1], "NOT_TRANSFERABLE", "...NOT_TRANSFERABLE")
 eq(hz.transfer.reasons[1], "OTHER_FACTION", "...because of the faction")
-eq(by[FAR .. "/MAGE.FROST"].transfer.reasons[1], "OTHER_REALM", "another realm: OTHER_REALM")
+eq(by[FAR .. "/MAGE.FROST"].transfer.reasons[1], "OTHER_RULESET", "another ruleset: OTHER_RULESET")
 eq(by[BARE .. "/MAGE.FROST"].reasons[1], "NO_ALT_GEAR", "an alt AltStable has no gear for: unknown, NO_ALT_GEAR")
 local reads0 = gearReads
 rows({ bag = 0, slot = 4 })
@@ -287,6 +288,35 @@ eq(select(2, rows({ bag = 0, slot = 5 }))[WANDA .. "/MAGE.FROST"].status, "ineli
 chars[2].level = 60
 fire("CharactersChanged")
 WoW.flush()
+
+-- The realm is hidden (#88): the client says "", the mail check goes by ruleset.
+eq(GG.player.realm, nil, "GetRealmName() is \"\": the current character's realm is nil, not \"\"")
+local function wandaTransfer()
+    fire("CharactersChanged")
+    WoW.flush()
+    return select(2, rows({ bag = 0, slot = 1 }))[WANDA .. "/MAGE.FROST"].transfer
+end
+chars[1].ruleset = nil
+local wt = wandaTransfer()
+eq(wt.state .. "/" .. wt.reasons[1], "unknown/RECIPIENT_LOCATION_UNKNOWN",
+    "the current character's own entry has no ruleset (AltStable before v1.11.0): unknown, never other realm")
+chars[1].ruleset = "Normal"
+chars[2].ruleset = nil
+wt = wandaTransfer()
+eq(wt.state .. "/" .. wt.reasons[1], "unknown/RECIPIENT_LOCATION_UNKNOWN", "...Wanda's has none: unknown")
+chars[2].ruleset = "PvP"
+eq(GG.Integrations.RosterProvider.Refresh(), true, "...an alt's ruleset alone changing is a roster change")
+chars[1].ruleset = "PvP"
+eq(GG.Integrations.RosterProvider.Refresh(), true, "...and so is the current character's")
+chars[1].ruleset = "Normal"
+chars[2].ruleset = "Seasonal"
+eq(wandaTransfer().state, "unknown", "...a ruleset AltStable may add later: claims nothing")
+chars[2].ruleset, chars[2].realm = "Normal", ""
+wt = wandaTransfer()
+eq(wt.state .. "/" .. wt.reasons[1], "eligible/MAIL_SAME_RULESET_FACTION", "...her realm blank, her ruleset ours: eligible")
+eq(GG.Integrations.RosterProvider.Find(WANDA).realm, nil, "...and a blank realm is nil in the roster")
+chars[2].realm = "Forever"
+wandaTransfer()
 
 -- Explicit targets name an alt; an unknown one is refused.
 local tr = api.Evaluate({ item = { bag = 0, slot = 1 }, scope = "targets", targets = { { char = WANDA, spec = "MAGE.FROST" } } })

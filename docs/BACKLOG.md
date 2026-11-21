@@ -407,6 +407,9 @@ M0 is [#1](https://github.com/Spotnick2/GlassGear/issues/1), closed by the found
 - **Outcome.** We know, measured on Forever:
   - whether a BoE can be mailed to a same-realm, same-faction alt, and to the other WoW account;
   - cross-faction and connected realms;
+  - across rulesets (the owner says no, from play), and between two realms of one ruleset
+    (untried: the owner has PvE characters on two). Since the realm is hidden (2026-11-20 hotfix,
+    #88), the mail rule goes by faction and ruleset;
   - account-bound kinds.
 - **Scope.** Probe P5. Update `ItemContext.Transfer` and remove `proposed`.
 - **Validation:** game, then auto.
@@ -488,7 +491,7 @@ entry-sync library (ES-001). AltStable keeps the roster, provenance and gear.
 ### GG-201: AltStable roster provider (P0, MVP)
 
 - **Outcome.** Own characters from both accounts are discoverable, with provenance, level, class,
-  realm and faction.
+  realm (nil since Forever hides it, #88), ruleset (AltStable v1.11.0) and faction.
 - **Scope.** `RosterProvider` adapter; version and feature detection (the existing
   `DetectAltStable`, which checks `AltStable.PUBLIC_API_FEATURES.provenance` and `.gear` with their
   functions).

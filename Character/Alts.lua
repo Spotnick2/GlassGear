@@ -113,7 +113,7 @@ end
 
 function Alts.Recipient(c, baseline)
     local oh = baseline and baseline.slots and baseline.slots[17]
-    return { key = c.key, name = c.name, realm = c.realm, faction = c.faction, provenance = c.provenance,
+    return { key = c.key, name = c.name, realm = c.realm, ruleset = c.ruleset, faction = c.faction, provenance = c.provenance,
         class = c.class, level = c.level, current = false,
         canDualWield = oh ~= nil and oh.state == "occupied" and oh.classID == 2 }
 end
@@ -140,8 +140,9 @@ function Alts.Transfer(facts, instance, c)
     local binding = GG.ItemContext.Classify({ instance = instance ~= nil, isBound = instance and instance.bound,
         accountBound = ACCOUNT[facts.bindType or -1] == true })
     local p = GG.player
-    return GG.ItemContext.Transfer(binding, facts.bindType, { realm = p.realm, faction = p.faction },
-        { provenance = c.provenance, realm = c.realm, faction = c.faction, current = false })
+    local from = { realm = p.realm, ruleset = GG.Integrations.RosterProvider.PlayerRuleset(), faction = p.faction }
+    return GG.ItemContext.Transfer(binding, facts.bindType, from,
+        { provenance = c.provenance, realm = c.realm, ruleset = c.ruleset, faction = c.faction, current = false })
 end
 
 return Alts

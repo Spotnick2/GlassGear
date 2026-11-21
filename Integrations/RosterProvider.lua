@@ -77,9 +77,17 @@ local attachError, fetchError = nil, nil
 
 local function as() return rawget(_G, "AltStable") end
 
+-- AltStable's rulesets (its `ruleset` flag, v1.11.0): compared, never shown.
+-- Anything else is nil, which claims nothing.
+RosterProvider.RULESETS = { Normal = true, PvP = true, RP = true, RPPvP = true, Hardcore = true }
+local function ruleset(c) return RosterProvider.RULESETS[c.ruleset] and c.ruleset or nil end
+local playerRuleset          -- the current character's, from its own AltStable entry
+
 -- A character in Glass Gear's shape, from AltStable's (a copy already).
+-- A realm is nil since Forever hides it (#88); AltStable never hands out "".
 local function fromAltStable(c)
-    return { key = c.guid, guid = c.guid, name = c.name, realm = c.realm, faction = c.faction,
+    return { key = c.guid, guid = c.guid, name = c.name, realm = c.realm ~= "" and c.realm or nil,
+        ruleset = ruleset(c), faction = c.faction,
         class = c.class, level = c.level, provenance = c.provenance, provenanceAt = c.provenanceAt,
         provenanceVia = c.provenanceVia, account = c.account, lastUpdate = c.lastUpdate,
         hidden = c.hidden == true, current = false }
@@ -92,9 +100,9 @@ local function signature(list)
     for _, c in ipairs(list) do
         parts[#parts + 1] = table.concat({ c.guid, tostring(c.provenance), tostring(c.provenanceVia),
             tostring(c.level), tostring(c.hidden), tostring(c.name), tostring(c.class), tostring(c.realm),
-            tostring(c.faction), tostring(c.account) }, ",")
+            tostring(c.faction), tostring(c.account), tostring(c.ruleset) }, ",")
     end
-    return table.concat(parts, ";")
+    return tostring(playerRuleset) .. "|" .. table.concat(parts, ";")
 end
 local lastSignature
 
@@ -102,7 +110,7 @@ local lastSignature
 function RosterProvider.Refresh()
     local d = RosterProvider.DetectAltStable()
     local list, c3 = {}, { self = 0, ownAccount = 0, thirdParty = 0 }
-    fetchError = nil
+    fetchError, playerRuleset = nil, nil
     if d.usable then
         RosterProvider.rebuilds = RosterProvider.rebuilds + 1
         local ok, chars = pcall(as().GetCharacters)
@@ -113,7 +121,9 @@ function RosterProvider.Refresh()
         end
         local me = GG.player and GG.player.key
         for _, c in ipairs(chars) do
-            if type(c) == "table" and type(c.guid) == "string" and c.guid ~= me then
+            if type(c) == "table" and c.guid == me and me ~= nil then
+                playerRuleset = ruleset(c)   -- its own client read it at its login scan
+            elseif type(c) == "table" and type(c.guid) == "string" then
                 if c.provenance == "self" then c3.self = c3.self + 1
                 elseif c.provenance == "own-account" then c3.ownAccount = c3.ownAccount + 1
                 else c3.thirdParty = c3.thirdParty + 1 end
@@ -217,6 +227,10 @@ function RosterProvider.CanOpenAltStable()
     return A ~= nil and type(rawget(A, "OpenSheet") or rawget(A, "ToggleSheet")) == "function"
 end
 
+-- The current character's ruleset, as its AltStable entry says, or nil
+-- (no AltStable, an AltStable before v1.11.0, or not scanned there yet).
+function RosterProvider.PlayerRuleset() return playerRuleset end
+
 function RosterProvider.Find(guid)
     if GG.player and guid == GG.player.key then return GG.player end
     for _, c in ipairs(alts) do if c.guid == guid then return c end end
@@ -234,7 +248,7 @@ end
 
 -- Test seam.
 function RosterProvider._Reset()
-    alts, counts, lastSignature = {}, { self = 0, ownAccount = 0, thirdParty = 0 }, nil
+    alts, counts, lastSignature, playerRuleset = {}, { self = 0, ownAccount = 0, thirdParty = 0 }, nil, nil
     registered, attachError, fetchError = {}, nil, nil
 end
 
