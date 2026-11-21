@@ -6,7 +6,9 @@
   addons which realm you're on, and Glass Gear read that as "another realm": an item that could be
   mailed to one of your alts got no amber arrow and no protection. Glass Gear now goes by faction
   and ruleset (PvE, PvP, Roleplay, Hardcore), like AltStable. It needs **AltStable v1.11.0** or
-  newer for the rulesets; with an older AltStable, alt upgrades show as unknown rather than wrong.
+  newer for the rulesets. With an older AltStable, Glass Gear can't tell whether an item can be
+  mailed to an alt, so it leaves that alt out of the tooltip and the bag arrows, and Shatter
+  protection keeps the item to be safe.
 - Mail between two realms of the same ruleset hasn't been tested yet, so Glass Gear assumes it
   works.
 
